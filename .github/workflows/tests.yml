@@ -1,0 +1,48 @@
+# O robô dos testes: a cada envio para a main ou para a desenvolvimento, e a cada Pull Request, o
+# GitHub liga um Windows limpo, instala o projeto do zero e roda todos os testes (npm test). O
+# resultado vira o selo ✓ ou ✗ ao lado do commit e nos Pull Requests; cada rodada fica na aba Actions.
+name: Tests
+
+on:
+  push:
+    branches: [main, desenvolvimento]
+  pull_request:
+
+# O robô só lê o repositório.
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Get the code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      # O npm ci instala exatamente o que está no package-lock.json. O better-sqlite3 já vem compilado,
+      # e os scripts de instalação negados no allowScripts (package.json) não rodam.
+      - name: Install dependencies
+        run: npm ci
+
+      # O Electron baixa o programa dele na primeira vez que é chamado; aqui, antes dos testes.
+      - name: Download Electron
+        run: node -e "require('electron')"
+
+      - name: Run the tests
+        run: npm test
+
+      # Se algo falhar, guarda o que o Playwright deixou (erros e telas), para ver na aba Actions.
+      - name: Save the app test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: test-results/
+          if-no-files-found: ignore
