@@ -109,6 +109,7 @@ Os canais IPC de hoje:
 | `README.md` e `README.pt-BR.md` | Página de apresentação do projeto no GitHub, em inglês (a que o GitHub mostra) e em português: logo, sobre, recursos, capturas de tela, download, privacidade, bugs, como compilar e roadmap |
 | `LICENSE` | A licença do código (MIT) |
 | `SECURITY.md` | Como avisar de um problema de segurança (em particular, pelo GitHub) |
+| `.github/workflows/tests.yml` | O robô dos testes (GitHub Actions): a cada envio para a `main` ou a `desenvolvimento` e a cada Pull Request, roda o `npm test` num Windows limpo do GitHub e marca o commit com ✓ ou ✗ |
 | `.github/ISSUE_TEMPLATE/` | Os formulários das Issues no GitHub: bug (`bug_report.yml`, com os campos `version` e `windows` que o botão "Reportar um problema" preenche) e ideia (`feature_request.yml`) |
 | `docs/logo.svg` | Logo do projeto (o mesmo baú do ícone do app), usado no README |
 | `docs/screenshots/` | Capturas de tela do app usadas nos READMEs: `en/` e `pt-BR/`, com os mesmos nomes de arquivo |
