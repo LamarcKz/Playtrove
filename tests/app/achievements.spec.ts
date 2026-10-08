@@ -70,9 +70,11 @@ test("a conta é conferida antes de salvar, e a chave nunca volta para a tela", 
   db.close()
   expect(stored).not.toContain(RA_API_KEY)
 
-  // Logo depois de salvar, o app busca as conquistas.
+  // Logo depois de salvar, o app busca as conquistas. A primeira vez busca tudo (consoles, catálogo,
+  // conquistas e insígnias de todos os jogos), e pode demorar numa máquina lenta.
   await expect(page.locator('main section[aria-label="Conquistas"]')).toContainText(
-    /Última atualização: \d{2}\/\d{2}\/\d{4}/
+    /Última atualização: \d{2}\/\d{2}\/\d{4}/,
+    { timeout: 30_000 }
   )
 })
 
