@@ -5,6 +5,8 @@ import { defineConfig } from "@playwright/test"
 export default defineConfig({
   testDir: "tests/app",
   timeout: 60_000,
+  // O robô de testes do GitHub (CI) é mais lento que um computador comum: lá, cada conferência espera mais.
+  expect: { timeout: process.env["CI"] ? 15_000 : 5_000 },
   // Um app por vez: cada teste abre a janela do Electron.
   workers: 1,
   reporter: [["list"]],
