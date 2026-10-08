@@ -1,0 +1,9 @@
+node_modules
+out
+dist
+*.log
+*.tsbuildinfo
+
+# Resultados dos testes do app (Playwright)
+test-results/
+playwright-report/

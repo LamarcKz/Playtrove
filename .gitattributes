@@ -1,0 +1,7 @@
+# Guarda todo arquivo de texto com quebra de linha LF (evita diferenças falsas entre Windows e GitHub).
+* text=auto eol=lf
+
+# Imagens são binárias.
+*.png binary
+*.jpg binary
+*.ico binary

@@ -1,0 +1,66 @@
+name: Bug report
+description: Something isn't working in Playtrove. / Algo não está funcionando no Playtrove.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report it! You can write in English or Portuguese.
+        Obrigado por avisar! Pode escrever em inglês ou em português.
+
+        The **Report a problem** button in Settings → About opens this form with the version already filled in.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What went wrong, and what did you expect to happen?
+      placeholder: When I click Play on a PS2 game, the emulator opens and closes right away.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we make it happen again?
+      placeholder: |
+        1. Go to Emulators
+        2. Add a ROM folder
+        3. Click Scan
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where in the app?
+      options:
+        - Library (Details, Grid, List or Kanban)
+        - Emulators and ROM folders
+        - Play button and playtime
+        - Metadata and images (IGDB, SteamGridDB, libretro)
+        - Achievements (RetroAchievements) or PS3 trophies
+        - Statistics
+        - Settings
+        - Installer or updates
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Playtrove version
+      description: It's in Settings → About.
+      placeholder: "0.5.0"
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 Pro (10.0.26200)
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Screenshots or anything else
+      description: You can drag images here. Please don't include your API keys or personal paths.

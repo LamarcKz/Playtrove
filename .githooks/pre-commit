@@ -1,0 +1,13 @@
+#!/bin/sh
+# Trava: a main é a versão estável e só muda por Pull Request da branch "desenvolvimento".
+# Detalhes na seção "Git e GitHub" do CLAUDE.md e em "Histórico e versões" do ESTRUTURA.md.
+branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null)
+if [ "$branch" = "main" ]; then
+  echo ""
+  echo "Commit bloqueado: você está na branch main (a versão estável)."
+  echo "O dia a dia acontece na branch desenvolvimento. Para ir até ela:"
+  echo "  git switch desenvolvimento"
+  echo ""
+  exit 1
+fi
+exit 0

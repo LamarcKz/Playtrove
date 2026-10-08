@@ -1,0 +1,7 @@
+Playtrove portable
+
+EN: With this file next to Playtrove.exe, your library is kept in the "data" folder, right here.
+    Delete it to use the Windows folder (%APPDATA%\Playtrove) instead.
+
+PT: Com este arquivo ao lado do Playtrove.exe, a biblioteca fica na pasta "data", aqui do lado.
+    Apague-o para usar a pasta do Windows (%APPDATA%\Playtrove).

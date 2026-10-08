@@ -1,0 +1,21 @@
+name: Idea or feature request
+description: Suggest something new for Playtrove. / Sugira algo novo para o Playtrove.
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check the [roadmap](https://github.com/LamarcKz/Playtrove#roadmap) first: it may already be planned.
+        You can write in English or Portuguese. / Pode escrever em inglês ou em português.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like Playtrove to do?
+      placeholder: Import my Steam library, so all my games are in one place.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help you?
+      description: How do you play today, and what's missing?
