@@ -402,7 +402,7 @@ Duas regras de segurança:
 
 ## Histórico e versões (Git e GitHub)
 
-O projeto fica guardado com o Git, e o GitHub guarda uma cópia online, no repositório `LamarcKz/Playtrove` (privado por enquanto). Funciona como os saves de um jogo:
+O projeto fica guardado com o Git, e o GitHub guarda uma cópia online, no repositório público `LamarcKz/Playtrove`. Funciona como os saves de um jogo:
 
 - **commit** = salvar o jogo (a cada tarefa concluída);
 - **push** = mandar o save para a nuvem (logo depois de cada commit);
