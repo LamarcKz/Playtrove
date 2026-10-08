@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão 0.4.0" src="https://img.shields.io/badge/vers%C3%A3o-0.4.0-0072d0">
+  <img alt="Versão 0.5.0" src="https://img.shields.io/badge/vers%C3%A3o-0.5.0-0072d0">
   <img alt="Em desenvolvimento" src="https://img.shields.io/badge/status-em%20desenvolvimento-orange">
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <img alt="Windows 10 e 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white">
