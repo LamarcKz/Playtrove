@@ -15,8 +15,9 @@ interface GameCardProps {
 /**
  * Card de um jogo no grid: capa com o status numa faixa embaixo, título, tempo jogado e, nos jogos
  * com conquistas, o troféu com o progresso.
- * A capa dá um leve zoom no hover. Os cantos de baixo são retos, para a faixa do status não ficar
- * cortada (pedido do usuário em 2026-09-19).
+ * A capa dá um leve zoom no hover. A faixa fica embaixo da capa, e não por cima, para a capa
+ * aparecer inteira (pedido do usuário em 2026-10-14); os cantos de baixo são retos, para a faixa
+ * não ficar cortada (pedido de 2026-09-19).
  */
 export function GameCard({ game, selected, onSelect }: GameCardProps) {
   const { t } = useI18n()
@@ -31,13 +32,13 @@ export function GameCard({ game, selected, onSelect }: GameCardProps) {
     >
       <div
         className={cn(
-          "relative w-full overflow-hidden rounded-t-lg shadow-md shadow-black/20 transition duration-200 ease-out group-hover:scale-[1.04] group-hover:shadow-xl group-focus-visible:ring-3 group-focus-visible:ring-ring/60",
+          "w-full overflow-hidden rounded-t-lg shadow-md shadow-black/20 transition duration-200 ease-out group-hover:scale-[1.04] group-hover:shadow-xl group-focus-visible:ring-3 group-focus-visible:ring-ring/60",
           selected && "ring-2 ring-primary"
         )}
       >
         <GameCover title={game.title} src={game.coverUrl} className="w-full rounded-none" />
-        {/* Faixa do status: encostada nas bordas de baixo, que são retas. */}
-        <span className="absolute inset-x-0 bottom-0 truncate bg-cover-label px-2.5 py-1.5 text-xs font-medium text-cover-label-foreground backdrop-blur-sm">
+        {/* Faixa do status: logo embaixo da capa, sem cobrir a imagem. */}
+        <span className="block truncate bg-cover-label px-2.5 py-1.5 text-xs font-medium text-cover-label-foreground">
           {statusName(game.statusId)}
         </span>
       </div>

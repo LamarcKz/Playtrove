@@ -51,12 +51,12 @@ test("Detalhes: jogos em ordem alfabética e as informações do jogo aberto", a
   await expect(info("Tempo jogado")).toHaveText("1 h 35 min")
 })
 
-test("Grade: cada capa tem a faixa com o status", async () => {
+test("Grade: cada capa tem a faixa com o status, embaixo dela", async () => {
   await chooseView(page, "Grade")
   const cards = page.locator("main button[aria-pressed]")
   await expect(cards).toHaveCount(12)
-  await expect(cards.filter({ hasText: "Mar de Estrelas" }).locator("span.absolute")).toHaveText("Platinado")
-  await expect(cards.filter({ hasText: "Horizonte Partido" }).locator("span.absolute")).toHaveText("Planejo jogar")
+  await expect(cards.filter({ hasText: "Mar de Estrelas" }).locator(":scope > div > span")).toHaveText("Platinado")
+  await expect(cards.filter({ hasText: "Horizonte Partido" }).locator(":scope > div > span")).toHaveText("Planejo jogar")
 })
 
 test("trocar de modo fecha os detalhes, e o jogo continua destacado", async () => {
