@@ -44,11 +44,11 @@ PC gamers end up with their games scattered everywhere: some on Steam, some on G
 The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame with the tools at the top, an icon menu on the left and your library in the middle. Your library is stored on your own computer, in a local database, with no account and no internet required.
 
 > [!NOTE]
-> Playtrove is still being built. For now, games come in through emulators (PCSX2, DuckStation, RetroArch and RPCS3); Steam, GOG and other stores are on the [roadmap](#roadmap).
+> Playtrove is still being built. For now, games come in through emulators (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin and Azahar); Steam, GOG and other stores are on the [roadmap](#roadmap).
 
 ## Features
 
-- **Emulators**: Playtrove finds PCSX2, DuckStation, RetroArch (with its installed cores) and RPCS3 on its own. Point it to your ROM folders: the emulator, core and console are suggested from the folder name, and games are added with clean names, without "(USA)" and the like.
+- **Emulators**: Playtrove finds PCSX2, DuckStation, RetroArch (with its installed cores), RPCS3, PPSSPP (PSP), Dolphin (GameCube and Wii) and Azahar (3DS) on its own. Point it to your ROM folders: the emulator, core and console are suggested from the folder name, and games are added with clean names, without "(USA)" and the like.
 - **Play**: opens the game in its emulator, with the emulator's own settings, and keeps track of playtime and when you last played. Time recorded by the emulators themselves counts too, so games you started straight from the emulator show up the same way.
 - **Metadata and images**: covers come from [libretro-thumbnails](https://thumbnails.libretro.com/) (the same ones RetroArch uses, no key needed) and, when one is missing, from [SteamGridDB](https://www.steamgriddb.com/), which also provides the background art; description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
 - **Details view**: the main library view. Your games are listed on the left, with icons. On the right: the background art, the cover above the title, the **Play** and **More** buttons, the details and the description.
@@ -176,7 +176,7 @@ Want to understand the code? The guide to every folder and file, and where to bu
 ## Roadmap
 
 - Import games from Steam, GOG and PC game folders
-- More emulators, like Dolphin (GameCube and Wii) and PPSSPP (PSP)
+- More emulators
 - Edit a game's details and pick another cover
 - Remember the view and the filters when the app opens again
 - Customization options, like a light theme
