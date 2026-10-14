@@ -56,6 +56,7 @@ export const en: Messages = {
     close: "Close",
     dev: "DEV",
     devHint: "Development build (npm run dev), with a copy of your library",
+    devTestsHint: "Development build, in the automated tests (in a temporary folder, with sample games)",
   },
 
   toast: {

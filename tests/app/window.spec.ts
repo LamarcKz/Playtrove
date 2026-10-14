@@ -22,6 +22,19 @@ test("a janela abre maximizada e restaura para 1280×800 (ou o que couber na tel
   }
 })
 
+test("nos testes, a janela é a versão DEV (marca no logo e no título), e não parece o app instalado", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    expect(await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle())).toBe("Playtrove Dev")
+    const mark = page.locator("header").getByText("DEV", { exact: true })
+    await expect(mark).toBeVisible()
+    await expect(mark).toHaveAttribute("title", /testes automáticos/)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
 test("biblioteca vazia mostra o aviso", async () => {
   const { app, page, dataDir } = await launchApp({ sampleGames: false })
   try {

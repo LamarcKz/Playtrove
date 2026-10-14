@@ -211,7 +211,7 @@ Os canais IPC de hoje:
 | `hooks/useAchievements.ts` | A conta do RetroAchievements e a situação da atualização (acompanha os avisos do main), as conquistas de um jogo e o resumo da aba Conquistas |
 | `lib/dualsense.ts` | Como ler o DualSense: `getConnection()` descobre se ele está no USB ou no Bluetooth, `parseBattery()` tira a bateria dos dados do controle e `readBattery()` abre o controle por um instante para fazer a leitura |
 | `lib/utils.ts` | `cn()`: junta classes do Tailwind sem conflito |
-| `lib/devBuild.ts` | `isDevBuild`: a janela é a do `npm run dev` (o main põe `?dev=1` no endereço). A barra do topo mostra a marca DEV |
+| `lib/devBuild.ts` | `devMark`: a janela roda o código em desenvolvimento, no `npm run dev` (`?dev=library`, com a cópia da biblioteca) ou nos testes automáticos (`?dev=tests`). A barra do topo mostra a marca DEV |
 | `lib/format.ts` | Textos no idioma do app: `formatPlaytime()` ("12 h 30 min" ou "12h 30m"), `formatLastPlayed()` ("Hoje", "Há 5 dias", "12/08/2026"), `formatReleaseDate()` ("14/10/2003" ou "10/14/2003"), `formatDateTime()`, `formatTime()`, `listTitles()` (os primeiros nomes e "e mais 2", nos avisos) e `shortCoreName()` (o nome curto de um core do RetroArch, como "mGBA") |
 | `lib/filters.ts` | A busca e os filtros: `LibraryFilters` (o que pode ser filtrado), `filterGames()` (quem passa), as faixas de tempo jogado, as de nota e dificuldade (`SCORE_RANGES`) e o período de "Recentes" (`RECENT_DAYS`, 30 dias) |
 | `lib/errors.ts` | `errorMessage()`: a mensagem de um erro para mostrar ao usuário |

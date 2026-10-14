@@ -163,6 +163,13 @@ export interface MetadataConfig {
   autoDownload: boolean
 }
 
+/**
+ * A marca DEV, que aparece em tudo o que roda o código em desenvolvimento, e não o app instalado:
+ * "library" no npm run dev (com a cópia da biblioteca) e "tests" nos testes automáticos (numa pasta
+ * temporária, com os jogos de exemplo).
+ */
+export type DevMark = "library" | "tests"
+
 /** Andamento do download de metadados (o main avisa a cada jogo). */
 export interface MetadataProgress {
   running: boolean

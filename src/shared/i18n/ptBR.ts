@@ -59,6 +59,7 @@ export const ptBR = {
     close: "Fechar",
     dev: "DEV",
     devHint: "Versão de desenvolvimento (npm run dev), com uma cópia da sua biblioteca",
+    devTestsHint: "Versão de desenvolvimento, nos testes automáticos (numa pasta temporária, com jogos de exemplo)",
   },
 
   toast: {
