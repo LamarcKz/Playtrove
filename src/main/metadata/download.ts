@@ -2,7 +2,7 @@ import type Database from "better-sqlite3"
 import { imageExtension, MAX_IMAGE_BYTES, saveGameImage, type ImageKind } from "../imageFiles"
 import { getMetadataTarget, saveGameMetadata, type GameMetadata } from "../library"
 import type { Fetch, MetadataEndpoints } from "./http"
-import { igdbImageUrl, igdbPlatformId, type IgdbGame, type IgdbSession } from "./igdb"
+import { igdbImageUrl, igdbPlatformId, preferOriginal, type IgdbGame, type IgdbSession } from "./igdb"
 import { libretroBoxartUrl } from "./libretro"
 import { pickBestMatch, searchTermFor } from "./matching"
 import type { SteamGridDbSession } from "./steamGridDb"
@@ -38,7 +38,7 @@ export async function downloadGameMetadata(db: Database.Database, gameId: number
     const platformId = igdbPlatformId(game.platform)
     let results = await services.igdb.search(term, platformId)
     if (results.length === 0 && platformId !== null) results = await services.igdb.search(term, null)
-    igdbGame = pickBestMatch(term, results)
+    igdbGame = pickBestMatch(term, results, preferOriginal)
   }
 
   let sgdbId: number | null = null

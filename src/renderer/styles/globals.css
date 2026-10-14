@@ -54,8 +54,8 @@
   --cover-start: oklch(0.9 0.012 262);
   --cover-end: oklch(0.82 0.018 262);
   --cover-foreground: oklch(0 0 0 / 25%);
-  --cover-label: oklch(0 0 0 / 62%); /* faixa do status em cima da capa (modo Grade) */
-  --cover-label-foreground: oklch(1 0 0);
+  --cover-label: oklch(0.88 0.014 262); /* faixa do status embaixo da capa (modo Grade) */
+  --cover-label-foreground: oklch(0.25 0.02 262);
   --scrollbar: oklch(0 0 0 / 20%);
   --charging: oklch(0.55 0.15 150); /* bateria do controle carregando ou cheia */
   --dev: oklch(0.8 0.16 80); /* a marca DEV do npm run dev */
@@ -112,8 +112,8 @@
   --cover-start: oklch(0.36 0.035 262);
   --cover-end: oklch(0.26 0.025 262);
   --cover-foreground: oklch(1 0 0 / 30%);
-  --cover-label: oklch(0 0 0 / 62%); /* faixa do status em cima da capa (modo Grade) */
-  --cover-label-foreground: oklch(1 0 0);
+  --cover-label: oklch(0.27 0.02 262); /* faixa do status embaixo da capa (modo Grade) */
+  --cover-label-foreground: oklch(0.96 0.005 262);
   --scrollbar: oklch(1 0 0 / 15%);
   --charging: oklch(0.74 0.17 150); /* bateria do controle carregando ou cheia */
   --dev: oklch(0.8 0.16 80); /* a marca DEV do npm run dev */

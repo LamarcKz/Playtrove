@@ -4,7 +4,7 @@ import { AppLogo } from "@/components/AppLogo"
 import { ControllerIndicator } from "@/components/ControllerIndicator"
 import { MetadataStatus } from "@/components/MetadataStatus"
 import { useI18n } from "@/hooks/useI18n"
-import { isDevBuild } from "@/lib/devBuild"
+import { devMark } from "@/lib/devBuild"
 import { cn } from "@/lib/utils"
 
 interface TopBarProps {
@@ -28,9 +28,9 @@ export function TopBar({ children }: TopBarProps) {
       {/* Mesma largura do menu lateral, para o logo ficar alinhado com os ícones de baixo. */}
       <div className="relative flex w-16 shrink-0 justify-center">
         <AppLogo />
-        {isDevBuild && (
+        {devMark && (
           <span
-            title={t.topBar.devHint}
+            title={devMark === "tests" ? t.topBar.devTestsHint : t.topBar.devHint}
             className="absolute -bottom-1.5 rounded bg-dev px-1 text-[9px] leading-3.5 font-bold text-dev-foreground"
           >
             {t.topBar.dev}

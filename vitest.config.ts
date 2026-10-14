@@ -12,5 +12,8 @@ export default defineConfig({
   test: {
     include: ["tests/unit/**/*.test.ts"],
     environment: "node",
+    // No robô de testes do GitHub (CI), o disco é mais lento: os testes que gravam bancos de verdade
+    // (ex.: o conserto do banco danificado) podem passar dos 5 s normais.
+    testTimeout: process.env["CI"] ? 30_000 : 5_000,
   },
 })

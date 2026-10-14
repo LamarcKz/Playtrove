@@ -5,6 +5,7 @@ import { languageFromSystem } from "../shared/i18n"
 import { allowControllerAccess } from "./controllers"
 import { closeDatabase, getDatabase, openDatabase, takeRepairReport } from "./database"
 import { DATABASE_FILE, locateData, portableDataFolder, type DataLocation } from "./dataFolder"
+import type { DevMark } from "../shared/types"
 import type { RepairReport } from "./databaseFile"
 import { DEV_FOLDER, devLibrary } from "./devLibrary"
 import { fillMissingEmulators } from "./emulators"
@@ -21,14 +22,22 @@ import { createMainWindow } from "./window"
 /** Rodando pelo npm run dev (e não nos testes automáticos): usa a cópia da biblioteca, a "Playtrove Dev". */
 const isDevBuild = !app.isPackaged && !testMode.dataDir
 
+/**
+ * A marca DEV (no título da janela, no logo e no ícone separado na barra de tarefas) em tudo o que
+ * roda o código em desenvolvimento: o npm run dev e também os testes automáticos, para as janelas
+ * deles nunca parecerem o app instalado (pedido do usuário em 2026-10-14). Só as capturas de tela do
+ * README ficam sem ela.
+ */
+const devMark: DevMark | null = app.isPackaged || testMode.hideDevMark ? null : isDevBuild ? "library" : "tests"
+
 // Onde ficam os dados. Isto precisa vir antes de o app ficar pronto, porque vale para o app inteiro.
 const data = dataLocation()
 mkdirSync(data.folder, { recursive: true })
 app.setPath("userData", data.folder)
 
 // O mesmo id do instalador: o Windows junta a janela, os atalhos e os avisos do app num ícone só. O
-// npm run dev tem o seu, para aparecer separado na barra de tarefas.
-app.setAppUserModelId(isDevBuild ? "io.github.lamarckz.playtrove.dev" : "io.github.lamarckz.playtrove")
+// npm run dev e os testes automáticos têm o seu, para aparecerem separados na barra de tarefas.
+app.setAppUserModelId(app.isPackaged ? "io.github.lamarckz.playtrove" : "io.github.lamarckz.playtrove.dev")
 
 // Abrir o app de novo só traz para a frente a janela que já está aberta (dois apps mexendo no mesmo
 // banco, não). Fica de fora no npm run dev, que fecha e abre o app sozinho a cada mudança no código.
@@ -62,7 +71,7 @@ function start(): void {
       registerIpcHandlers()
       handleImageProtocol()
       allowControllerAccess()
-      const mainWindow = createMainWindow(getLanguage(), isDevBuild)
+      const mainWindow = createMainWindow(getLanguage(), devMark)
       sendWindowStateChanges(mainWindow)
       if (repair) showRepairNotice(mainWindow, repair)
     })

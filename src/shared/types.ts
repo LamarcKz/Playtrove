@@ -62,10 +62,15 @@ export interface Game {
   review: string | null
   /** O progresso nas conquistas do RetroAchievements, ou null se o jogo não tiver (ou não foi achado lá). */
   achievements: AchievementProgress | null
+  /**
+   * Jogo de PS3 que tem troféus (o conjunto veio do disco), mas o RPCS3 ainda não instalou: ele só
+   * instala na primeira vez que o jogo abre.
+   */
+  trophiesPending: boolean
 }
 
 /** Emuladores que o app sabe usar. */
-export type EmulatorId = "pcsx2" | "duckstation" | "retroarch" | "rpcs3"
+export type EmulatorId = "pcsx2" | "duckstation" | "retroarch" | "rpcs3" | "ppsspp" | "dolphin" | "azahar"
 
 /** Um emulador, como a aba Emuladores mostra. */
 export interface EmulatorInfo {
@@ -157,6 +162,13 @@ export interface MetadataConfig {
   /** Baixar sozinho os metadados dos jogos novos, quando uma pasta de ROMs é procurada. */
   autoDownload: boolean
 }
+
+/**
+ * A marca DEV, que aparece em tudo o que roda o código em desenvolvimento, e não o app instalado:
+ * "library" no npm run dev (com a cópia da biblioteca) e "tests" nos testes automáticos (numa pasta
+ * temporária, com os jogos de exemplo).
+ */
+export type DevMark = "library" | "tests"
 
 /** Andamento do download de metadados (o main avisa a cada jogo). */
 export interface MetadataProgress {

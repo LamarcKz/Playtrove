@@ -12,18 +12,21 @@ import { cn } from "@/lib/utils"
 /** Quantas insígnias (as últimas desbloqueadas) o cartão mostra. */
 const BADGES = 6
 
+const CARD = "w-72 rounded-xl border border-border/60 bg-background/45 p-4 backdrop-blur-sm"
+
 /**
  * Cartão das conquistas nos detalhes do jogo, no espaço à direita do título (pedido do usuário em
  * 2026-09-24, "menor e combinando com o app"): o progresso, quantos troféus de cada tipo (o padrão
  * do PS3, também nas conquistas do RetroAchievements), as últimas insígnias e "Ver todas". Nos jogos
- * de PS3, são os troféus do RPCS3. Jogo sem conquistas não mostra nada.
+ * de PS3, são os troféus do RPCS3. Jogo sem conquistas não mostra nada; jogo de PS3 cujos troféus o
+ * RPCS3 ainda não instalou mostra só um aviso (escolha do usuário em 2026-10-14).
  */
 export function AchievementsCard({ game, className }: { game: Game; className?: string }) {
   const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const details = useGameAchievements(game.id, game)
   const progress = game.achievements
-  if (!progress) return null
+  if (!progress) return game.trophiesPending ? <PendingTrophiesCard className={className} /> : null
 
   const words = t.achievements.sources[progress.source]
   const percent = progressPercent(progress.unlocked, progress.total)
@@ -35,7 +38,7 @@ export function AchievementsCard({ game, className }: { game: Game; className?: 
   return (
     <section
       aria-label={words.title}
-      className={cn("w-72 rounded-xl border border-border/60 bg-background/45 p-4 backdrop-blur-sm", className)}
+      className={cn(CARD, className)}
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{words.title}</h2>
@@ -70,6 +73,18 @@ export function AchievementsCard({ game, className }: { game: Game; className?: 
         {words.seeAll}
       </Button>
       <AchievementsDialog game={game} open={open} onOpenChange={setOpen} />
+    </section>
+  )
+}
+
+/** O cartão de um jogo de PS3 que ainda não foi aberto no RPCS3: só o aviso de quando os troféus aparecem. */
+function PendingTrophiesCard({ className }: { className?: string }) {
+  const { t } = useI18n()
+  const title = t.achievements.sources.rpcs3.title
+  return (
+    <section aria-label={title} className={cn(CARD, className)}>
+      <h2 className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{title}</h2>
+      <p className="mt-2 text-sm text-muted-foreground">{t.achievements.trophiesPending}</p>
     </section>
   )
 }

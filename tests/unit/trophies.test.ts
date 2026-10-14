@@ -185,6 +185,19 @@ describe("ler os troféus do RPCS3", () => {
     })
   })
 
+  it("jogo ainda não aberto no RPCS3: fica ligado pelo disco, esperando os troféus", () => {
+    const { db, gameId, services, writeUnlocks } = setup()
+    const game = () => listGames(db).find((item) => item.id === gameId)
+
+    // O RPCS3 só instala os troféus na primeira vez que o jogo abre: antes, a pasta dele está vazia.
+    syncTrophies(db, { ...services, trophyDir: makeTempDir() })
+    expect(game()).toMatchObject({ achievements: null, trophiesPending: true })
+
+    writeUnlocks({})
+    syncTrophies(db, services)
+    expect(game()).toMatchObject({ achievements: { unlocked: 0, total: 5 }, trophiesPending: false })
+  })
+
   it("sem o disco para ler, liga pelo nome do jogo no conjunto instalado", () => {
     const { db, gameId, services, writeUnlocks } = setup(join("D:", "Jogos", "PS3", "Manobras Radicais 3 (USA).iso"))
     writeUnlocks({})

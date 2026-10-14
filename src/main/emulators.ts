@@ -73,6 +73,37 @@ const EMULATOR_PRESETS: EmulatorPreset[] = [
     // --no-gui: só o jogo, sem a lista de jogos do RPCS3, e ele fecha junto com o jogo.
     args: (rom) => ["--no-gui", rom],
   },
+  {
+    id: "ppsspp",
+    name: "PPSSPP",
+    platforms: "PlayStation Portable",
+    // Só o de 64 bits (e o de ARM): a pasta do PPSSPP traz também o de 32, PPSSPPWindows.exe.
+    executable: /^ppssppwindows(64|arm64)\.exe$/i,
+    commonPaths: ["%ProgramFiles%\\PPSSPP\\PPSSPPWindows64.exe"],
+    extensions: ["iso", "cso", "chd", "pbp", "elf"],
+    // --pause-menu-exit: o "Sair" do menu de pausa fecha o PPSSPP (e não volta para a lista de jogos).
+    args: (rom) => ["--pause-menu-exit", rom],
+  },
+  {
+    id: "dolphin",
+    name: "Dolphin",
+    platforms: "GameCube / Wii",
+    executable: /^dolphin\.exe$/i,
+    commonPaths: ["%ProgramFiles%\\Dolphin\\Dolphin.exe", "%ProgramFiles%\\Dolphin-x64\\Dolphin.exe"],
+    extensions: ["iso", "gcm", "rvz", "wia", "wbfs", "ciso", "gcz", "dol", "elf", "wad"],
+    // -b: sem a lista de jogos do Dolphin, e ele fecha junto com o jogo; -e: o jogo.
+    args: (rom) => ["-b", "-e", rom],
+  },
+  {
+    id: "azahar",
+    name: "Azahar",
+    platforms: "Nintendo 3DS",
+    executable: /^azahar\.exe$/i,
+    commonPaths: ["%ProgramFiles%\\Azahar\\azahar.exe", "%LOCALAPPDATA%\\Programs\\Azahar\\azahar.exe"],
+    extensions: ["3ds", "cci", "cxi", "3dsx", "app", "zcci", "zcxi", "z3dsx", "elf", "axf"],
+    // O Azahar não tem uma opção para fechar junto com o jogo: o tempo conta até ele ser fechado.
+    args: (rom) => [rom],
+  },
 ]
 
 /** Os dados fixos de um emulador. */

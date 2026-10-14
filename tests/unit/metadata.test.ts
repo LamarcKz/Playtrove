@@ -14,7 +14,7 @@ import {
 } from "../../src/main/library"
 import { downloadGameMetadata, type MetadataServices } from "../../src/main/metadata/download"
 import { MetadataStopError, testEndpoints, type Fetch } from "../../src/main/metadata/http"
-import { createIgdbSession, igdbPlatformId } from "../../src/main/metadata/igdb"
+import { createIgdbSession, igdbPlatformId, preferOriginal } from "../../src/main/metadata/igdb"
 import { libretroBoxartUrl } from "../../src/main/metadata/libretro"
 import { comparableName, matchScore, pickBestMatch, searchTermFor } from "../../src/main/metadata/matching"
 import { createMetadataQueue } from "../../src/main/metadata/queue"
@@ -134,6 +134,7 @@ describe("IGDB", () => {
     expect(calls[1].init?.headers).toMatchObject({ "Client-ID": "id-certo", Authorization: "Bearer token-1" })
     expect(calls[1].init?.body).toContain('search "Salto Estelar";')
     expect(calls[1].init?.body).toContain("where platforms = (8);")
+    expect(calls[1].init?.body).toContain("game_type")
     expect(game).toEqual({
       id: 1234,
       name: "Salto Estelar",
@@ -144,6 +145,7 @@ describe("IGDB", () => {
       publishers: ["Editora Meridiano"],
       coverImageId: "co1abc",
       backgroundImageIds: ["ar1", "sc1"],
+      derivative: false,
     })
 
     // O token é reaproveitado na busca seguinte.
@@ -183,6 +185,45 @@ describe("IGDB", () => {
     await expect(createIgdbSession(offline, ENDPOINTS, CREDENTIALS).search("Salto Estelar", null)).rejects.toThrow(
       "Não deu para falar com o IGDB. Confira a conexão com a internet."
     )
+  })
+
+  it("no empate do nome, fica o jogo original, e não um hack dele nem uma versão mais nova", () => {
+    const game = (name: string, releaseDate: string | null, derivative = false) => ({
+      id: 0,
+      name,
+      summary: null,
+      releaseDate,
+      genres: [],
+      developers: [],
+      publishers: [],
+      coverImageId: null,
+      backgroundImageIds: [],
+      derivative,
+    })
+    // "Lenda Sombria+" compara igual a "Lenda Sombria", e o IGDB devolve o hack primeiro.
+    const hack = game("Lenda Sombria+", "2024-07-08", true)
+    const original = game("Lenda Sombria", "1995-03-11")
+    expect(pickBestMatch("Lenda Sombria", [hack, original], preferOriginal)).toBe(original)
+    // Sem o tipo no IGDB, vale o lançado primeiro (os sem data ficam por último).
+    const unmarked = game("Lenda Sombria+", "2024-07-08")
+    expect(pickBestMatch("Lenda Sombria", [unmarked, original], preferOriginal)).toBe(original)
+    expect(pickBestMatch("Lenda Sombria", [game("Lenda Sombria", null), original], preferOriginal)).toBe(original)
+    // Um nome mais parecido continua ganhando, mesmo sendo de um hack.
+    const hackOnly = game("Lenda Sombria Redux", "2024-07-08", true)
+    expect(pickBestMatch("Lenda Sombria Redux", [original, hackOnly], preferOriginal)).toBe(hackOnly)
+  })
+
+  it("o tipo do jogo no IGDB diz se é um hack, mod ou DLC", async () => {
+    const { fetch } = servicesWorld({
+      "/igdb/games": () =>
+        json([
+          { ...SALTO_ESTELAR, id: 1, game_type: 5 },
+          { ...SALTO_ESTELAR, id: 2, game_type: 0 },
+          { ...SALTO_ESTELAR, id: 3 },
+        ]),
+    })
+    const results = await createIgdbSession(fetch, ENDPOINTS, CREDENTIALS).search("Salto Estelar", null)
+    expect(results.map((result) => result.derivative)).toEqual([true, false, false])
   })
 
   it("plataformas do IGDB pelo nome do console", () => {
@@ -256,6 +297,16 @@ describe("baixar os metadados de um jogo", () => {
     expect(game.backgroundUrl).toBe(imageUrl(gameId, "background.jpg", game.metadataUpdatedAt))
     expect(readdirSync(join(imagesDir, String(gameId))).sort()).toEqual(["background.jpg", "cover.png"])
     expect(listGamesWithoutMetadata(db)).toEqual([])
+  })
+
+  it("um hack com o mesmo nome no IGDB não toma o lugar do jogo original", async () => {
+    const { db, gameId } = databaseWithGame()
+    const hack = { ...SALTO_ESTELAR, id: 99, name: "Salto Estelar+", summary: "Este hack muda tudo.", game_type: 5 }
+    const { fetch } = servicesWorld({ "/igdb/games": () => json([hack, SALTO_ESTELAR]) })
+
+    await downloadGameMetadata(db, gameId, makeServices(fetch, makeTempDir(), "igdb"))
+
+    expect(listGames(db)[0]).toMatchObject({ description: "A aventura continua." })
   })
 
   it("sem imagens no SteamGridDB, a capa e o fundo vêm do IGDB", async () => {

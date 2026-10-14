@@ -31,6 +31,7 @@ export function makeGame(overrides: Partial<Game> & { id: number; title: string 
     difficulty: null,
     review: null,
     achievements: null,
+    trophiesPending: false,
     ...overrides,
   }
 }
@@ -55,7 +56,7 @@ const tempDirs: string[] = []
  * Cria uma pasta temporária com arquivos vazios (ou com o texto dado), para testar a leitura de
  * pastas sem mexer em nada de verdade. Os caminhos usam "/" e podem ter subpastas.
  */
-export function makeTempDir(files: Record<string, string> | string[] = []): string {
+export function makeTempDir(files: Record<string, string | Uint8Array> | string[] = []): string {
   const root = mkdtempSync(join(tmpdir(), "playtrove-unit-"))
   tempDirs.push(root)
   const entries = Array.isArray(files) ? files.map((file) => [file, ""]) : Object.entries(files)

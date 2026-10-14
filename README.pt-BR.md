@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão 0.5.0" src="https://img.shields.io/badge/vers%C3%A3o-0.5.0-0072d0">
+  <img alt="Versão 0.6.0" src="https://img.shields.io/badge/vers%C3%A3o-0.6.0-0072d0">
   <img alt="Em desenvolvimento" src="https://img.shields.io/badge/status-em%20desenvolvimento-orange">
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Testes" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -44,11 +44,11 @@ Quem joga no PC acaba com os jogos espalhados: parte na Steam, parte na GOG, alg
 O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: uma moldura escura com as ferramentas no topo, um menu de ícones à esquerda e a biblioteca no centro. A biblioteca fica guardada no próprio computador, em um banco de dados local, sem conta e sem depender de internet.
 
 > [!NOTE]
-> O projeto ainda está em construção. Por enquanto, os jogos entram pelos emuladores (PCSX2, DuckStation, RetroArch e RPCS3); Steam, GOG e outras lojas estão no [roadmap](#roadmap).
+> O projeto ainda está em construção. Por enquanto, os jogos entram pelos emuladores (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin e Azahar); Steam, GOG e outras lojas estão no [roadmap](#roadmap).
 
 ## Recursos
 
-- **Emuladores**: o app encontra sozinho o PCSX2, o DuckStation, o RetroArch (com os cores instalados) e o RPCS3. Basta apontar as pastas de ROMs: o emulador, o core e o console são sugeridos pelo nome da pasta, e os jogos entram na biblioteca com o nome limpo, sem "(USA)" e afins.
+- **Emuladores**: o app encontra sozinho o PCSX2, o DuckStation, o RetroArch (com os cores instalados), o RPCS3, o PPSSPP (PSP), o Dolphin (GameCube e Wii) e o Azahar (3DS). Basta apontar as pastas de ROMs: o emulador, o core e o console são sugeridos pelo nome da pasta, e os jogos entram na biblioteca com o nome limpo, sem "(USA)" e afins.
 - **Jogar**: abre o jogo no emulador, com as configurações dele, e conta sozinho o tempo jogado e a última vez jogado. O tempo que os próprios emuladores registram também entra na biblioteca, então o que foi jogado abrindo o emulador direto aparece do mesmo jeito.
 - **Metadados e imagens**: a capa vem do [libretro-thumbnails](https://thumbnails.libretro.com/) (a mesma do RetroArch, sem precisar de chave) e, quando falta, do [SteamGridDB](https://www.steamgriddb.com/), que também dá a arte de fundo; a descrição, os gêneros, a desenvolvedora, a publicadora e a data de lançamento vêm do [IGDB](https://www.igdb.com/). As duas chaves são gratuitas, e o app explica como criar cada uma.
 - **Modo Detalhes**: a visão principal da biblioteca. À esquerda fica a lista de jogos, com os ícones. À direita aparecem a arte de fundo, a capa acima do título, os botões **Jogar** e **Mais**, os detalhes e a descrição.
@@ -176,7 +176,7 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 ## Roadmap
 
 - Importação de jogos da Steam, da GOG e de pastas de jogos do computador
-- Mais emuladores, como o Dolphin (GameCube e Wii) e o PPSSPP (PSP)
+- Mais emuladores
 - Editar as informações de um jogo e escolher outra capa
 - Lembrar o modo de exibição e os filtros ao abrir o app de novo
 - Opções de personalização, como o tema claro

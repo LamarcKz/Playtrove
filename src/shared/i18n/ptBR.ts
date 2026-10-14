@@ -59,6 +59,7 @@ export const ptBR = {
     close: "Fechar",
     dev: "DEV",
     devHint: "Versão de desenvolvimento (npm run dev), com uma cópia da sua biblioteca",
+    devTestsHint: "Versão de desenvolvimento, nos testes automáticos (numa pasta temporária, com jogos de exemplo)",
   },
 
   toast: {
@@ -264,6 +265,8 @@ export const ptBR = {
         unlockedToast: "Troféu desbloqueado",
       },
     },
+    /** Jogo de PS3 com troféus que o RPCS3 ainda não instalou (ele instala na primeira vez que o jogo abre). */
+    trophiesPending: "Os troféus aparecem depois que você abrir o jogo pela primeira vez no RPCS3.",
     grades: { platina: "Platina", ouro: "Ouro", prata: "Prata", bronze: "Bronze" },
     rarities: { comum: "Comum", rara: "Rara", "muito-rara": "Muito rara", ultrarrara: "Ultrarrara" },
     /** "Ouro: 2" */
@@ -330,7 +333,7 @@ export const ptBR = {
 
     // Configurações → Conquistas
     settingsIntro:
-      "As conquistas vêm da sua conta no RetroAchievements. Quem desbloqueia são os emuladores (entre na conta em cada um: PCSX2, DuckStation e RetroArch); o app lê o que o site registrou a cada 5 minutos e depois de fechar um jogo, e avisa quando aparece uma conquista nova.",
+      "As conquistas vêm da sua conta no RetroAchievements. Quem desbloqueia são os emuladores (entre na conta em cada um: PCSX2, DuckStation, PPSSPP, Dolphin e RetroArch); o app lê o que o site registrou a cada 5 minutos e depois de fechar um jogo, e avisa quando aparece uma conquista nova.",
     settingsTrophies:
       "Os troféus dos jogos de PS3 vêm do próprio RPCS3, sem conta: o app lê o que ele guarda a cada minuto e logo depois de fechar um jogo.",
     serviceDescription: "Conquistas dos jogos de emulador, com a raridade de cada uma.",

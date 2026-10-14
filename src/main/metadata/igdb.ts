@@ -22,6 +22,8 @@ export interface IgdbGame {
   coverImageId: string | null
   /** Artes oficiais e telas do jogo, para o fundo (as artes primeiro). */
   backgroundImageIds: string[]
+  /** Não é o jogo em si, mas algo feito em cima dele: um hack, mod, DLC, pacote ou coletânea. */
+  derivative: boolean
 }
 
 /** Ids das plataformas no IGDB, pelo nome do console usado nas pastas de ROMs (e alguns apelidos). */
@@ -49,6 +51,12 @@ const IGDB_PLATFORMS: Record<string, number> = {
   nes: 18,
   "nintendo 64": 4,
   n64: 4,
+  gamecube: 21,
+  gc: 21,
+  ngc: 21,
+  wii: 5,
+  "nintendo 3ds": 37,
+  "3ds": 37,
   "mega drive": 29,
   genesis: 29,
   "sega genesis": 29,
@@ -71,7 +79,14 @@ const FIELDS = [
   "cover.image_id",
   "artworks.image_id",
   "screenshots.image_id",
+  "game_type",
 ].join(",")
+
+/**
+ * Tipos de jogo do IGDB (campo game_type) que não são o jogo em si: DLC (1), expansão (2), coletânea
+ * (3), mod (5, onde ficam os ROM hacks), fork (12), pacote (13) e atualização (14).
+ */
+const DERIVATIVE_TYPES = new Set([1, 2, 3, 5, 12, 13, 14])
 
 /** Um jogo como o IGDB devolve (só os campos pedidos; todos podem faltar). */
 interface IgdbGameResponse {
@@ -84,6 +99,7 @@ interface IgdbGameResponse {
   cover?: { image_id?: string }
   artworks?: { image_id?: string }[]
   screenshots?: { image_id?: string }[]
+  game_type?: number
 }
 
 /** Conexão com o IGDB. Guarda o token de acesso enquanto ele vale (uns 60 dias). */
@@ -154,6 +170,17 @@ export function createIgdbSession(fetch: Fetch, endpoints: MetadataEndpoints, cr
   }
 }
 
+/**
+ * Desempate entre resultados do IGDB com o nome igualmente parecido (negativo: `a` fica): o jogo em
+ * si antes de um hack ou DLC dele e, depois, o lançado primeiro. Ex.: "Chrono Trigger" e o hack
+ * "Chrono Trigger+" comparam igual, e o IGDB pode devolver o hack antes.
+ */
+export function preferOriginal(a: IgdbGame, b: IgdbGame): number {
+  if (a.derivative !== b.derivative) return a.derivative ? 1 : -1
+  // Sem data, fica por último.
+  return (a.releaseDate ?? "9999").localeCompare(b.releaseDate ?? "9999")
+}
+
 /** Endereço de uma imagem do IGDB, no tamanho pedido (ex.: "t_cover_big", "t_1080p"). */
 export function igdbImageUrl(endpoints: MetadataEndpoints, size: string, imageId: string): string {
   return `${endpoints.igdbImages}/${size}/${imageId}.jpg`
@@ -175,6 +202,7 @@ function toIgdbGame(game: IgdbGameResponse): IgdbGame {
     publishers: namesOf("publisher"),
     coverImageId: game.cover?.image_id ?? null,
     backgroundImageIds: [...imageIds(game.artworks), ...imageIds(game.screenshots)],
+    derivative: game.game_type !== undefined && DERIVATIVE_TYPES.has(game.game_type),
   }
 }
 

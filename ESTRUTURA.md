@@ -74,8 +74,8 @@ Os canais IPC de hoje:
 - Nas abas Estatísticas, Conquistas, Emuladores e Configurações, o meio da barra do topo mostra o nome da página em vez da busca.
 - **Estatísticas:** o resumo no topo (jogos, tempo jogado, média, jogados nos últimos 30 dias), os 10 mais jogados, os jogos por status, por plataforma e por biblioteca, o gráfico da atividade dos últimos 30 dias (passe o mouse numa coluna para ver o dia; "Ver em tabela" mostra os mesmos números), os jogados por último e os nunca jogados.
 - **Conquistas:** com a conta do RetroAchievements salva em Configurações, os jogos achados no site mostram o troféu com o progresso ("3/6") na lista da esquerda, na Grade e na coluna Conquistas da Lista, e os Detalhes ganham um cartão à direita do título (o progresso, os troféus de cada tipo, as últimas insígnias e "Ver todas"). Tudo segue o padrão dos troféus do PS3: bronze, prata, ouro e platina, com pegos e total; no RetroAchievements, o tipo sai dos pontos (bronze até 9, prata até 24, ouro com 25 ou mais) e a platina é ter todas. A aba Conquistas tem o resumo (conquistas, platinas, pontos e jogos), os gráficos por dia e por mês, os jogos (do desbloqueio mais recente para o mais antigo, com os troféus de cada tipo) e as desbloqueadas por último. A raridade (pela porcentagem de jogadores do site, como na PlayStation: comum, rara, muito rara e ultrarrara) aparece em texto na linha de cada conquista. Conquista nova vira um aviso no canto.
-- **Troféus do PS3:** com o RPCS3 configurado na aba Emuladores, os jogos de PS3 mostram os troféus que ele guarda, sem conta: o cartão dos Detalhes ("Troféus") tem quantos de cada tipo (bronze, prata, ouro e platina, nas cores do PS3), e a janela "Ver todos" esconde os troféus ocultos que faltam até clicar em "Mostrar ocultos". Na aba Conquistas, eles entram junto com as do RetroAchievements.
-- **Emuladores:** a aba mostra onde está cada emulador (PCSX2, DuckStation, RetroArch e RPCS3; o app procura sozinho nos atalhos do menu Iniciar e da Área de Trabalho e nas pastas vizinhas aos que já achou) e as pastas de ROMs. Cada pasta diz qual emulador abre os jogos dela (e qual core, no RetroArch) e de qual console eles são; o app sugere tudo pelo nome da pasta. "Procurar" coloca na biblioteca as ROMs que ainda não estão nela. Os avisos rápidos (no canto de baixo, à direita) contam o que aconteceu.
+- **Troféus do PS3:** com o RPCS3 configurado na aba Emuladores, os jogos de PS3 mostram os troféus que ele guarda, sem conta: o cartão dos Detalhes ("Troféus") tem quantos de cada tipo (bronze, prata, ouro e platina, nas cores do PS3; antes da primeira vez que o jogo abre no RPCS3, só o aviso de quando eles aparecem), e a janela "Ver todos" esconde os troféus ocultos que faltam até clicar em "Mostrar ocultos". Na aba Conquistas, eles entram junto com as do RetroAchievements.
+- **Emuladores:** a aba mostra onde está cada emulador (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin e Azahar; o app procura sozinho nos atalhos do menu Iniciar e da Área de Trabalho e nas pastas vizinhas aos que já achou) e as pastas de ROMs. Cada pasta diz qual emulador abre os jogos dela (e qual core, no RetroArch) e de qual console eles são; o app sugere tudo pelo nome da pasta. "Procurar" coloca na biblioteca as ROMs que ainda não estão nela. Os avisos rápidos (no canto de baixo, à direita) contam o que aconteceu.
 - **Jogar:** abre a ROM no emulador da pasta dela, com a configuração do próprio emulador (o app não força tela cheia). Enquanto o emulador está aberto, o botão mostra "Em execução"; quando ele fecha, o tempo jogado e a última vez jogado são atualizados. O app também mostra o tempo que os emuladores registram por conta própria, para o que foi jogado fora dele aparecer. Na primeira vez, o jogo sai de "Planejo jogar" e vai para "Jogando" (regra automática de Configurações → Status).
 - **Imagens e metadados:** no modo Detalhes, a lista mostra o ícone de cada jogo (sem ícone, um pedaço da capa), e a área grande mostra a arte de fundo, a capa acima do nome, a descrição e as informações (gênero, desenvolvedora, publicadora, lançamento). A Grade mostra as capas, e o painel lateral mostra o fundo atrás da capa. Sem imagem, aparece o desenho padrão (um controle num degradê). O menu "Mais" baixa os metadados de um jogo, marca como favorito e mostra a ROM na pasta. Enquanto os metadados são baixados, a barra do topo mostra "Metadados 3/7".
 - **Controle:** com um DualSense conectado, a barra do topo mostra por onde ele está ligado (USB ou Bluetooth), a bateria e se ela está carregando (em verde). Passando o mouse, aparece tudo por extenso. Sem controle, não aparece nada.
@@ -102,7 +102,7 @@ Os canais IPC de hoje:
 | `scripts/dist.mjs` | O comando `npm run dist`: gera em `dist/` o instalador (`Playtrove-Setup-X.Y.Z.exe`, com o `latest.yml` e o `.blockmap` que a atualização automática lê) e a versão portátil (`Playtrove-X.Y.Z-portable.zip`, com o `portable.txt` ao lado do .exe) |
 | `build/` | Arquivos do instalador: o ícone (`icon.ico`, com todos os tamanhos do Windows) e o `portable.txt` que vai no .zip da versão portátil |
 | `tests/unit/` | Testes rápidos da lógica (Vitest), sem abrir o app: filtros, datas, bateria do controle, banco de dados, emuladores, pastas de ROMs, abrir jogos e contar o tempo (com um emulador de mentira), os idiomas (`i18n.test.ts`: os dois dicionários completos e nenhum texto da tela fora deles) e `npm run versao` |
-| `tests/fakeDiscs.ts` | Discos de mentira para os testes: ISOs, a versão "crua" de CD (os .bin de PS1) e o PARAM.SFO dos jogos de PS3 |
+| `tests/fakeDiscs.ts` | Discos de mentira para os testes: ISOs, a versão "crua" de CD (os .bin de PS1), o PARAM.SFO dos jogos de PS3 e PSP, o EBOOT.PBP, o começo dos discos de GameCube e Wii (e os formatos do Dolphin) e os jogos de 3DS |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela e clicam como uma pessoa. `helpers.ts` abre o app com uma pasta de dados temporária, cria pastas de arquivos de mentira (`createFiles()`) e simula a janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB e um SteamGridDB de mentira (com imagens geradas na hora), para os testes de metadados não usarem a internet |
 | `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste |
 | `tsconfig.test.json` | TypeScript dos testes e dos scripts |
@@ -137,8 +137,8 @@ Os canais IPC de hoje:
 | `systemSources.ts` | O que vem do Windows: os atalhos do menu Iniciar e da Área de Trabalho (para a procura automática dos emuladores) e os idiomas preferidos (`systemLanguages()`) |
 | `romScanner.ts` | As pastas de ROMs (tabela `rom_folders`) e a varredura: acha as ROMs (`findRoms()`), tira o nome do jogo do nome do arquivo (`titleFromFileName()`) e coloca os novos na biblioteca (`scanRomFolders()`) |
 | `launcher.ts` | Abre um jogo no emulador (`launchGame()`), guarda os jogos abertos e registra o tempo jogado quando o emulador fecha (ou quando o app fecha) |
-| `discs.ts` | Lê o disco de um jogo sem carregar o arquivo inteiro: o código (ex.: SLUS-20100, do SYSTEM.CNF ou do PARAM.SFO), o nome dos jogos de PS3 e o conjunto de troféus deles (`readPs3TrophySets()`, da pasta PS3_GAME/TROPDIR) |
-| `emulatorPlaytime.ts` | O tempo que cada emulador registrou por conta própria (PCSX2, DuckStation, RPCS3 e RetroArch) e a junção disso com a biblioteca |
+| `discs.ts` | Lê o disco de um jogo sem carregar o arquivo inteiro: o código (ex.: SLUS-20100, do SYSTEM.CNF ou do PARAM.SFO; nos de GameCube e Wii, o do começo do disco; nos de 3DS, o id do programa), o nome dos jogos de PS3 e o conjunto de troféus deles (`readPs3TrophySets()`, da pasta PS3_GAME/TROPDIR) |
+| `emulatorPlaytime.ts` | O tempo que cada emulador registrou por conta própria (PCSX2, DuckStation, RPCS3, PPSSPP, Dolphin, Azahar e RetroArch) e a junção disso com a biblioteca |
 | `playtimeSync.ts` | Quando ler esses registros: ao abrir o app, a cada minuto, ao fechar um jogo e depois de cada varredura |
 | `imageFiles.ts` | As imagens dos jogos no disco: o endereço que a interface usa (`imageUrl()`), a extensão pelo tipo da imagem e `saveGameImage()` (troca a imagem antiga do mesmo tipo) |
 | `imageProtocol.ts` | O protocolo `playtrove-img://`, que entrega as imagens para a interface, só de dentro da pasta de imagens |
@@ -189,7 +189,7 @@ Os canais IPC de hoje:
 | `achievements.ts` | As conquistas: a raridade no estilo da PlayStation (`RARITIES` e `rarityOf()`: comum a partir de 50% dos jogadores, rara a partir de 15%, muito rara a partir de 5% e ultrarrara abaixo disso), os tipos de troféu do PS3 (`TROPHY_GRADES`: platina, ouro, prata e bronze; os nomes ficam nos dicionários), o tipo das conquistas do RetroAchievements pelos pontos (`gradeForPoints()`) e o que o main manda para a tela (o progresso de um jogo, as conquistas dele, o resumo da aba e a situação da conta) |
 | `evaluation.ts` | A avaliação do usuário: a nota e a dificuldade vão de 1 a 10, em meios ícones (`SCORE_MAX`, `isScore()` e `formatScore()`: 9 → "4,5", ou "4.5" em inglês), o tamanho máximo da análise e o formato que a janela salva (`GameEvaluation`) |
 | `types.ts` | Tipos de dados: `DailyPlaytime` (o tempo de um dia, para as Estatísticas), `Game` (o jogo), `Status` (um status), `StatusRules` (as regras automáticas), `LibrarySnapshot` (tudo junto, como a interface recebe) os da aba Emuladores (`EmulatorInfo`, `RetroArchCore`, `RomFolder` e `ScanResult`) e os dos metadados (`MetadataConfig` e `MetadataProgress`) |
-| `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2) |
+| `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
 | `controllers.ts` | Os controles reconhecidos (`SUPPORTED_CONTROLLERS`: DualSense e DualSense Edge), usados pelo main para liberar o acesso e pela interface para mostrar o nome |
 
 ### `src/renderer`: interface React
@@ -211,7 +211,7 @@ Os canais IPC de hoje:
 | `hooks/useAchievements.ts` | A conta do RetroAchievements e a situação da atualização (acompanha os avisos do main), as conquistas de um jogo e o resumo da aba Conquistas |
 | `lib/dualsense.ts` | Como ler o DualSense: `getConnection()` descobre se ele está no USB ou no Bluetooth, `parseBattery()` tira a bateria dos dados do controle e `readBattery()` abre o controle por um instante para fazer a leitura |
 | `lib/utils.ts` | `cn()`: junta classes do Tailwind sem conflito |
-| `lib/devBuild.ts` | `isDevBuild`: a janela é a do `npm run dev` (o main põe `?dev=1` no endereço). A barra do topo mostra a marca DEV |
+| `lib/devBuild.ts` | `devMark`: a janela roda o código em desenvolvimento, no `npm run dev` (`?dev=library`, com a cópia da biblioteca) ou nos testes automáticos (`?dev=tests`). A barra do topo mostra a marca DEV |
 | `lib/format.ts` | Textos no idioma do app: `formatPlaytime()` ("12 h 30 min" ou "12h 30m"), `formatLastPlayed()` ("Hoje", "Há 5 dias", "12/08/2026"), `formatReleaseDate()` ("14/10/2003" ou "10/14/2003"), `formatDateTime()`, `formatTime()`, `listTitles()` (os primeiros nomes e "e mais 2", nos avisos) e `shortCoreName()` (o nome curto de um core do RetroArch, como "mGBA") |
 | `lib/filters.ts` | A busca e os filtros: `LibraryFilters` (o que pode ser filtrado), `filterGames()` (quem passa), as faixas de tempo jogado, as de nota e dificuldade (`SCORE_RANGES`) e o período de "Recentes" (`RECENT_DAYS`, 30 dias) |
 | `lib/errors.ts` | `errorMessage()`: a mensagem de um erro para mostrar ao usuário |
@@ -296,7 +296,7 @@ Os canais IPC de hoje:
 | Arquivo | O que faz |
 |---|---|
 | `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela |
-| `GameCard.tsx` | Card do jogo: capa com o status numa faixa embaixo, título, tempo jogado e o progresso nas conquistas, com zoom no hover |
+| `GameCard.tsx` | Card do jogo: capa com o status numa faixa logo embaixo dela (sem cobrir a imagem), título, tempo jogado e o progresso nas conquistas, com zoom no hover |
 | `GameCover.tsx` | Capa do jogo (retrato, 2:3). Sem capa, ou se ela não carregar, o desenho padrão |
 
 **Biblioteca, modo Lista**
@@ -341,7 +341,7 @@ Os canais IPC de hoje:
 | Mudar os status com que um banco novo começa | `src/main/migrations.ts` → `DEFAULT_STATUSES` (e o nome de cada um nos dois idiomas, em `statusPresets`, nos dicionários de `src/shared/i18n/`). Os status do usuário mudam em Configurações → Status |
 | Adicionar informações a um jogo (gênero, capa...) | O campo no tipo `Game` (`src/shared/types.ts`), a coluna na tabela `games` (migração nova) e `toGame()` em `src/main/library.ts` |
 | Mostrar essas informações nos detalhes | `src/renderer/components/GameInfoList.tsx` → lista `fields` |
-| Suportar outro emulador | `src/main/emulators.ts` → um item novo em `EMULATOR_PRESETS` (nome do executável, lugares comuns, extensões e argumentos; o emulador precisa fechar junto com o jogo) e o id dele em `EmulatorId` (`src/shared/types.ts`). Se ele registrar o tempo jogado, ensine o app a ler em `src/main/emulatorPlaytime.ts` |
+| Suportar outro emulador | `src/main/emulators.ts` → um item novo em `EMULATOR_PRESETS` (nome do executável, lugares comuns, extensões e argumentos; o emulador precisa fechar junto com o jogo, se tiver uma opção para isso) e o id dele em `EmulatorId` (`src/shared/types.ts`). Se ele registrar o tempo jogado, ensine o app a ler em `src/main/emulatorPlaytime.ts` |
 | Mudar de onde vêm as capas | `src/main/metadata/download.ts` → a ordem das fontes em `candidates`. Uma fonte nova vira um módulo em `src/main/metadata/` |
 | Ver o que o conserto do banco faz | `src/main/databaseFile.ts` → `repairDatabase()`; o texto do aviso fica em `repairNotice.ts` |
 | Mudar os argumentos que abrem um jogo (ex.: sem tela cheia) | `src/main/emulators.ts` → `args` do emulador em `EMULATOR_PRESETS` |
@@ -402,7 +402,7 @@ Duas regras de segurança:
 
 ## Histórico e versões (Git e GitHub)
 
-O projeto fica guardado com o Git, e o GitHub guarda uma cópia online, no repositório `LamarcKz/Playtrove` (privado por enquanto). Funciona como os saves de um jogo:
+O projeto fica guardado com o Git, e o GitHub guarda uma cópia online, no repositório público `LamarcKz/Playtrove`. Funciona como os saves de um jogo:
 
 - **commit** = salvar o jogo (a cada tarefa concluída);
 - **push** = mandar o save para a nuvem (logo depois de cada commit);

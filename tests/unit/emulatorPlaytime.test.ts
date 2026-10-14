@@ -1,18 +1,22 @@
-import { writeFileSync } from "node:fs"
+import { mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type Database from "better-sqlite3"
 import { afterEach, describe, expect, it } from "vitest"
 import {
   findPlaytimeFiles,
+  parseAzaharPlayTime,
+  parseDolphinTimePlayed,
   parsePlaytimeDat,
+  parsePpssppIni,
   parseRetroArchLog,
   parseRpcs3Settings,
+  readEmulatorRecords,
   syncEmulatorPlaytime,
   type EmulatorPlaytime,
   type EmulatorRecords,
 } from "../../src/main/emulatorPlaytime"
 import { addEmulatedGame, listGames, recordPlaySession } from "../../src/main/library"
-import { buildIso } from "../fakeDiscs"
+import { build3dsRom, buildIso, buildNintendoDisc, buildParamSfo } from "../fakeDiscs"
 import { makeTempDir, memoryDatabase, removeTempDirs } from "./helpers"
 
 afterEach(removeTempDirs)
@@ -41,12 +45,49 @@ describe("registros de tempo dos emuladores", () => {
     expect(records.get("BLUS30100")).toEqual({ seconds: 294, lastPlayedAt: localIso("2026-09-12T21:27:47") })
   })
 
+  it("ppsspp.ini do PPSSPP (a seção [PlayTime]: segundos e última vez)", () => {
+    const records = parsePpssppIni(
+      "[General]\nFirstRun = False\n[PlayTime]\nULUS10041 = 5400,1789843213\nULES00151 = 30,0\n[Recent]\nFileName0 = x.iso\n"
+    )
+    expect(records.get("ULUS10041")).toEqual({ seconds: 5400, lastPlayedAt: new Date(1789843213 * 1000).toISOString() })
+    expect(records.get("ULES00151")).toEqual({ seconds: 30, lastPlayedAt: null })
+    expect(records.size).toBe(2)
+  })
+
+  it("TimePlayed.ini do Dolphin (milissegundos, sem a última vez)", () => {
+    const records = parseDolphinTimePlayed("[TimePlayed]\nGALE01 = 7265000\nRSBE01 = estranho\n")
+    expect(records.get("GALE01")).toEqual({ seconds: 7265, lastPlayedAt: null })
+    expect(records.size).toBe(1)
+  })
+
+  it("play_time.bin do Azahar (id do programa e segundos, 16 bytes por jogo)", () => {
+    const data = Buffer.alloc(48)
+    data.writeBigUInt64LE(0x0004000000055d00n, 0)
+    data.writeBigUInt64LE(3600n, 8)
+    // Um id zerado é ignorado.
+    data.writeBigUInt64LE(0n, 16)
+    data.writeBigUInt64LE(99n, 24)
+    data.writeBigUInt64LE(0x00040000000ee000n, 32)
+    data.writeBigUInt64LE(45n, 40)
+    const records = parseAzaharPlayTime(data)
+    expect(records.get("0004000000055D00")).toEqual({ seconds: 3600, lastPlayedAt: null })
+    expect(records.get("00040000000EE000")).toEqual({ seconds: 45, lastPlayedAt: null })
+    expect(records.size).toBe(2)
+  })
+
   it("registro do RetroArch (.lrtl)", () => {
     const log = '{"version": "1.0", "runtime": "1:02:25", "last_played": "2026-09-12 19:37:50", "play_count": "4"}'
     expect(parseRetroArchLog(log)).toEqual({ seconds: 3745, lastPlayedAt: localIso("2026-09-12 19:37:50") })
     expect(parseRetroArchLog("{}")).toBeNull()
     expect(parseRetroArchLog("não é json")).toBeNull()
   })
+})
+
+/** As pastas do Windows dentro da pasta do teste. */
+const folders = (dir: string) => ({
+  documents: join(dir, "Documentos"),
+  localAppData: join(dir, "LocalAppData"),
+  appData: join(dir, "AppData"),
 })
 
 describe("onde ficam os registros de cada emulador", () => {
@@ -71,7 +112,7 @@ describe("onde ficam os registros de cada emulador", () => {
       retroarch: join(dir, "RetroArch", "retroarch.exe"),
     }
 
-    expect(findPlaytimeFiles(paths, { documents: join(dir, "Documentos"), localAppData: join(dir, "LocalAppData") })).toEqual({
+    expect(findPlaytimeFiles(paths, folders(dir))).toMatchObject({
       pcsx2: join(dir, "PCSX2", "inis", "playtime.dat"),
       duckstation: join(dir, "LocalAppData", "DuckStation", "playtime.dat"),
       rpcs3: join(dir, "RPCS3", "GuiConfigs", "persistent_settings.dat"),
@@ -79,27 +120,118 @@ describe("onde ficam os registros de cada emulador", () => {
     })
   })
 
+  it("PPSSPP, Dolphin e Azahar portáteis: tudo na pasta deles", () => {
+    const dir = makeTempDir({
+      "PPSSPP/PPSSPPWindows64.exe": "",
+      "PPSSPP/memstick/PSP/SYSTEM/ppsspp.ini": "",
+      "Dolphin/Dolphin.exe": "",
+      "Dolphin/portable.txt": "",
+      "Dolphin/User/Config/TimePlayed.ini": "",
+      "Azahar/azahar.exe": "",
+      "Azahar/user/sysdata/play_time.bin": "",
+    })
+    const paths = {
+      ppsspp: join(dir, "PPSSPP", "PPSSPPWindows64.exe"),
+      dolphin: join(dir, "Dolphin", "Dolphin.exe"),
+      azahar: join(dir, "Azahar", "azahar.exe"),
+    }
+    expect(findPlaytimeFiles(paths, folders(dir))).toMatchObject({
+      ppsspp: join(dir, "PPSSPP", "memstick", "PSP", "SYSTEM", "ppsspp.ini"),
+      dolphin: join(dir, "Dolphin", "User", "Config", "TimePlayed.ini"),
+      azahar: join(dir, "Azahar", "user", "sysdata", "play_time.bin"),
+    })
+  })
+
+  it("PPSSPP, Dolphin e Azahar instalados: em Documentos e no AppData", () => {
+    const dir = makeTempDir({
+      "PPSSPP/PPSSPPWindows64.exe": "",
+      "PPSSPP/installed.txt": "",
+      "Documentos/PPSSPP/PSP/SYSTEM/ppsspp.ini": "",
+      "Dolphin/Dolphin.exe": "",
+      "AppData/Dolphin Emulator/Config/TimePlayed.ini": "",
+      "Azahar/azahar.exe": "",
+      "AppData/Azahar/sysdata/play_time.bin": "",
+    })
+    const paths = {
+      ppsspp: join(dir, "PPSSPP", "PPSSPPWindows64.exe"),
+      dolphin: join(dir, "Dolphin", "Dolphin.exe"),
+      azahar: join(dir, "Azahar", "azahar.exe"),
+    }
+    expect(findPlaytimeFiles(paths, folders(dir))).toMatchObject({
+      ppsspp: join(dir, "Documentos", "PPSSPP", "PSP", "SYSTEM", "ppsspp.ini"),
+      dolphin: join(dir, "AppData", "Dolphin Emulator", "Config", "TimePlayed.ini"),
+      azahar: join(dir, "AppData", "Azahar", "sysdata", "play_time.bin"),
+    })
+
+    // Um Dolphin antigo guardava em Documentos, e essa pasta continua valendo enquanto existir.
+    const oldConfig = join(dir, "Documentos", "Dolphin Emulator", "Config")
+    mkdirSync(oldConfig, { recursive: true })
+    writeFileSync(join(oldConfig, "TimePlayed.ini"), "")
+    expect(findPlaytimeFiles(paths, folders(dir)).dolphin).toBe(join(oldConfig, "TimePlayed.ini"))
+  })
+
   it("PCSX2 não portátil: os dados ficam em Documentos", () => {
     const dir = makeTempDir({ "PCSX2/pcsx2-qt.exe": "", "Documentos/PCSX2/inis/playtime.dat": "" })
     const files = findPlaytimeFiles(
       { pcsx2: join(dir, "PCSX2", "pcsx2-qt.exe") },
-      { documents: join(dir, "Documentos"), localAppData: undefined }
+      { documents: join(dir, "Documentos"), localAppData: undefined, appData: undefined }
     )
     expect(files.pcsx2).toBe(join(dir, "Documentos", "PCSX2", "inis", "playtime.dat"))
     expect(files.duckstation).toBeNull()
   })
 
   it("sem emulador configurado (ou sem os arquivos), não há o que ler", () => {
-    expect(findPlaytimeFiles({}, { documents: "C:\\Documentos", localAppData: "C:\\Local" })).toEqual({
+    expect(findPlaytimeFiles({}, { documents: "C:\\Documentos", localAppData: "C:\\Local", appData: "C:\\Roaming" })).toEqual({
       pcsx2: null,
       duckstation: null,
       rpcs3: null,
+      ppsspp: null,
+      dolphin: null,
+      azahar: null,
       retroarchLogs: null,
     })
   })
 })
 
 describe("juntar o tempo dos emuladores com a biblioteca", () => {
+  it("PPSSPP, Dolphin e Azahar: o código vem do jogo e o tempo, do registro de cada um", () => {
+    const azaharTimes = Buffer.alloc(16)
+    azaharTimes.writeBigUInt64LE(0x0004000000055d00n, 0)
+    azaharTimes.writeBigUInt64LE(1800n, 8)
+    const dir = makeTempDir({
+      "PPSSPP/PPSSPPWindows64.exe": "",
+      "PPSSPP/memstick/PSP/SYSTEM/ppsspp.ini": "[PlayTime]\nULUS10041 = 5400,1789843213\n",
+      "Dolphin/Dolphin.exe": "",
+      "Dolphin/portable.txt": "",
+      "Dolphin/User/Config/TimePlayed.ini": "[TimePlayed]\nGALE01 = 7200000\n",
+      "Azahar/azahar.exe": "",
+      "Roms/Pista Portátil (USA).iso": buildIso([{ path: ["PSP_GAME", "PARAM.SFO"], content: buildParamSfo({ DISC_ID: "ULUS10041" }) }]),
+      "Roms/Luta Galáctica (USA).iso": buildNintendoDisc("GALE01", "gamecube"),
+      "Roms/Aventura de Bolso (USA).3ds": build3dsRom(0x0004000000055d00n, "3ds"),
+    })
+    mkdirSync(join(dir, "Azahar", "user", "sysdata"), { recursive: true })
+    writeFileSync(join(dir, "Azahar", "user", "sysdata", "play_time.bin"), azaharTimes)
+
+    const db = memoryDatabase()
+    const add = (title: string, file: string, emulatorId: "ppsspp" | "dolphin" | "azahar", platform: string) =>
+      addEmulatedGame(db, { title, romPath: join(dir, "Roms", file), platform, library: emulatorId, emulatorId, core: null })
+    add("Pista Portátil", "Pista Portátil (USA).iso", "ppsspp", "PlayStation Portable")
+    add("Luta Galáctica", "Luta Galáctica (USA).iso", "dolphin", "GameCube")
+    add("Aventura de Bolso", "Aventura de Bolso (USA).3ds", "azahar", "Nintendo 3DS")
+
+    const paths = {
+      ppsspp: join(dir, "PPSSPP", "PPSSPPWindows64.exe"),
+      dolphin: join(dir, "Dolphin", "Dolphin.exe"),
+      azahar: join(dir, "Azahar", "azahar.exe"),
+    }
+    expect(syncEmulatorPlaytime(db, readEmulatorRecords(findPlaytimeFiles(paths, folders(dir))))).toBe(3)
+    expect(listGames(db).map((game) => [game.title, game.playtimeMinutes, game.lastPlayedAt])).toEqual([
+      ["Aventura de Bolso", 30, null],
+      ["Luta Galáctica", 120, null],
+      ["Pista Portátil", 90, new Date(1789843213 * 1000).toISOString()],
+    ])
+  })
+
   const SERIAL = "SLUS-20100"
 
   /** Um banco com um jogo de PS2 e o código do disco já guardado. */

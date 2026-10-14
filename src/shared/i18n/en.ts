@@ -56,6 +56,7 @@ export const en: Messages = {
     close: "Close",
     dev: "DEV",
     devHint: "Development build (npm run dev), with a copy of your library",
+    devTestsHint: "Development build, in the automated tests (in a temporary folder, with sample games)",
   },
 
   toast: {
@@ -248,6 +249,7 @@ export const en: Messages = {
         unlockedToast: "Trophy unlocked",
       },
     },
+    trophiesPending: "Trophies show up after you open the game in RPCS3 for the first time.",
     grades: { platina: "Platinum", ouro: "Gold", prata: "Silver", bronze: "Bronze" },
     rarities: { comum: "Common", rara: "Rare", "muito-rara": "Very rare", ultrarrara: "Ultra rare" },
     gradeCount: (grade, count) => `${grade}: ${count}`,
@@ -308,7 +310,7 @@ export const en: Messages = {
     progressIn: (game) => `Progress in ${game}`,
 
     settingsIntro:
-      "Achievements come from your RetroAchievements account. The emulators are what unlock them (sign in to your account in each one: PCSX2, DuckStation and RetroArch); the app reads what the website recorded every 5 minutes and after you close a game, and lets you know when a new achievement shows up.",
+      "Achievements come from your RetroAchievements account. The emulators are what unlock them (sign in to your account in each one: PCSX2, DuckStation, PPSSPP, Dolphin and RetroArch); the app reads what the website recorded every 5 minutes and after you close a game, and lets you know when a new achievement shows up.",
     settingsTrophies:
       "Trophies from PS3 games come from RPCS3 itself, no account needed: the app reads what it stores every minute and right after you close a game.",
     serviceDescription: "Achievements for emulator games, with how rare each one is.",

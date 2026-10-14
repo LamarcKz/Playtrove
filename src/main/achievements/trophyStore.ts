@@ -126,6 +126,18 @@ function matchByName(title: string, sets: { id: string; title: string }[]): stri
 
 // ---------------------------------------------------------------- o que as telas mostram
 
+/**
+ * Os jogos ligados a um conjunto de troféus que o RPCS3 ainda não instalou (ele instala na primeira
+ * vez que o jogo abre).
+ */
+export function gamesWaitingForTrophies(db: Database.Database): Set<number> {
+  const ids = db
+    .prepare("SELECT id FROM games WHERE trophy_set IS NOT NULL AND trophy_set NOT IN (SELECT DISTINCT set_id FROM trophies)")
+    .pluck()
+    .all() as number[]
+  return new Set(ids)
+}
+
 interface TrophyRow {
   set_id: string
   id: number

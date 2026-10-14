@@ -22,4 +22,6 @@ export const testMode = {
   metadataServer: testVariable("METADATA_TEST_SERVER"),
   /** Uma versão nova de mentira (ex.: "9.9.0"), para testar o aviso de atualização sem a internet. */
   fakeUpdate: testVariable("FAKE_UPDATE"),
+  /** Sem a marca DEV, para as capturas de tela do README. */
+  hideDevMark: testVariable("HIDE_DEV_MARK") === "1",
 }
