@@ -40,15 +40,16 @@ export function matchScore(term: string, candidate: string): number {
 }
 
 /**
- * O resultado mais parecido com o jogo procurado. Empate fica com o que veio antes (os serviços
- * já devolvem os mais relevantes primeiro). Se nenhum parecer o mesmo jogo, devolve null.
+ * O resultado mais parecido com o jogo procurado. Empate fica com o que `prefer` escolher (negativo:
+ * o novo) ou, sem ele, com o que veio antes (os serviços já devolvem os mais relevantes primeiro).
+ * Se nenhum parecer o mesmo jogo, devolve null.
  */
-export function pickBestMatch<T extends { name: string }>(term: string, results: T[]): T | null {
+export function pickBestMatch<T extends { name: string }>(term: string, results: T[], prefer?: (a: T, b: T) => number): T | null {
   let best: T | null = null
   let bestScore = 0
   for (const result of results) {
     const score = matchScore(term, result.name)
-    if (score > bestScore) {
+    if (score > bestScore || (score > 0 && score === bestScore && best && prefer && prefer(result, best) < 0)) {
       best = result
       bestScore = score
     }
