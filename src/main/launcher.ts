@@ -2,6 +2,7 @@ import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process"
 import { existsSync } from "node:fs"
 import { dirname } from "node:path"
 import type Database from "better-sqlite3"
+import { maximizeWindow } from "./emulatorWindow"
 import { buildLaunchCommand, getEmulatorPaths, getPreset } from "./emulators"
 import { t } from "./i18n"
 import { getLaunchInfo, recordPlaySession } from "./library"
@@ -35,7 +36,8 @@ export function launchGame(
   if (!game.romPath || !game.emulatorId) {
     return Promise.reject(new Error(errors.notFromRomFolder))
   }
-  const emulatorName = getPreset(game.emulatorId).name
+  const preset = getPreset(game.emulatorId)
+  const emulatorName = preset.name
   const emulatorPath = getEmulatorPaths(db)[game.emulatorId]
   if (!emulatorPath || !existsSync(emulatorPath)) {
     return Promise.reject(new Error(errors.emulatorNotFound(emulatorName)))
@@ -52,6 +54,8 @@ export function launchGame(
     })
     child.once("spawn", () => {
       sessions.set(gameId, Date.now())
+      // Emulador que abre maximizado (ex.: o RetroArch): a janela dele é maximizada quando aparecer.
+      if (preset.maximize && child.pid) maximizeWindow(child.pid, start)
       onChange()
       resolve()
     })

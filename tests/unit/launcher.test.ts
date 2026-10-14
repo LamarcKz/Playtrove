@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events"
 import { join } from "node:path"
 import type Database from "better-sqlite3"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { maximizeScript } from "../../src/main/emulatorWindow"
 import { setEmulatorPath } from "../../src/main/emulators"
 import { finishAllSessions, getRunningGames, launchGame, type Starter } from "../../src/main/launcher"
 import {
@@ -23,10 +24,10 @@ const MINUTE = 60 * 1000
 /** Um "emulador" de mentira: guarda como foi chamado e deixa o teste dizer quando ele abre e fecha. */
 function fakeStarter() {
   const calls: { command: string; args: string[]; options: SpawnOptions }[] = []
-  const children: (EventEmitter & { unref: () => void })[] = []
+  const children: (EventEmitter & { unref: () => void; pid: number })[] = []
   const start: Starter = (command, args, options) => {
     calls.push({ command, args, options })
-    const child = Object.assign(new EventEmitter(), { unref: vi.fn() })
+    const child = Object.assign(new EventEmitter(), { unref: vi.fn(), pid: 4321 + children.length })
     children.push(child)
     return child as unknown as ChildProcess
   }
@@ -117,6 +118,8 @@ describe("abrir um jogo", () => {
     await opening
     expect(getRunningGames()).toEqual([gameId])
     expect(onChange).toHaveBeenCalledTimes(1)
+    // A janela do PCSX2 fica como ele abrir: nada é aberto para maximizar.
+    expect(calls).toHaveLength(1)
     await expect(launchGame(db, gameId, onChange, start)).rejects.toThrow("Esse jogo já está aberto.")
 
     vi.setSystemTime(START.getTime() + 42 * MINUTE)
@@ -144,6 +147,38 @@ describe("abrir um jogo", () => {
     vi.setSystemTime(START.getTime() + 60 * MINUTE)
     children[0].emit("exit", 0)
     expect(listGames(db)[0].playtimeMinutes).toBe(20)
+  })
+
+  it("RetroArch: abre maximizado (um PowerShell escondido maximiza a janela dele quando ela aparecer)", async () => {
+    const root = makeTempDir(["RetroArch/retroarch.exe", "Roms/Salto Estelar.gba"])
+    setEmulatorPath(db, "retroarch", join(root, "RetroArch", "retroarch.exe"))
+    addEmulatedGame(db, {
+      title: "Salto Estelar",
+      romPath: join(root, "Roms", "Salto Estelar.gba"),
+      platform: "Game Boy Advance",
+      library: "RetroArch",
+      emulatorId: "retroarch",
+      core: "mgba_libretro",
+    })
+    const gameId = listGames(db)[0].id
+    const { start, calls, children } = fakeStarter()
+
+    const opening = launchGame(db, gameId, () => undefined, start)
+    // A janela só é procurada depois que o RetroArch abre (antes disso não existe o número do processo).
+    expect(calls).toHaveLength(1)
+    children[0].emit("spawn")
+    await opening
+
+    expect(calls).toHaveLength(2)
+    expect(calls[1].command).toMatch(/\\System32\\WindowsPowerShell\\v1\.0\\powershell\.exe$/i)
+    expect(calls[1].args).toEqual(["-NoProfile", "-NonInteractive", "-Command", maximizeScript(children[0].pid)])
+    expect(calls[1].options).toEqual({ stdio: "ignore", windowsHide: true })
+    expect(maximizeScript(children[0].pid)).toContain(`Get-Process -Id ${children[0].pid} `)
+    expect(children[1].unref).toHaveBeenCalled()
+
+    // Sem o PowerShell, nada quebra: o jogo continua aberto, e o tempo, contando.
+    children[1].emit("error", new Error("spawn ENOENT"))
+    expect(getRunningGames()).toEqual([gameId])
   })
 
   it("avisa quando o emulador não abre", async () => {
