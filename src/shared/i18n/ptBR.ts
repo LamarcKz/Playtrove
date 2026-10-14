@@ -264,6 +264,8 @@ export const ptBR = {
         unlockedToast: "Troféu desbloqueado",
       },
     },
+    /** Jogo de PS3 com troféus que o RPCS3 ainda não instalou (ele instala na primeira vez que o jogo abre). */
+    trophiesPending: "Os troféus aparecem depois que você abrir o jogo pela primeira vez no RPCS3.",
     grades: { platina: "Platina", ouro: "Ouro", prata: "Prata", bronze: "Bronze" },
     rarities: { comum: "Comum", rara: "Rara", "muito-rara": "Muito rara", ultrarrara: "Ultrarrara" },
     /** "Ouro: 2" */

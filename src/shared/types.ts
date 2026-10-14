@@ -62,6 +62,11 @@ export interface Game {
   review: string | null
   /** O progresso nas conquistas do RetroAchievements, ou null se o jogo não tiver (ou não foi achado lá). */
   achievements: AchievementProgress | null
+  /**
+   * Jogo de PS3 que tem troféus (o conjunto veio do disco), mas o RPCS3 ainda não instalou: ele só
+   * instala na primeira vez que o jogo abre.
+   */
+  trophiesPending: boolean
 }
 
 /** Emuladores que o app sabe usar. */

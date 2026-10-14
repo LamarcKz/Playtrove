@@ -248,6 +248,7 @@ export const en: Messages = {
         unlockedToast: "Trophy unlocked",
       },
     },
+    trophiesPending: "Trophies show up after you open the game in RPCS3 for the first time.",
     grades: { platina: "Platinum", ouro: "Gold", prata: "Silver", bronze: "Bronze" },
     rarities: { comum: "Common", rara: "Rare", "muito-rara": "Very rare", ultrarrara: "Ultra rare" },
     gradeCount: (grade, count) => `${grade}: ${count}`,

@@ -2,6 +2,7 @@ import type Database from "better-sqlite3"
 import type { AchievementProgress } from "../shared/achievements"
 import type { GameEvaluation } from "../shared/evaluation"
 import { isStatusPreset, LANGUAGES, messagesFor } from "../shared/i18n"
+import { gamesWaitingForTrophies } from "./achievements/trophyStore"
 import { progressByGame } from "./achievements/views"
 import type { EmulatorId, Game, LibrarySnapshot, Status, StatusRules } from "../shared/types"
 import { t } from "./i18n"
@@ -51,12 +52,13 @@ export function getLibrary(db: Database.Database): LibrarySnapshot {
 export function listGames(db: Database.Database): Game[] {
   const rows = db.prepare("SELECT * FROM games").all() as GameRow[]
   const achievements = progressByGame(db)
+  const waitingForTrophies = gamesWaitingForTrophies(db)
   return rows
-    .map((row) => toGame(row, achievements.get(row.id) ?? null))
+    .map((row) => toGame(row, achievements.get(row.id) ?? null, waitingForTrophies.has(row.id)))
     .sort((a, b) => a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" }))
 }
 
-function toGame(row: GameRow, achievements: AchievementProgress | null): Game {
+function toGame(row: GameRow, achievements: AchievementProgress | null, trophiesPending: boolean): Game {
   // Vale o maior tempo entre o contado pelo app e o registrado pelo emulador (que inclui o que foi
   // jogado fora do app), e a última vez mais recente das duas.
   const seconds = Math.max(row.playtime_seconds, row.emulator_playtime_seconds)
@@ -85,6 +87,7 @@ function toGame(row: GameRow, achievements: AchievementProgress | null): Game {
     difficulty: row.difficulty,
     review: row.review,
     achievements,
+    trophiesPending: achievements === null && trophiesPending,
   }
 }
 

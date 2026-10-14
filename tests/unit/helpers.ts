@@ -31,6 +31,7 @@ export function makeGame(overrides: Partial<Game> & { id: number; title: string 
     difficulty: null,
     review: null,
     achievements: null,
+    trophiesPending: false,
     ...overrides,
   }
 }
