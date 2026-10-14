@@ -63,12 +63,12 @@ async function pickRomFolder(name: string) {
   return page.getByRole("form", { name: "Nova pasta de ROMs" })
 }
 
-test("biblioteca vazia leva para a aba Emuladores, com os 4 emuladores", async () => {
+test("biblioteca vazia leva para a aba Emuladores, com os 7 emuladores", async () => {
   await expect(page.getByText("Sua biblioteca está vazia")).toBeVisible()
   await page.getByRole("button", { name: "Ir para Emuladores" }).click()
   await expect(page.getByRole("heading", { level: 1, name: "Emuladores" })).toBeVisible()
-  await expect(page.locator('ul[aria-label="Emuladores"] > li')).toHaveCount(4)
-  for (const name of ["PCSX2", "DuckStation", "RetroArch", "RPCS3"]) {
+  await expect(page.locator('ul[aria-label="Emuladores"] > li')).toHaveCount(7)
+  for (const name of ["PCSX2", "DuckStation", "RetroArch", "RPCS3", "PPSSPP", "Dolphin", "Azahar"]) {
     await expect(emulatorRow(name).getByLabel("Não encontrado")).toBeVisible()
     await expect(emulatorRow(name).getByRole("button", { name: "Escolher..." })).toBeVisible()
   }

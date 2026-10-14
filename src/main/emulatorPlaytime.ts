@@ -9,6 +9,9 @@ import { readDiscSerial } from "./discs"
  * abrindo o emulador direto, sem passar pelo botão Jogar (pedido do usuário em 2026-09-19):
  * - PCSX2 e DuckStation: playtime.dat, por código do disco (ex.: SLUS-20100);
  * - RPCS3: GuiConfigs/persistent_settings.dat, por código do jogo (ex.: BLUS30100);
+ * - PPSSPP: a seção [PlayTime] do ppsspp.ini, por código do disco (ex.: ULUS10041);
+ * - Dolphin: Config/TimePlayed.ini, por código do disco (ex.: GALE01), sem a última vez jogado;
+ * - Azahar: sysdata/play_time.bin, pelo id do programa, também sem a última vez jogado;
  * - RetroArch: um arquivo .lrtl por jogo em playlists/logs (se o registro de tempo estiver ligado nele).
  */
 
@@ -24,13 +27,19 @@ export interface PlaytimeFiles {
   pcsx2: string | null
   duckstation: string | null
   rpcs3: string | null
+  ppsspp: string | null
+  dolphin: string | null
+  azahar: string | null
   /** Pasta dos registros do RetroArch (playlists/logs). */
   retroarchLogs: string | null
 }
 
+/** Os emuladores que registram o tempo pelo código do jogo (todos menos o RetroArch, que usa o nome da ROM). */
+type SerialEmulator = Exclude<EmulatorId, "retroarch">
+
 /** Os registros lidos, prontos para consultar por jogo. */
 export interface EmulatorRecords {
-  bySerial: Partial<Record<"pcsx2" | "duckstation" | "rpcs3", Map<string, EmulatorPlaytime>>>
+  bySerial: Partial<Record<SerialEmulator, Map<string, EmulatorPlaytime>>>
   /** O registro do RetroArch para uma ROM (pelo nome do arquivo). */
   retroarch: (romPath: string) => EmulatorPlaytime | null
 }
@@ -58,10 +67,9 @@ export function parsePlaytimeDat(text: string): Map<string, EmulatorPlaytime> {
   return records
 }
 
-/** persistent_settings.dat do RPCS3: seções [Playtime] (milissegundos) e [LastPlayed] (data local). */
-export function parseRpcs3Settings(text: string): Map<string, EmulatorPlaytime> {
-  const playtime = new Map<string, number>()
-  const lastPlayed = new Map<string, string>()
+/** As linhas `chave = valor` de uma seção de um arquivo .ini (as chaves em maiúsculas). */
+function iniSection(text: string, name: string): Map<string, string> {
+  const entries = new Map<string, string>()
   let section = ""
   for (const line of text.split(/\r?\n/)) {
     const header = /^\s*\[(.+)\]\s*$/.exec(line)
@@ -70,17 +78,58 @@ export function parseRpcs3Settings(text: string): Map<string, EmulatorPlaytime> 
       continue
     }
     const entry = /^\s*([^=]+?)\s*=\s*(.*?)\s*$/.exec(line)
-    if (!entry) continue
-    if (section === "Playtime") playtime.set(entry[1].toUpperCase(), Number(entry[2]))
-    if (section === "LastPlayed") lastPlayed.set(entry[1].toUpperCase(), entry[2])
+    if (entry && section === name) entries.set(entry[1].toUpperCase(), entry[2])
   }
+  return entries
+}
+
+/** persistent_settings.dat do RPCS3: seções [Playtime] (milissegundos) e [LastPlayed] (data local). */
+export function parseRpcs3Settings(text: string): Map<string, EmulatorPlaytime> {
+  const playtime = iniSection(text, "Playtime")
+  const lastPlayed = iniSection(text, "LastPlayed")
   const records = new Map<string, EmulatorPlaytime>()
   for (const serial of new Set([...playtime.keys(), ...lastPlayed.keys()])) {
-    const milliseconds = playtime.get(serial) ?? 0
+    const milliseconds = Number(playtime.get(serial) ?? 0)
     records.set(serial, {
       seconds: Number.isFinite(milliseconds) ? Math.round(milliseconds / 1000) : 0,
       lastPlayedAt: parseLocalDateTime(lastPlayed.get(serial) ?? ""),
     })
+  }
+  return records
+}
+
+/** ppsspp.ini: a seção [PlayTime], com "SEGUNDOS,ÚLTIMA_VEZ" (unix) por código do disco. */
+export function parsePpssppIni(text: string): Map<string, EmulatorPlaytime> {
+  const records = new Map<string, EmulatorPlaytime>()
+  for (const [serial, value] of iniSection(text, "PlayTime")) {
+    const [seconds, lastPlayed] = value.split(",").map(Number)
+    if (!Number.isFinite(seconds)) continue
+    records.set(serial, {
+      seconds,
+      lastPlayedAt: Number.isFinite(lastPlayed) && lastPlayed > 0 ? new Date(lastPlayed * 1000).toISOString() : null,
+    })
+  }
+  return records
+}
+
+/** TimePlayed.ini do Dolphin: a seção [TimePlayed], com os milissegundos por código do disco. */
+export function parseDolphinTimePlayed(text: string): Map<string, EmulatorPlaytime> {
+  const records = new Map<string, EmulatorPlaytime>()
+  for (const [serial, value] of iniSection(text, "TimePlayed")) {
+    const milliseconds = Number(value)
+    if (Number.isFinite(milliseconds)) records.set(serial, { seconds: Math.round(milliseconds / 1000), lastPlayedAt: null })
+  }
+  return records
+}
+
+/** play_time.bin do Azahar: 16 bytes por jogo, o id do programa e os segundos (os dois de 64 bits). */
+export function parseAzaharPlayTime(data: Buffer): Map<string, EmulatorPlaytime> {
+  const records = new Map<string, EmulatorPlaytime>()
+  for (let offset = 0; offset + 16 <= data.length; offset += 16) {
+    const programId = data.readBigUInt64LE(offset)
+    if (programId === 0n) continue
+    const serial = programId.toString(16).toUpperCase().padStart(16, "0")
+    records.set(serial, { seconds: Number(data.readBigUInt64LE(offset + 8)), lastPlayedAt: null })
   }
   return records
 }
@@ -116,11 +165,16 @@ function parseLocalDateTime(text: string): string | null {
  * - DuckStation: na pasta dele se for portátil (portable.txt), senão em AppData\Local\DuckStation
  *   (versões novas) ou Documentos\DuckStation (antigas);
  * - RPCS3: sempre na pasta dele (GuiConfigs);
+ * - PPSSPP: no memstick ao lado dele (portátil) ou, com o installed.txt, em Documentos\PPSSPP (ou na
+ *   pasta que o installed.txt indicar);
+ * - Dolphin: na pasta User ao lado dele se for portátil (portable.txt), senão em Documentos\Dolphin
+ *   Emulator (versões antigas) ou AppData\Roaming\Dolphin Emulator;
+ * - Azahar: na pasta user ao lado dele (portátil), senão em AppData\Roaming\Azahar;
  * - RetroArch: playlists\logs na pasta dele (ou na pasta de listas configurada no retroarch.cfg).
  */
 export function findPlaytimeFiles(
   emulatorPaths: Partial<Record<EmulatorId, string>>,
-  folders: { documents: string; localAppData: string | undefined },
+  folders: { documents: string; localAppData: string | undefined; appData: string | undefined },
   exists: (path: string) => boolean = existsSync
 ): PlaytimeFiles {
   const firstExisting = (paths: (string | null)[]) => paths.find((path): path is string => path !== null && exists(path)) ?? null
@@ -131,7 +185,11 @@ export function findPlaytimeFiles(
   const duckstation = dirOf("duckstation")
   const duckstationPortable = duckstation && exists(join(duckstation, "portable.txt"))
   const rpcs3 = dirOf("rpcs3")
+  const ppsspp = dirOf("ppsspp")
+  const dolphin = dirOf("dolphin")
+  const azahar = dirOf("azahar")
   const retroarch = dirOf("retroarch")
+  const inAppData = (...parts: string[]) => (folders.appData ? join(folders.appData, ...parts) : null)
 
   return {
     pcsx2: pcsx2
@@ -148,8 +206,44 @@ export function findPlaytimeFiles(
         )
       : null,
     rpcs3: rpcs3 ? firstExisting([join(rpcs3, "GuiConfigs", "persistent_settings.dat")]) : null,
+    ppsspp: ppsspp
+      ? firstExisting([join(ppssppMemstick(ppsspp, folders.documents, exists), "PSP", "SYSTEM", "ppsspp.ini")])
+      : null,
+    dolphin: dolphin
+      ? firstExisting(
+          exists(join(dolphin, "portable.txt"))
+            ? [join(dolphin, "User", "Config", "TimePlayed.ini")]
+            : [
+                join(folders.documents, "Dolphin Emulator", "Config", "TimePlayed.ini"),
+                inAppData("Dolphin Emulator", "Config", "TimePlayed.ini"),
+              ]
+        )
+      : null,
+    azahar: azahar
+      ? firstExisting(
+          exists(join(azahar, "user"))
+            ? [join(azahar, "user", "sysdata", "play_time.bin")]
+            : [inAppData("Azahar", "sysdata", "play_time.bin")]
+        )
+      : null,
     retroarchLogs: retroarch ? firstExisting([join(retroarchPlaylists(retroarch, exists), "logs")]) : null,
   }
+}
+
+/**
+ * O "cartão de memória" do PPSSPP: a pasta memstick ao lado dele (portátil) ou, se houver o
+ * installed.txt, Documentos\PPSSPP (ou a pasta escrita na primeira linha do installed.txt).
+ */
+function ppssppMemstick(ppssppDir: string, documents: string, exists: (path: string) => boolean): string {
+  const installed = join(ppssppDir, "installed.txt")
+  if (!exists(installed)) return join(ppssppDir, "memstick")
+  try {
+    const custom = readFileSync(installed, "utf8").split(/\r?\n/)[0]?.trim()
+    if (custom && isAbsolute(custom)) return custom
+  } catch {
+    // Sem dar para ler, vale a pasta padrão.
+  }
+  return join(documents, "PPSSPP")
 }
 
 /** A pasta de listas do RetroArch: a do retroarch.cfg (":" é a pasta do próprio RetroArch) ou a padrão. */
@@ -180,11 +274,21 @@ export function readEmulatorRecords(files: PlaytimeFiles): EmulatorRecords {
     }
   }
   const logFolders = files.retroarchLogs ? listFolders(files.retroarchLogs) : []
+  let azahar: Map<string, EmulatorPlaytime> | undefined
+  try {
+    // O único registro binário.
+    azahar = files.azahar ? parseAzaharPlayTime(readFileSync(files.azahar)) : undefined
+  } catch {
+    azahar = undefined
+  }
   return {
     bySerial: {
       pcsx2: read(files.pcsx2, parsePlaytimeDat),
       duckstation: read(files.duckstation, parsePlaytimeDat),
       rpcs3: read(files.rpcs3, parseRpcs3Settings),
+      ppsspp: read(files.ppsspp, parsePpssppIni),
+      dolphin: read(files.dolphin, parseDolphinTimePlayed),
+      azahar,
     },
     retroarch: (romPath) => {
       // Um arquivo por jogo, com o nome da ROM, na pasta do core (ou direto em logs, se o

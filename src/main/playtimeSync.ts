@@ -16,8 +16,12 @@ const SYNC_INTERVAL_MS = 60_000
 function syncPlaytimeNow(): number {
   const testDataDir = testMode.dataDir
   const folders = testDataDir
-    ? { documents: join(testDataDir, "Documentos"), localAppData: join(testDataDir, "LocalAppData") }
-    : { documents: app.getPath("documents"), localAppData: process.env["LOCALAPPDATA"] }
+    ? {
+        documents: join(testDataDir, "Documentos"),
+        localAppData: join(testDataDir, "LocalAppData"),
+        appData: join(testDataDir, "AppData"),
+      }
+    : { documents: app.getPath("documents"), localAppData: process.env["LOCALAPPDATA"], appData: app.getPath("appData") }
 
   const db = getDatabase()
   return syncEmulatorPlaytime(db, readEmulatorRecords(findPlaytimeFiles(getEmulatorPaths(db), folders)))

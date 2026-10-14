@@ -19,6 +19,8 @@ const PLATFORM_ALIASES: Record<string, string[]> = {
   ps2: ["playstation 2"],
   gba: ["game boy advance"],
   nds: ["nintendo ds"],
+  gc: ["gamecube"],
+  ngc: ["gamecube"],
 }
 
 /** O id do console no RetroAchievements para o console do jogo, ou null se lá não houver (ex.: PS3). */

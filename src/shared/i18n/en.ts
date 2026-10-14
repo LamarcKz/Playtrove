@@ -309,7 +309,7 @@ export const en: Messages = {
     progressIn: (game) => `Progress in ${game}`,
 
     settingsIntro:
-      "Achievements come from your RetroAchievements account. The emulators are what unlock them (sign in to your account in each one: PCSX2, DuckStation and RetroArch); the app reads what the website recorded every 5 minutes and after you close a game, and lets you know when a new achievement shows up.",
+      "Achievements come from your RetroAchievements account. The emulators are what unlock them (sign in to your account in each one: PCSX2, DuckStation, PPSSPP, Dolphin and RetroArch); the app reads what the website recorded every 5 minutes and after you close a game, and lets you know when a new achievement shows up.",
     settingsTrophies:
       "Trophies from PS3 games come from RPCS3 itself, no account needed: the app reads what it stores every minute and right after you close a game.",
     serviceDescription: "Achievements for emulator games, with how rare each one is.",

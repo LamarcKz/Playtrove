@@ -80,6 +80,17 @@ describe("detecção dos emuladores", () => {
     expect(detectEmulators(sources)).toEqual({ pcsx2, rpcs3 })
   })
 
+  it("PPSSPP, Dolphin e Azahar portáteis na mesma pasta; do PPSSPP, fica o de 64 bits", () => {
+    const pcsx2 = "C:\\Jogos\\Emuladores\\PCSX2\\pcsx2-qt.exe"
+    const ppsspp32 = "C:\\Jogos\\Emuladores\\PPSSPP\\PPSSPPWindows.exe"
+    const ppsspp = "C:\\Jogos\\Emuladores\\PPSSPP\\PPSSPPWindows64.exe"
+    const dolphin = "C:\\Jogos\\Emuladores\\Dolphin-x64\\Dolphin.exe"
+    const azahar = "C:\\Jogos\\Emuladores\\Azahar\\azahar.exe"
+    const sources = fakeSources({ "Menu/PCSX2.lnk": pcsx2 }, [pcsx2, ppsspp32, ppsspp, dolphin, azahar])
+
+    expect(detectEmulators(sources)).toEqual({ pcsx2, ppsspp, dolphin, azahar })
+  })
+
   it("não vasculha pastas largas demais (Arquivos de Programas, pasta do usuário, raiz do disco)", () => {
     const pcsx2 = "C:\\Program Files\\PCSX2\\pcsx2-qt.exe"
     const rpcs3 = "C:\\Program Files\\Emuladores\\RPCS3\\rpcs3.exe"
@@ -103,6 +114,9 @@ describe("detecção dos emuladores", () => {
       ["duckstation", true],
       ["retroarch", false],
       ["rpcs3", false],
+      ["ppsspp", false],
+      ["dolphin", false],
+      ["azahar", false],
     ])
   })
 })
@@ -163,6 +177,30 @@ describe("comando para abrir um jogo", () => {
     expect(romExtensions("rpcs3", null)).toEqual(["iso"])
   })
 
+  it("PPSSPP sai pelo menu de pausa, e o Dolphin fecha junto com o jogo (-b)", () => {
+    const ppsspp = "C:\\Emuladores\\PPSSPP\\PPSSPPWindows64.exe"
+    expect(buildLaunchCommand("ppsspp", ppsspp, "D:\\PSP\\Pista Portátil.iso", null)).toEqual({
+      command: ppsspp,
+      args: ["--pause-menu-exit", "D:\\PSP\\Pista Portátil.iso"],
+    })
+    const dolphin = "C:\\Emuladores\\Dolphin\\Dolphin.exe"
+    expect(buildLaunchCommand("dolphin", dolphin, "D:\\GameCube\\Luta Galáctica.rvz", null)).toEqual({
+      command: dolphin,
+      args: ["-b", "-e", "D:\\GameCube\\Luta Galáctica.rvz"],
+    })
+    expect(romExtensions("ppsspp", null)).toContain("cso")
+    expect(romExtensions("dolphin", null)).toEqual(expect.arrayContaining(["iso", "rvz", "wbfs"]))
+  })
+
+  it("Azahar recebe só o jogo (ele não tem uma opção para fechar junto)", () => {
+    const azahar = "C:\\Emuladores\\Azahar\\azahar.exe"
+    expect(buildLaunchCommand("azahar", azahar, "D:\\3DS\\Aventura de Bolso.3ds", null)).toEqual({
+      command: azahar,
+      args: ["D:\\3DS\\Aventura de Bolso.3ds"],
+    })
+    expect(romExtensions("azahar", null)).toEqual(expect.arrayContaining(["3ds", "cci", "cxi"]))
+  })
+
   it("RetroArch recebe o core da pasta dele", () => {
     expect(buildLaunchCommand("retroarch", RETROARCH, "D:\\GBA\\Runas de Ouro.gba", "mgba_libretro")).toEqual({
       command: RETROARCH,
@@ -184,6 +222,14 @@ describe("sugestão para uma pasta nova (pelo nome dela)", () => {
     expect(suggestFolderSetup("GBA", cores)).toEqual({ emulatorId: "retroarch", core: "mgba_libretro", platform: "Game Boy Advance" })
     expect(suggestFolderSetup(" DS ", cores)).toEqual({ emulatorId: "retroarch", core: "desmume_libretro", platform: "Nintendo DS" })
   })
+  it("PSP, GameCube, Wii e 3DS vão para o PPSSPP, o Dolphin e o Azahar", () => {
+    expect(suggestFolderSetup("PSP", cores)).toEqual({ emulatorId: "ppsspp", core: null, platform: "PlayStation Portable" })
+    expect(suggestFolderSetup("GameCube", cores)).toEqual({ emulatorId: "dolphin", core: null, platform: "GameCube" })
+    expect(suggestFolderSetup("GC", cores)).toEqual({ emulatorId: "dolphin", core: null, platform: "GameCube" })
+    expect(suggestFolderSetup("Wii", cores)).toEqual({ emulatorId: "dolphin", core: null, platform: "Wii" })
+    expect(suggestFolderSetup("3DS", cores)).toEqual({ emulatorId: "azahar", core: null, platform: "Nintendo 3DS" })
+  })
+
   it("prefere o melhor core instalado", () => {
     const withMelon = [...cores, { id: "melonds_libretro", name: "melonDS", system: "Nintendo DS", extensions: ["nds"] }]
     expect(suggestFolderSetup("NDS", withMelon).core).toBe("melonds_libretro")
