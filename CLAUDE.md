@@ -205,7 +205,7 @@ Serve para consertar um texto da página do projeto (ex.: o `README.md`) sem esp
 
 - A identidade do Git está só neste repositório (config local): nome `LamarcKz` e o e-mail `noreply` do GitHub, para não expor o e-mail pessoal nos commits.
 - O `gh` fica em `C:\Program Files\GitHub CLI\gh.exe`, fora do PATH. No PowerShell 5.1, expressões `--jq` com aspas quebram; usar o Git Bash para elas.
-- A trava da `main` é local (`.githooks/`). Com o repositório público, o GitHub também permite proteger a `main` por lá (exigir Pull Request e o ✓ do robô), mas isso ainda não foi ligado: perguntar ao usuário antes.
+- A `main` tem duas travas: a local (`.githooks/`) e, desde 2026-10-14 (com o OK do usuário, depois do aviso "Your main branch isn't protected" do GitHub), a **proteção no GitHub**: Pull Request obrigatório (sem aprovação de outra pessoa, porque o GitHub não deixa aprovar o próprio PR), o check `tests` do robô obrigatório, sem apagar e sem force push, valendo também para o dono (`enforce_admins`). Por isso o `gh pr merge` para a `main` só passa depois do ✓ do robô. Para ver ou mudar: `gh api repos/LamarcKz/Playtrove/branches/main/protection`.
 - No `Playtrove`, a `main` nasceu pela API do GitHub, no mesmo commit da `desenvolvimento` (a trava local não deixa enviar para a `main`, nem na criação). Daí em diante, ela só muda por Pull Request.
 
 ## Documentação
