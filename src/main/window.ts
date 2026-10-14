@@ -8,14 +8,14 @@ const BACKGROUND_COLOR = "#12161d"
 
 /**
  * Cria a janela principal: sem a barra padrão do Windows (frameless) e com o preload seguro. O idioma
- * vai no endereço da interface (?lang=en), para a primeira tela já aparecer no idioma certo. Com a
- * marca DEV (`devMark`: npm run dev e testes automáticos), a janela se chama "Playtrove Dev" e a
- * interface mostra a marca (?dev=library ou ?dev=tests), para não confundir com o app instalado, que
- * pode estar aberto ao lado.
+ * vai no endereço da interface (?lang=en), para a primeira tela já aparecer no idioma certo. Fora do
+ * app instalado, a janela se chama "Playtrove Dev" e, com a marca DEV (`devMark`: npm run dev e testes
+ * automáticos), a interface mostra a marca (?dev=library ou ?dev=tests), para não confundir com o app
+ * instalado, que pode estar aberto ao lado. Só as capturas do README ficam sem a marca.
  */
 export function createMainWindow(language: Language, devMark: DevMark | null): BrowserWindow {
   const win = new BrowserWindow({
-    title: devMark ? "Playtrove Dev" : "Playtrove",
+    title: app.isPackaged ? "Playtrove" : "Playtrove Dev",
     width: 1280,
     height: 800,
     minWidth: 960,
