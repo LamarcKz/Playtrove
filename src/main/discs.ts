@@ -17,10 +17,18 @@ interface DiscImage {
   close: () => void
 }
 
+/** Formatos de GameCube e Wii que o Dolphin abre e que têm o código do jogo legível (as ISOs também). */
+const GAMECUBE_WII_FILES = new Set([".gcm", ".rvz", ".wia", ".wbfs", ".ciso"])
+/** Formatos de 3DS com o cabeçalho NCSD ou NCCH (os comprimidos, .zcci e afins, ficam de fora). */
+const NINTENDO_3DS_FILES = new Set([".3ds", ".cci", ".cxi", ".app"])
+
 /**
- * O código do jogo no disco:
+ * O código do jogo no disco, que é como os emuladores identificam cada jogo nos registros de tempo:
  * - PS1 e PS2: do arquivo SYSTEM.CNF (BOOT = cdrom:\SLUS_001.00;1 → SLUS-00100);
- * - PS3: do PARAM.SFO (TITLE_ID, ex.: BLUS30100), na ISO ou na pasta do jogo (EBOOT.BIN).
+ * - PS3: do PARAM.SFO (TITLE_ID, ex.: BLUS30100), na ISO ou na pasta do jogo (EBOOT.BIN);
+ * - PSP: do PARAM.SFO (DISC_ID, ex.: ULUS10041), na ISO (PSP_GAME/PARAM.SFO) ou no EBOOT.PBP;
+ * - GameCube e Wii: os 6 primeiros caracteres do disco (ex.: GALE01), na ISO e no RVZ, WIA, WBFS e CISO;
+ * - 3DS: o id do programa, em hexadecimal (ex.: 0004000000055D00), no .3ds/.cci e no .cxi.
  * Devolve null quando não dá para ler (formato comprimido, como CHD e CSO, ou disco estranho).
  */
 export function readDiscSerial(romPath: string): string | null {
@@ -30,18 +38,80 @@ export function readDiscSerial(romPath: string): string | null {
       const sfo = join(ps3Folder, "PS3_GAME", "PARAM.SFO")
       return existsSync(sfo) ? stringField(parseParamSfo(readFileSync(sfo)), "TITLE_ID") : null
     }
+    const extension = extname(romPath).toLowerCase()
+    if (extension === ".pbp") return readPbpDiscId(romPath)
+    if (NINTENDO_3DS_FILES.has(extension)) return read3dsProgramId(romPath)
+    if (GAMECUBE_WII_FILES.has(extension)) return readGameCubeWiiId(romPath)
     const disc = openDiscImage(romPath)
     if (!disc) return null
     try {
       const systemCnf = readIsoFile(disc, ["SYSTEM.CNF"])
       if (systemCnf) return serialFromSystemCnf(systemCnf.toString("latin1"))
-      const sfo = readIsoFile(disc, ["PS3_GAME", "PARAM.SFO"])
-      return sfo ? stringField(parseParamSfo(sfo), "TITLE_ID") : null
+      const ps3 = readIsoFile(disc, ["PS3_GAME", "PARAM.SFO"])
+      if (ps3) return stringField(parseParamSfo(ps3), "TITLE_ID")
+      const psp = readIsoFile(disc, ["PSP_GAME", "PARAM.SFO"])
+      if (psp) return stringField(parseParamSfo(psp), "DISC_ID")
     } finally {
       disc.close()
     }
+    // As ISOs de GameCube e Wii não são ISO 9660: o código fica logo no começo do disco.
+    return extension === ".iso" ? readGameCubeWiiId(romPath) : null
   } catch {
     return null
+  }
+}
+
+/** O DISC_ID de um jogo de PSP em EBOOT.PBP (o formato dos jogos da PSN): o PARAM.SFO vem dentro dele. */
+function readPbpDiscId(romPath: string): string | null {
+  const header = readBytes(romPath, 0, 0x28)
+  if (header.toString("latin1", 0, 4) !== "\0PBP") return null
+  const start = header.readUInt32LE(0x08)
+  const end = header.readUInt32LE(0x0c)
+  if (end <= start || end - start > 64 * 1024) return null
+  return stringField(parseParamSfo(readBytes(romPath, start, end - start)), "DISC_ID")
+}
+
+/**
+ * O código de um disco de GameCube ou Wii (ex.: GALE01). Cada formato guarda uma cópia do começo do
+ * disco num lugar: a ISO, no começo; o RVZ e o WIA, no cabeçalho deles (0x58); o WBFS, depois do
+ * primeiro setor dele; e o CISO, depois do mapa de blocos (0x8000). O disco é conferido pela marca
+ * do GameCube (0x1C) ou do Wii (0x18).
+ */
+function readGameCubeWiiId(romPath: string): string | null {
+  const start = readBytes(romPath, 0, 0x20)
+  const magic = start.toString("latin1", 0, 4)
+  const offset =
+    magic === "RVZ\x01" || magic === "WIA\x01" ? 0x58 : magic === "WBFS" ? 2 ** start[8] : magic === "CISO" ? 0x8000 : 0
+  const header = offset === 0 ? start : readBytes(romPath, offset, 0x20)
+  const isGameCube = header.readUInt32BE(0x1c) === 0xc2339f3d
+  const isWii = header.readUInt32BE(0x18) === 0x5d1c9ea3
+  if (!isGameCube && !isWii) return null
+  const id = header.toString("latin1", 0, 6)
+  return /^[A-Z0-9]{6}$/.test(id) ? id : null
+}
+
+/**
+ * O id do programa de um jogo de 3DS, em hexadecimal (ex.: 0004000000055D00): no cabeçalho NCCH, que
+ * no .cxi fica no começo e no .3ds/.cci, na primeira partição (a tabela do NCSD diz onde, em blocos
+ * de 0x200 bytes).
+ */
+function read3dsProgramId(romPath: string): string | null {
+  const start = readBytes(romPath, 0, 0x200)
+  const ncch = start.toString("latin1", 0x100, 0x104) === "NCSD" ? start.readUInt32LE(0x120) * 0x200 : 0
+  const header = ncch === 0 ? start : readBytes(romPath, ncch, 0x200)
+  if (header.toString("latin1", 0x100, 0x104) !== "NCCH") return null
+  const id = header.readBigUInt64LE(0x118)
+  return id === 0n ? null : id.toString(16).toUpperCase().padStart(16, "0")
+}
+
+/** Lê `length` bytes de um arquivo a partir de `position` (menos, se o arquivo acabar antes). */
+function readBytes(path: string, position: number, length: number): Buffer {
+  const fd = openSync(path, "r")
+  try {
+    const buffer = Buffer.alloc(length)
+    return buffer.subarray(0, readSync(fd, buffer, 0, length, position))
+  } finally {
+    closeSync(fd)
   }
 }
 

@@ -70,7 +70,7 @@ export interface Game {
 }
 
 /** Emuladores que o app sabe usar. */
-export type EmulatorId = "pcsx2" | "duckstation" | "retroarch" | "rpcs3"
+export type EmulatorId = "pcsx2" | "duckstation" | "retroarch" | "rpcs3" | "ppsspp" | "dolphin" | "azahar"
 
 /** Um emulador, como a aba Emuladores mostra. */
 export interface EmulatorInfo {
