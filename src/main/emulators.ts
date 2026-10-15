@@ -18,10 +18,15 @@ interface EmulatorPreset {
   extensions: string[]
   /**
    * Argumentos para abrir uma ROM. O emulador precisa fechar junto com o jogo, para o app contar o
-   * tempo. Nada de forçar tela cheia ou janela: vale a configuração de cada emulador (pedido do
-   * usuário em 2026-09-19).
+   * tempo. Nada de forçar tela cheia: vale a configuração de cada emulador (pedido do usuário em
+   * 2026-09-19).
    */
   args: (rom: string, corePath: string | null) => string[]
+  /**
+   * Abrir maximizado: depois que o emulador abre, o app maximiza a janela dele (`maximizeWindow()`).
+   * Só uma janela comum: se ele estiver em tela cheia na configuração dele, fica como está.
+   */
+  maximize?: boolean
 }
 
 const EMULATOR_PRESETS: EmulatorPreset[] = [
@@ -61,6 +66,8 @@ const EMULATOR_PRESETS: EmulatorPreset[] = [
     extensions: [],
     // -L: o core que roda o jogo. O RetroArch fecha sozinho quando o jogo fecha.
     args: (rom, corePath) => ["-L", corePath ?? "", rom],
+    // Abre maximizado, em janela (pedido do usuário em 2026-10-14).
+    maximize: true,
   },
   {
     id: "rpcs3",
