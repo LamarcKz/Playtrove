@@ -3,6 +3,7 @@ import { LoaderCircle, RefreshCw } from "lucide-react"
 import type { Messages } from "@shared/i18n"
 import type { Game, RomFolder, ScanResult } from "@shared/types"
 import { EmulatorList } from "@/components/EmulatorList"
+import { ContentPage } from "@/components/ContentPage"
 import { RomFolderList } from "@/components/RomFolderList"
 import { Button } from "@/components/ui/button"
 import { useEmulators } from "@/hooks/useEmulators"
@@ -61,8 +62,8 @@ export function EmulatorsPage({ games }: EmulatorsPageProps) {
   if (!emulators) return null
 
   return (
-    <div className="h-full overflow-y-auto p-8">
-      <div className="max-w-3xl space-y-10">
+    <ContentPage>
+      <div className="grid items-start gap-6 @[70rem]/content:grid-cols-2">
         <PageSection
           title={t.emulators.title}
           description={t.emulators.description}
@@ -100,7 +101,7 @@ export function EmulatorsPage({ games }: EmulatorsPageProps) {
           />
         </PageSection>
       </div>
-    </div>
+    </ContentPage>
   )
 }
 
@@ -112,15 +113,15 @@ interface PageSectionProps {
   children: ReactNode
 }
 
-/** Uma seção da tela, com o título em letras pequenas (como nas Configurações). */
+/** Uma seção da tela, com título e ação que se acomodam à largura disponível. */
 function PageSection({ title, description, action, children }: PageSectionProps) {
   return (
-    <section aria-label={title}>
-      <div className="mb-3 flex min-h-8 items-center justify-between gap-4">
-        <h2 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{title}</h2>
+    <section aria-label={title} className="flex min-w-0 flex-col gap-4">
+      <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold">{title}</h2>
         {action}
       </div>
-      <p className="mb-3 text-sm text-muted-foreground">{description}</p>
+      <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
       {children}
     </section>
   )

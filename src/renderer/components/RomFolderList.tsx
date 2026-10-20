@@ -34,7 +34,7 @@ export function RomFolderList({ folders, emulators, cores, games, scanning, onAd
   }
 
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="@container/folders min-w-0 rounded-xl border bg-card">
       {folders.length === 0 && !newFolder && (
         <p className="px-4 py-3 text-sm text-muted-foreground">{t.romFolders.empty}</p>
       )}
@@ -44,37 +44,39 @@ export function RomFolderList({ folders, emulators, cores, games, scanning, onAd
           const core = cores.find((item) => item.id === folder.core)
           const count = games.filter((game) => isInside(game.romPath, folder.path)).length
           return (
-            <li key={folder.id} aria-label={folder.path} className="flex items-center gap-3 px-4 py-3">
+            <li key={folder.id} aria-label={folder.path} className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 p-4 @[30rem]/folders:grid-cols-[auto_minmax(0,1fr)_auto]">
               <FolderOpen className="size-5 shrink-0 text-muted-foreground" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium" title={folder.path}>
+                <p className="text-sm leading-relaxed font-medium break-all" title={folder.path}>
                   {folder.path}
                 </p>
-                <p className="text-xs text-muted-foreground">
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
                   {emulator?.name}
                   {folder.core && ` (${core ? shortCoreName(core.name) : folder.core})`} · {folder.platform} ·{" "}
                   {t.common.games(count)}
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={scanning !== null}
-                onClick={() => onScan(folder.id)}
-                aria-label={t.romFolders.scanFolder(folder.path)}
-              >
-                {scanning === folder.id || scanning === "all" ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
-                {t.romFolders.scan}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={t.romFolders.removeFolder(folder.path)}
-                onClick={() => onRemove(folder.id)}
-                className="hover:text-destructive"
-              >
-                <Trash2 />
-              </Button>
+              <div className="col-start-2 flex flex-wrap items-center gap-2 @[30rem]/folders:col-start-3 @[30rem]/folders:row-start-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={scanning !== null}
+                  onClick={() => onScan(folder.id)}
+                  aria-label={t.romFolders.scanFolder(folder.path)}
+                >
+                  {scanning === folder.id || scanning === "all" ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
+                  {t.romFolders.scan}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={t.romFolders.removeFolder(folder.path)}
+                  onClick={() => onRemove(folder.id)}
+                  className="hover:text-destructive"
+                >
+                  <Trash2 />
+                </Button>
+              </div>
             </li>
           )
         })}
@@ -129,16 +131,16 @@ function AddRomFolderForm({ path, emulators, cores, onCancel, onAdd }: AddRomFol
         event.preventDefault()
         if (canAdd) onAdd({ path, emulatorId, core: needsCore ? core : null, platform })
       }}
-      className="space-y-3 border-t bg-secondary/40 px-4 py-4"
+      className="flex min-w-0 flex-col gap-4 border-t bg-secondary/40 p-4"
     >
-      <p className="truncate text-sm">
+      <p className="text-sm leading-relaxed break-all">
         <span className="text-muted-foreground">{t.romFolders.folder} </span>
         <span className="font-medium">{path}</span>
       </p>
       <div className="flex flex-wrap items-end gap-3">
         <Field label={t.romFolders.emulator}>
           <Select value={emulatorId} onValueChange={(value) => setEmulatorId(value as EmulatorId)}>
-            <SelectTrigger aria-label={t.romFolders.emulator} className="w-40">
+            <SelectTrigger aria-label={t.romFolders.emulator} className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -156,7 +158,7 @@ function AddRomFolderForm({ path, emulators, cores, onCancel, onAdd }: AddRomFol
               <p className="h-8 text-sm leading-8 text-muted-foreground">{t.romFolders.noCoresInstalled}</p>
             ) : (
               <Select value={core ?? undefined} onValueChange={setCore}>
-                <SelectTrigger aria-label={t.romFolders.core} className="w-44">
+                <SelectTrigger aria-label={t.romFolders.core} className="w-full">
                   <SelectValue placeholder={t.romFolders.chooseCore} />
                 </SelectTrigger>
                 <SelectContent>
@@ -176,11 +178,11 @@ function AddRomFolderForm({ path, emulators, cores, onCancel, onAdd }: AddRomFol
             value={platform}
             maxLength={60}
             onChange={(event) => setPlatform(event.target.value)}
-            className="w-52"
+            className="w-full"
           />
         </Field>
       </div>
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           {t.common.cancel}
         </Button>
@@ -196,8 +198,8 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   // flex + gap (e não space-y): o Select do Radix põe um <select> escondido depois do botão, e o
   // space-y daria margem ao botão, desalinhando os campos.
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="block text-xs font-semibold text-muted-foreground">{label}</span>
+    <div className="flex min-w-0 flex-1 basis-48 flex-col gap-2">
+      <span className="block text-sm font-medium">{label}</span>
       {children}
     </div>
   )

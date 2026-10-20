@@ -23,7 +23,7 @@ export function AchievementsSettings() {
   else if (config.lastSyncAt) status = words.lastSync(formatDateTime(config.lastSyncAt, t.locale))
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <p className="text-sm text-muted-foreground">{words.settingsIntro}</p>
       <p className="text-sm text-muted-foreground">{words.settingsTrophies}</p>
 
@@ -44,8 +44,8 @@ export function AchievementsSettings() {
       />
 
       {config.username && (
-        <div className="flex items-center justify-between gap-3 rounded-xl border bg-card p-4 text-sm">
-          <p className={cn("text-muted-foreground", config.lastError && !config.syncing && "text-destructive")}>{status}</p>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4 text-sm">
+          <p className={cn("min-w-0 text-muted-foreground [overflow-wrap:anywhere]", config.lastError && !config.syncing && "text-destructive")}>{status}</p>
           <Button variant="secondary" size="sm" disabled={config.syncing} onClick={() => void window.api.achievements.sync()}>
             <RefreshCw className={cn(config.syncing && "animate-spin")} />
             {words.syncNow}
