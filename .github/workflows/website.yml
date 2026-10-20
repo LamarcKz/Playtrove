@@ -1,0 +1,39 @@
+name: Refresh website
+
+on:
+  release:
+    types: [published, edited, deleted]
+  workflow_dispatch:
+
+# No access from this repository's GITHUB_TOKEN is needed. The separate App token
+# below is restricted to Actions in Playtrove-site.
+permissions: {}
+
+concurrency:
+  group: refresh-website
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.repository == 'LamarcKz/Playtrove' &&
+      github.event.repository.private == false &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.release.draft == false && github.event.release.prerelease == false))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create a token for the website repository
+        id: site-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PLAYTROVE_SITE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.PLAYTROVE_SITE_APP_PRIVATE_KEY }}
+          owner: LamarcKz
+          repositories: Playtrove-site
+          permission-actions: write
+
+      - name: Request a website publication
+        run: gh api --method POST repos/LamarcKz/Playtrove-site/actions/workflows/deploy.yml/dispatches -f ref=main
+        env:
+          GH_TOKEN: ${{ steps.site-token.outputs.token }}
