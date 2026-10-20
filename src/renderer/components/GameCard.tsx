@@ -36,14 +36,14 @@ export function GameCard({ game, selected, onSelect }: GameCardProps) {
           selected && "ring-2 ring-primary"
         )}
       >
-        <GameCover title={game.title} src={game.coverUrl} className="w-full rounded-none" />
+        <GameCover title={game.title} src={game.coverUrl} className="mx-auto w-full rounded-none" />
         {/* Faixa do status: logo embaixo da capa, sem cobrir a imagem. */}
-        <span className="block truncate bg-cover-label px-2.5 py-1.5 text-xs font-medium text-cover-label-foreground">
+        <span className="block bg-cover-label px-2.5 py-1.5 text-xs font-medium text-cover-label-foreground [overflow-wrap:anywhere]">
           {statusName(game.statusId)}
         </span>
       </div>
       <div className="min-w-0 px-0.5">
-        <p className="truncate text-sm font-medium" title={game.title}>
+        <p className="text-sm font-medium [overflow-wrap:anywhere]" title={game.title}>
           {game.title}
         </p>
         <p className="flex items-center justify-between gap-2 text-xs text-muted-foreground">

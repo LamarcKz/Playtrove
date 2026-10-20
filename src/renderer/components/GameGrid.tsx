@@ -10,7 +10,7 @@ interface GameGridProps {
 /** Grid responsivo de capas: a quantidade de colunas se ajusta à largura disponível. */
 export function GameGrid({ games, selectedGameId, onSelectGame }: GameGridProps) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-x-5 gap-y-7">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] items-start gap-x-5 gap-y-7">
       {games.map((game) => (
         <GameCard key={game.id} game={game} selected={game.id === selectedGameId} onSelect={onSelectGame} />
       ))}

@@ -107,6 +107,7 @@ Os canais IPC de hoje:
 | `tests/fakeDiscs.ts` | Discos de mentira para os testes: ISOs, a versão "crua" de CD (os .bin de PS1), o PARAM.SFO dos jogos de PS3 e PSP, o EBOOT.PBP, o começo dos discos de GameCube e Wii (e os formatos do Dolphin) e os jogos de 3DS |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela e clicam como uma pessoa. `helpers.ts` abre o app com uma pasta de dados temporária, cria pastas de arquivos de mentira (`createFiles()`) e simula a janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB e um SteamGridDB de mentira (com imagens geradas na hora), para os testes de metadados não usarem a internet |
 | `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
+| `tests/app/covers.spec.ts` | Confere as capas no Electron pelas dimensões e pelo DOM (sem capturas): proporção original, limites de tamanho na Grade, nos Detalhes e no painel lateral, alinhamento dos cartões e desenho padrão durante carregamento, sem imagem ou em erro |
 | `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste |
 | `tsconfig.test.json` | TypeScript dos testes e dos scripts |
 | `README.md` e `README.pt-BR.md` | Página de apresentação do projeto no GitHub, em inglês (a que o GitHub mostra) e em português: logo, sobre, recursos, capturas de tela, download, privacidade, bugs, como compilar e roadmap |
@@ -295,15 +296,15 @@ Os canais IPC de hoje:
 |---|---|
 | `GameList.tsx` | Lista de jogos da esquerda (ícone, nome e o troféu com o progresso nas conquistas) |
 | `GameIcon.tsx` | Ícone pequeno do jogo (lista, Lista e Kanban). Sem ícone, um pedaço da capa; sem os dois, o desenho padrão |
-| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa acima do título, a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
+| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa na proporção original acima do título (até 160 × 288 px), a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
 
 **Biblioteca, modo Grade**
 
 | Arquivo | O que faz |
 |---|---|
-| `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela |
-| `GameCard.tsx` | Card do jogo: capa com o status numa faixa logo embaixo dela (sem cobrir a imagem), título, tempo jogado e o progresso nas conquistas, com zoom no hover |
-| `GameCover.tsx` | Capa do jogo (retrato, 2:3). Sem capa, ou se ela não carregar, o desenho padrão |
+| `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela; os cartões ficam alinhados pelo topo e têm alturas variáveis conforme as capas |
+| `GameCard.tsx` | Card do jogo: capa na proporção original, com até 384 px de altura e o status numa faixa logo embaixo dela (sem cobrir a imagem), título, tempo jogado e o progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
+| `GameCover.tsx` | Capa inteira na proporção original, sem moldura fixa 2:3 nem preenchimento desfocado. Durante o carregamento, sem capa ou se ela não carregar, mostra o desenho padrão |
 
 **Biblioteca, modo Lista**
 
@@ -321,7 +322,7 @@ Os canais IPC de hoje:
 
 | Arquivo | O que faz |
 |---|---|
-| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa, o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
+| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa na proporção original (até 176 × 320 px), o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
 | `GameBackdrop.tsx` | A arte de fundo do jogo, que vai sumindo para baixo (modo Detalhes e painel lateral) |
 | `GameActionsMenu.tsx` | O menu "Mais" de um jogo: avaliar (abre a `RatingDialog`), escrever ou editar a análise (abre a `ReviewDialog`), baixar metadados, marcar como favorito e mostrar a ROM no Explorador |
 | `RatingDialog.tsx` | Janela "Avaliar jogo": a nota em estrelas e a dificuldade em pimentas, as duas com meio ícone (pelo `ScoreInput`) |
