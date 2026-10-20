@@ -2,7 +2,7 @@ name: Refresh website
 
 on:
   release:
-    types: [published, edited, deleted]
+    types: [published, edited, deleted, unpublished]
   workflow_dispatch:
 
 # No access from this repository's GITHUB_TOKEN is needed. The separate App token
@@ -19,7 +19,11 @@ jobs:
       github.repository == 'LamarcKz/Playtrove' &&
       github.event.repository.private == false &&
       (github.event_name == 'workflow_dispatch' ||
-       (github.event.release.draft == false && github.event.release.prerelease == false))
+       github.event.action == 'edited' ||
+       github.event.action == 'deleted' ||
+       github.event.action == 'unpublished' ||
+       (github.event.action == 'published' &&
+        github.event.release.draft == false && github.event.release.prerelease == false))
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
