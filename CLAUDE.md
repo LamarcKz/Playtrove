@@ -1,9 +1,14 @@
 # CLAUDE.md — Playtrove
 
-Guia de trabalho do Claude neste projeto e resumo do estado atual do desenvolvimento.
+Guia de trabalho compartilhado do Codex e do Claude Code neste projeto e resumo do estado atual do desenvolvimento.
+
+Este arquivo é a fonte única das regras de trabalho dos dois agentes e mantém o nome `CLAUDE.md` para continuar compatível com o Claude Code. O `AGENTS.md` é o ponto de entrada do Codex: orienta a leitura integral deste guia e a consulta ao `ESTRUTURA.md`, sem duplicar as regras.
+
+As orientações dirigidas ao "Claude", inclusive o fluxo e as autorizações de Git, testes e lançamentos abaixo, também se aplicam ao Codex (escolha do usuário em 2026-10-19). Pedidos atuais do usuário e instruções do ambiente têm precedência; estas regras não alteram permissões nem liberam execução em modo de planejamento.
 
 ## Estado atual
 
+- **Continuidade entre agentes (2026-10-19):** Codex e Claude Code seguem este guia compartilhado, com `AGENTS.md` como entrada do Codex. O ajuste é de documentação, sem mudança no aplicativo ou na versão; a memória privada do Claude não é importada automaticamente.
 - **Aplicativo:** **Playtrove**, biblioteca de jogos para desktop (Windows) no estilo Playnite/Steam. Até 2026-09-29 se chamava **Bibliotecaofgames**: o nome mudou antes de abrir o código (o usuário não queria o nome antigo público; escolheu Playtrove, "tesouro de jogos", entre nomes no estilo do Playnite). A pasta do projeto no computador e o repositório privado continuam com o nome antigo.
 - **Ícone (2026-09-29):** um baú de tesouro com a fechadura de play, em traço branco no quadrado azul. Escolha do usuário depois de ver exemplos: ele não queria um controle, para não parecer o logo do Playnite, e achou o direcional com cara de farmácia. Fica em `build/icon.ico` (o .exe, o instalador e a janela no `npm run dev`; até 32 px o traço é mais grosso, para continuar legível), `docs/logo.svg` (README) e `AppLogo.tsx` (barra do topo e Sobre).
 - **Fase:** base pronta em 2026-09-18. Depois entraram os modos Lista e Kanban, o painel de filtros (com a busca funcionando), o indicador do DualSense, o **banco de dados**, a aba **Emuladores**, com o botão Jogar funcionando, os **metadados e imagens** (IGDB + SteamGridDB) a aba **Estatísticas** e, depois dos testes do usuário, as correções do mesmo dia (conserto do banco, RPCS3, capas do libretro-thumbnails e tempo vindo dos emuladores) (2026-09-19). A biblioteca começa vazia: os jogos entram pelas pastas de ROMs, e os 12 jogos de exemplo existem só nos testes. O usuário constrói as partes aos poucos.
@@ -127,7 +132,7 @@ Como fazer, então:
 
 - **Capturas do README:** montar uma **biblioteca de demonstração** num banco temporário — jogos conhecidos (Tekken 5, Crash Bandicoot, Pokemon Emerald...), com capa de verdade do libretro-thumbnails e tempo jogado inventado — e tirar as capturas dela nos dois idiomas (`PLAYTROVE_SYSTEM_LANGUAGE` em `pt-BR` e `en`), com `PLAYTROVE_DATA_DIR`, `PLAYTROVE_SKIP_EMULATOR_DETECTION=1` e `PLAYTROVE_HIDE_DEV_MARK=1` (sem ele, a marca DEV aparece no logo). Nunca usar as pastas de ROMs dele.
 - **Testes:** nomes de jogos fictícios ou genéricos, como os 12 jogos de exemplo do app.
-- **O que é dele e o Claude precisa lembrar** (caminhos dos emuladores e das ROMs, jeito de testar na tela): fica na memória do Claude, que está fora do repositório.
+- **O que é dele e o Claude precisa lembrar** (caminhos dos emuladores e das ROMs, jeito de testar na tela): fica na memória do Claude, que está fora do repositório. O Codex não herda essa memória: pedir contexto apenas quando uma tarefa concreta precisar dele, sem importar credenciais, caminhos pessoais ou a biblioteca para arquivos versionados.
 - **Antes de um commit** que mexa em documentação ou capturas: procurar o nome de usuário dele no repositório (`git grep -i`) e olhar as imagens.
 
 ## Git e GitHub
@@ -154,7 +159,7 @@ Explicação usada com o usuário: commit = salvar o jogo; push = mandar o save 
 - Mensagens no padrão Conventional Commits (o mesmo do Electron), com o tipo em inglês e o texto em português, no imperativo: `feat: adiciona o modo Detalhes`, `fix: corrige o ícone de restaurar`, `docs: atualiza o README`, `refactor: ...`, `chore: ...`. Primeira linha curta (até ~72 caracteres); corpo com tópicos, se ajudar.
 - Nunca fazer commit de código quebrado.
 - **Mudanças grandes ou arriscadas:** banco de dados (tabelas e migrações), integrações (Steam, GOG, emuladores, pastas), mudanças em muitos arquivos ou experimentos que o usuário pode querer descartar (na dúvida, usar branch).
-  1. `git switch -c <nome>` a partir da `desenvolvimento` (nome curto, em português, em kebab-case: `banco-de-dados`, `importar-steam`).
+  1. `git switch -c <nome>` a partir da `desenvolvimento` (nome curto, em português, em kebab-case: `banco-de-dados`, `importar-steam`). No Codex, usar o prefixo `codex/` nas branches novas (ex.: `codex/importar-steam`), mantendo o mesmo fluxo e as mesmas branches de destino.
   2. Commits na branch e push (`git push -u origin <nome>`), para ela ficar salva no GitHub.
   3. Pronta e testada (`npm test` passando e app conferido): Pull Request para a `desenvolvimento` com um resumo (`gh pr create --base desenvolvimento`), esperar o ✓ do robô dos testes (`gh pr checks <número> --watch`), merge com merge commit apagando a branch (`gh pr merge --merge --delete-branch`), depois `git switch desenvolvimento` e `git pull`.
   4. Se não der certo e o usuário concordar: apagar a branch (local e no GitHub). Nada muda na `desenvolvimento`.
@@ -210,7 +215,7 @@ Serve para consertar um texto da página do projeto (ex.: o `README.md`) sem esp
 
 ## Documentação
 
-- **O Obsidian não é usado neste projeto.** A documentação fica só em `README.md`, `ESTRUTURA.md` e neste `CLAUDE.md`.
+- **O Obsidian não é usado neste projeto.** A documentação fica nos READMEs (`README.md` e `README.pt-BR.md`), no `ESTRUTURA.md` e neste `CLAUDE.md`. O `AGENTS.md` é apenas a entrada do Codex para este guia compartilhado; regras, decisões e estado atual continuam aqui, sem documentação paralela por agente.
 - **O README é a página do projeto para quem visita o GitHub**, em inglês (`README.md`) e em português (`README.pt-BR.md`), com o link de um para o outro no topo. **Mudou um, muda o outro:** os dois têm as mesmas seções e os mesmos recursos. No estilo do Playnite e do PCSX2: logo, sobre, recursos, capturas de tela, download, como compilar, roadmap, tecnologias e créditos. Nada de checklist interno, lista de TODOs ou notas de desenvolvimento (isso vai no `ESTRUTURA.md`). Não apresentar como recurso o que ainda não funciona: isso vai no "Roadmap".
 - Depois de uma tarefa que altere o projeto: atualizar aqui o "Estado atual" (e "Comandos"/"Convenções", se mudaram); o `ESTRUTURA.md`, se pastas ou arquivos mudaram; o `README.md`, se recursos, roadmap, requisitos, comandos ou tecnologias mudaram (e as capturas, se a interface mudou).
 - Português do Brasil, com acentuação correta. Datas no formato `AAAA-MM-DD`.

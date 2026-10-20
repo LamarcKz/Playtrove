@@ -2,6 +2,8 @@
 
 Guia de onde fica cada coisa no Playtrove e de qual arquivo abrir para criar cada funcionalidade nova.
 
+Para trabalhar no projeto, Codex e Claude Code usam o mesmo guia de regras, decisões e estado atual: `CLAUDE.md`. O Codex começa pelo `AGENTS.md`, que orienta a leitura integral desse guia e a consulta a este mapa, sem manter uma segunda cópia das regras.
+
 ## A ideia geral: 3 partes que conversam
 
 Um app Electron roda em partes separadas, que trocam mensagens entre si (isso se chama **IPC**):
@@ -113,7 +115,8 @@ Os canais IPC de hoje:
 | `.github/ISSUE_TEMPLATE/` | Os formulários das Issues no GitHub: bug (`bug_report.yml`, com os campos `version` e `windows` que o botão "Reportar um problema" preenche) e ideia (`feature_request.yml`) |
 | `docs/logo.svg` | Logo do projeto (o mesmo baú do ícone do app), usado no README |
 | `docs/screenshots/` | Capturas de tela do app usadas nos READMEs: `en/` e `pt-BR/`, com os mesmos nomes de arquivo |
-| `CLAUDE.md` | Instruções e estado do projeto para o Claude Code |
+| `AGENTS.md` | Ponto de entrada do Codex: orienta a leitura integral do guia compartilhado e a consulta a este mapa |
+| `CLAUDE.md` | Guia compartilhado do Codex e do Claude Code: regras de trabalho, decisões e estado atual do projeto |
 | `out/` | Gerada automaticamente pelo build. Não edite |
 | `dist/` | Gerada pelo `npm run dist`: o instalador, a versão portátil e a pasta `win-unpacked` (o app pronto, sem instalar). Não edite |
 
