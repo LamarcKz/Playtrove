@@ -110,6 +110,7 @@ Os canais IPC de hoje:
 | `LICENSE` | A licença do código (MIT) |
 | `SECURITY.md` | Como avisar de um problema de segurança (em particular, pelo GitHub) |
 | `.github/workflows/tests.yml` | O robô dos testes (GitHub Actions): a cada envio para a `main` ou a `desenvolvimento` e a cada Pull Request, roda o `npm test` num Windows limpo do GitHub e marca o commit com ✓ ou ✗ |
+| `.github/workflows/website.yml` | Pede ao repositório separado `LamarcKz/Playtrove-site` uma publicação após lançar uma estável ou editar, remover ou despublicar uma release (inclusive converter uma estável em pré-lançamento), ou por execução manual. Publicações iniciais de pré-lançamentos são ignoradas; o site seleciona só releases publicadas e estáveis. Usa um GitHub App limitado a Actions no site; não compila o app nem altera sua versão |
 | `.github/ISSUE_TEMPLATE/` | Os formulários das Issues no GitHub: bug (`bug_report.yml`, com os campos `version` e `windows` que o botão "Reportar um problema" preenche) e ideia (`feature_request.yml`) |
 | `docs/logo.svg` | Logo do projeto (o mesmo baú do ícone do app), usado no README |
 | `docs/screenshots/` | Capturas de tela do app usadas nos READMEs: `en/` e `pt-BR/`, com os mesmos nomes de arquivo |
@@ -458,3 +459,9 @@ A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no mesmo padrão do [Ele
 - **O que ainda falta:** fica no "Roadmap" do `README.md`, e não no código: aqui só entra o que já funciona.
 - **Controle no Bluetooth:** no Bluetooth, o DualSense começa num modo simples, sem a bateria. Para ler a bateria, o app pede o modo completo, o mesmo que a Steam usa, e o controle fica nele até ser desligado. Se algum jogo antigo aberto fora da Steam não reconhecer o controle, feche o app e desligue e ligue o controle.
 - **Leitura do controle:** o controle manda uns 250 relatórios por segundo. Por isso o app abre o controle só por um instante, a cada 5 segundos, em vez de deixá-lo aberto (assim não gasta processamento enquanto você joga).
+
+### Site público e guias
+
+As fontes do site ficam em outro repositório, [Playtrove-site](https://github.com/LamarcKz/Playtrove-site), com dependências e builds próprios. Os guias de usuários e colaboradores em português e inglês mostram o último snapshot estável revisado cuja versão não ultrapasse a release publicada, identificado pelo seu número real. Os posts reaproveitam as notas públicas de cada release, preservando os dois idiomas, a versão, a data e o link de origem; não há API de IA nem commits automáticos de posts.
+
+O aplicativo só contém o listener `website.yml`: um GitHub App com acesso apenas a Actions de `Playtrove-site` aciona `deploy.yml` na `main` de lá. O listener atende a publicação de estáveis e também edições, remoções, despublicações e conversões para pré-lançamento: o site reconstrói sua seleção de releases públicas e estáveis. Publicar um pré-lançamento novo não dispara essa atualização. O setup e os comandos de manutenção estão no `MAINTENANCE.md` do site. A chave privada fica em um secret do GitHub no repositório do aplicativo, nunca em arquivos. O listener só vale automaticamente para tags que já contenham esse workflow; releases antigas podem ser reconstruídas pela execução manual do workflow do site.
