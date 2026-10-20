@@ -107,20 +107,22 @@ interface AchievementRowProps {
   gameTitle?: string
   /** Mostra o nome e a descrição dos troféus ocultos que ainda faltam. */
   revealHidden?: boolean
+  /** A aba Conquistas usa texto maior e permite que a data vá para outra linha. */
+  compact?: boolean
 }
 
 /**
  * Uma conquista: insígnia, nome, descrição, o tipo do troféu (e, no RetroAchievements, a raridade,
  * a porcentagem de jogadores e os pontos; no PS3, o pacote extra) e quando foi desbloqueada.
  */
-export function AchievementRow({ achievement, gameTitle, revealHidden = false }: AchievementRowProps) {
+export function AchievementRow({ achievement, gameTitle, revealHidden = false, compact = true }: AchievementRowProps) {
   const { t } = useI18n()
   const words = t.achievements
   const earned = achievement.earnedAt !== null
   const masked = achievement.hidden && !earned && !revealHidden
   const title = masked ? words.hiddenTitle : achievement.title
   return (
-    <li className="flex items-start gap-3 rounded-lg px-2 py-2.5 hover:bg-accent/30">
+    <li className={cn("flex items-start gap-3 rounded-lg px-2 py-2.5 hover:bg-accent/30", !compact && "flex-wrap")}>
       <AchievementBadge
         url={masked ? null : achievement.badgeUrl}
         title={title}
@@ -129,12 +131,16 @@ export function AchievementRow({ achievement, gameTitle, revealHidden = false }:
         decorative
         className="size-12"
       />
-      <div className="min-w-0 flex-1">
-        <p className={cn("text-sm font-medium", !earned && "text-muted-foreground")}>{title}</p>
-        {gameTitle && <p className="truncate text-xs text-muted-foreground">{gameTitle}</p>}
-        <p className="text-xs text-muted-foreground">{masked ? words.hiddenDescription : achievement.description}</p>
+      <div className={cn("min-w-0 flex-1", !compact && "basis-48")}>
+        <p className={cn("text-sm font-medium", !earned && "text-muted-foreground", !compact && "[overflow-wrap:anywhere]")}>{title}</p>
+        {gameTitle && (
+          <p className={cn("text-muted-foreground", compact ? "truncate text-xs" : "[overflow-wrap:anywhere] text-sm")}>{gameTitle}</p>
+        )}
+        <p className={cn("text-muted-foreground", compact ? "text-xs" : "[overflow-wrap:anywhere] text-sm")}>
+          {masked ? words.hiddenDescription : achievement.description}
+        </p>
         {/* Texto corrido (e não flex): numa coluna estreita, quebra entre as palavras. */}
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className={cn("mt-1 text-muted-foreground", compact ? "text-xs" : "[overflow-wrap:anywhere] text-sm")}>
           <TrophyIcon grade={achievement.grade} className="mr-1 inline align-[-3px]" />
           <span className={GRADE_TEXT[achievement.grade]}>{words.grades[achievement.grade]}</span>
           {achievement.rarity &&
@@ -142,7 +148,9 @@ export function AchievementRow({ achievement, gameTitle, revealHidden = false }:
           {achievement.group && ` · ${achievement.group}`}
         </p>
       </div>
-      <div className="shrink-0 text-right text-xs text-muted-foreground">
+      <div
+        className={cn("shrink-0 text-right text-muted-foreground", compact ? "text-xs" : "ml-auto max-w-full [overflow-wrap:anywhere] text-sm")}
+      >
         {achievement.earnedAt ? formatDateTime(achievement.earnedAt, t.locale) : words.locked}
         {achievement.hardcore && <p className="mt-0.5 font-medium text-foreground/80">{words.hardcore}</p>}
       </div>

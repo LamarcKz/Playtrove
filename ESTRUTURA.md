@@ -106,6 +106,7 @@ Os canais IPC de hoje:
 | `tests/unit/` | Testes rápidos da lógica (Vitest), sem abrir o app: filtros, datas, bateria do controle, banco de dados, emuladores, pastas de ROMs, abrir jogos e contar o tempo (com um emulador de mentira), maximizar a janela (`emulatorWindow.test.ts`, com uma janela de teste invisível no lugar do emulador), os idiomas (`i18n.test.ts`: os dois dicionários completos e nenhum texto da tela fora deles) e `npm run versao` |
 | `tests/fakeDiscs.ts` | Discos de mentira para os testes: ISOs, a versão "crua" de CD (os .bin de PS1), o PARAM.SFO dos jogos de PS3 e PSP, o EBOOT.PBP, o começo dos discos de GameCube e Wii (e os formatos do Dolphin) e os jogos de 3DS |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela e clicam como uma pessoa. `helpers.ts` abre o app com uma pasta de dados temporária, cria pastas de arquivos de mentira (`createFiles()`) e simula a janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB e um SteamGridDB de mentira (com imagens geradas na hora), para os testes de metadados não usarem a internet |
+| `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
 | `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste |
 | `tsconfig.test.json` | TypeScript dos testes e dos scripts |
 | `README.md` e `README.pt-BR.md` | Página de apresentação do projeto no GitHub, em inglês (a que o GitHub mostra) e em português: logo, sobre, recursos, capturas de tela, download, privacidade, bugs, como compilar e roadmap |
@@ -233,7 +234,7 @@ Os canais IPC de hoje:
 | `AchievementsPage.tsx` | Conquistas: a conta e o botão "Atualizar", o resumo, os gráficos por dia e por mês, os jogos com o progresso e as desbloqueadas por último. Sem conta, um botão leva às Configurações |
 | `LibraryPage.tsx` | Biblioteca nos modos Detalhes (o principal), Grade, Lista e Kanban, com o painel de filtros na direita quando ele está aberto. A filtragem em si fica em `lib/filters.ts`. Vazia, mostra um botão que leva à aba Emuladores |
 | `EmulatorsPage.tsx` | Emuladores: onde está cada emulador e as pastas de ROMs, com os botões de procurar jogos. Resume cada procura num aviso rápido (`describeScan()`) |
-| `SettingsPage.tsx` | Configurações: seções Geral (o idioma), Status, Metadados, Conquistas e Sobre (nome e **versão do app**) |
+| `SettingsPage.tsx` | Configurações: Geral, Status e Sobre (nome e **versão do app**) numa pilha, Metadados e Conquistas na outra; duas colunas a partir de 1120 px úteis, sem desmontar formulários ao redimensionar |
 
 #### `src/renderer/components`: pedaços da interface
 
@@ -267,7 +268,8 @@ Os canais IPC de hoje:
 
 | Arquivo | O que faz |
 |---|---|
-| `BarList.tsx` | Lista com barras horizontais de uma cor só: nome, barra proporcional e o valor escrito (os mais jogados, os status, as plataformas...) |
+| `ContentPage.tsx` | Área comum de Estatísticas, Conquistas, Configurações e Emuladores: rolagem vertical, margens de 16/24 px, largura máxima de 1600 px e container `content` para organizar as colunas pela largura útil |
+| `BarList.tsx` | Lista com barras horizontais de uma cor só: nome, barra proporcional e o valor escrito (os mais jogados, os status, as plataformas...); nos cartões estreitos, a barra fica abaixo do nome e do valor |
 | `ActivityChart.tsx` | O gráfico da atividade dos últimos 30 dias (um `ColumnChart` com o tempo jogado de cada dia) |
 | `ColumnChart.tsx` | O gráfico de colunas das Estatísticas e das Conquistas: dica ao passar o mouse (ou com o foco do teclado), o maior valor escrito em cima e a versão em tabela |
 | `StatsBlocks.tsx` | Os blocos das telas de números: `StatTile` (um número do resumo), `StatsCard` (um bloco com título) e `EmptyNote` (bloco sem dados) |
