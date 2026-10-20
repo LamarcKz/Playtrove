@@ -443,6 +443,7 @@ A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no mesmo padrão do [Ele
 - O número **só muda quando uma versão é lançada**. Enquanto o trabalho acontece, o app continua mostrando o número da última versão (em Configurações → "Sobre").
 - **Quem lança:** versões com novidades esperam você dizer "pode lançar". Versões só com correções o Claude lança sozinho, depois de testar, e te avisa.
 - **Qual número:** o comando `npm run versao` olha o que mudou desde a última versão e diz qual deve ser a próxima, e por quê.
+- **Lançamento de ajustes autorizado em 2026-10-20:** a **0.7.1** reúne capas na proporção original e a leitura das quatro abas. O usuário pediu explicitamente integrar e publicar esses ajustes como correção, embora os commits originais sejam `refactor`; essa decisão não altera o calculador nem reescreve o histórico. Novas funcionalidades continuariam seguindo o número do meio; a 1.0.0 depende do marco de estabilidade escolhido pelo usuário.
 
 ### Para voltar atrás
 
