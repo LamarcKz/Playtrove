@@ -4,6 +4,7 @@ import { isLanguage, LANGUAGES } from "@shared/i18n"
 import type { Game, StatusRules } from "@shared/types"
 import { AchievementsSettings } from "@/components/AchievementsSettings"
 import { AppLogo } from "@/components/AppLogo"
+import { ContentPage } from "@/components/ContentPage"
 import { MetadataSettings } from "@/components/MetadataSettings"
 import { StatusSettings } from "@/components/StatusSettings"
 import { UpdateSettings } from "@/components/UpdateSettings"
@@ -26,42 +27,46 @@ export function SettingsPage({ games, rules }: SettingsPageProps) {
   const version = useAppVersion()
 
   return (
-    <div className="h-full overflow-y-auto p-8">
-      <div className="max-w-2xl space-y-10">
-        <SettingsSection title={t.settings.general}>
-          <LanguageSetting />
-        </SettingsSection>
+    <ContentPage>
+      <div className="grid items-start gap-6 @[70rem]/content:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-6">
+          <SettingsSection title={t.settings.general}>
+            <LanguageSetting />
+          </SettingsSection>
 
-        <SettingsSection title={t.settings.statuses}>
-          {rules && <StatusSettings games={games} rules={rules} />}
-        </SettingsSection>
+          <SettingsSection title={t.settings.statuses}>
+            {rules && <StatusSettings games={games} rules={rules} />}
+          </SettingsSection>
 
-        <SettingsSection title={t.settings.metadata}>
-          <MetadataSettings games={games} />
-        </SettingsSection>
-
-        <SettingsSection title={t.settings.achievements}>
-          <AchievementsSettings />
-        </SettingsSection>
-
-        <SettingsSection title={t.settings.about}>
-          <div className="space-y-4 rounded-xl border bg-card p-4">
-            <div className="flex flex-wrap items-center gap-4">
-              <AppLogo className="size-12" />
-              <div className="flex-1">
-                <p className="font-medium">Playtrove</p>
-                {version && <p className="text-sm text-muted-foreground">{t.settings.version(version)}</p>}
+          <SettingsSection title={t.settings.about}>
+            <div className="flex flex-col gap-4 rounded-xl border bg-card p-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <AppLogo className="size-12" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium">Playtrove</p>
+                  {version && <p className="text-sm text-muted-foreground">{t.settings.version(version)}</p>}
+                </div>
+                <Button variant="outline" onClick={() => window.api.app.reportBug()}>
+                  <Bug />
+                  {t.settings.reportBug}
+                </Button>
               </div>
-              <Button variant="outline" onClick={() => window.api.app.reportBug()}>
-                <Bug />
-                {t.settings.reportBug}
-              </Button>
+              <UpdateSettings />
             </div>
-            <UpdateSettings />
-          </div>
-        </SettingsSection>
+          </SettingsSection>
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-6">
+          <SettingsSection title={t.settings.metadata}>
+            <MetadataSettings games={games} />
+          </SettingsSection>
+
+          <SettingsSection title={t.settings.achievements}>
+            <AchievementsSettings />
+          </SettingsSection>
+        </div>
       </div>
-    </div>
+    </ContentPage>
   )
 }
 
@@ -75,12 +80,12 @@ function LanguageSetting() {
 
   // flex + gap (e não space-y): o Select do Radix põe um <select> escondido depois do botão.
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2 rounded-xl border bg-card p-4">
       <span id={labelId} className="text-sm font-medium">
         {t.settings.language}
       </span>
       <Select value={language} onValueChange={(value) => isLanguage(value) && void setLanguage(value)}>
-        <SelectTrigger aria-labelledby={labelId} className="w-64">
+        <SelectTrigger aria-labelledby={labelId} className="w-full max-w-64">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -96,11 +101,11 @@ function LanguageSetting() {
   )
 }
 
-/** Uma seção das Configurações, com o título em letras pequenas. */
+/** Uma seção das Configurações, com título legível e separação consistente. */
 function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section aria-label={title}>
-      <h2 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">{title}</h2>
+    <section aria-label={title} className="min-w-0">
+      <h2 className="mb-4 text-base font-semibold">{title}</h2>
       {children}
     </section>
   )

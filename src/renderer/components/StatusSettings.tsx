@@ -43,7 +43,7 @@ export function StatusSettings({ games, rules }: StatusSettingsProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="rounded-xl border bg-card">
         <p className="border-b px-4 py-3 text-sm text-muted-foreground">{t.statuses.intro}</p>
         <ul aria-label={t.statuses.list} className="divide-y">
@@ -83,7 +83,7 @@ export function StatusSettings({ games, rules }: StatusSettingsProps) {
         </p>
       )}
 
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3">
         <h3 className="text-sm font-medium">{t.statuses.rules}</h3>
         <RuleSelect
           label={t.statuses.newGameRule}
@@ -132,7 +132,7 @@ function StatusRow({ status, gameCount, isFirst, isLast, canDelete, onRename, on
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Input
         aria-label={t.statuses.nameOf(status.name)}
         value={name}
@@ -146,9 +146,9 @@ function StatusRow({ status, gameCount, isFirst, isLast, canDelete, onRename, on
             event.currentTarget.blur()
           }
         }}
-        className="h-8 max-w-72 flex-1"
+        className="h-8 min-w-0 max-w-72 flex-1 basis-40"
       />
-      <span className="w-20 text-xs text-muted-foreground tabular-nums">
+      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
         {t.common.games(gameCount)}
       </span>
       <div className="ml-auto flex gap-0.5">
@@ -229,14 +229,14 @@ function NewStatus({ onCreate }: { onCreate: (name: string) => Promise<boolean> 
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)} className="flex gap-2 border-t px-4 py-3">
+    <form onSubmit={(event) => void submit(event)} className="flex flex-wrap items-center gap-2 border-t px-4 py-3">
       <Input
         aria-label={t.statuses.newName}
         placeholder={t.statuses.newPlaceholder}
         value={name}
         maxLength={40}
         onChange={(event) => setName(event.target.value)}
-        className="h-8 max-w-72 flex-1"
+        className="h-8 min-w-0 max-w-72 flex-1 basis-40"
       />
       <Button type="submit" variant="secondary" size="sm" disabled={!name.trim()} className="h-8">
         <Plus />
@@ -256,7 +256,7 @@ interface RuleSelectProps {
 /** Uma regra automática: o texto e o status escolhido. */
 function RuleSelect({ label, value, statuses, onChange }: RuleSelectProps) {
   return (
-    <div className="flex items-center justify-between gap-4 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <Select value={String(value)} onValueChange={(next) => onChange(Number(next))}>
         <SelectTrigger aria-label={label} className="w-52">

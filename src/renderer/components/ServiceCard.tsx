@@ -77,20 +77,20 @@ export function ServiceCard<T>({
   }
 
   return (
-    <section aria-label={name} className="rounded-xl border bg-card">
-      <div className="flex items-start gap-3 p-4">
+    <section aria-label={name} className="@container/service min-w-0 rounded-xl border bg-card">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 p-4 @[28rem]/service:grid-cols-[auto_minmax(0,1fr)_auto]">
         {configured ? (
           <CircleCheck aria-label={t.services.configured} className="mt-0.5 size-5 shrink-0 text-charging" />
         ) : (
           <CircleDashed aria-label={t.services.notConfigured} className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">{name}</p>
-          <p className="text-xs text-muted-foreground">{description}</p>
-          {configured && !editing && <p className="mt-1 truncate text-xs text-muted-foreground">{savedText}</p>}
+          <p className="text-sm font-medium [overflow-wrap:anywhere]">{name}</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
+          {configured && !editing && <p className="mt-2 text-xs text-muted-foreground [overflow-wrap:anywhere]">{savedText}</p>}
         </div>
         {configured && !editing && (
-          <div className="flex shrink-0 gap-1">
+          <div className="col-start-2 flex flex-wrap gap-2 @[28rem]/service:col-start-3 @[28rem]/service:row-start-1">
             <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
               {t.common.change}
             </Button>
@@ -102,11 +102,11 @@ export function ServiceCard<T>({
       </div>
 
       {editing && (
-        <form aria-label={t.services.keysOf(name)} onSubmit={save} className="space-y-3 border-t px-4 py-4">
+        <form aria-label={t.services.keysOf(name)} onSubmit={save} className="flex min-w-0 flex-col gap-4 border-t p-4">
           <div className="flex flex-wrap gap-3">
             {fields.map((field) => (
-              <label key={field.id} className="flex min-w-48 flex-1 flex-col gap-1.5">
-                <span className="text-xs font-semibold text-muted-foreground">{field.label}</span>
+              <label key={field.id} className="flex min-w-0 flex-1 basis-48 flex-col gap-2">
+                <span className="text-sm font-medium">{field.label}</span>
                 <Input
                   aria-label={field.label}
                   type={field.secret ? "password" : "text"}
@@ -123,7 +123,7 @@ export function ServiceCard<T>({
               {error}
             </p>
           )}
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap justify-end gap-2">
             {configured && (
               <Button type="button" variant="ghost" size="sm" onClick={cancel}>
                 {t.common.cancel}
@@ -138,7 +138,7 @@ export function ServiceCard<T>({
             <summary className="cursor-pointer font-medium">
               {fields.length > 1 ? t.services.howToGetKeys : t.services.howToGetKey}
             </summary>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-muted-foreground [&_strong]:font-medium [&_strong]:text-foreground">
+            <ol className="mt-3 flex list-decimal flex-col gap-2 pl-5 leading-relaxed text-muted-foreground [overflow-wrap:anywhere] [&_strong]:font-medium [&_strong]:text-foreground">
               {steps.map((step, index) => (
                 <li key={index}>
                   <RichText text={step} />

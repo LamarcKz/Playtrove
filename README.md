@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.7.0" src="https://img.shields.io/badge/version-0.7.0-0072d0">
+  <img alt="Version 0.7.1" src="https://img.shields.io/badge/version-0.7.1-0072d0">
   <img alt="In development" src="https://img.shields.io/badge/status-in%20development-orange">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -54,6 +54,7 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Metadata and images**: covers come from [libretro-thumbnails](https://thumbnails.libretro.com/) (the same ones RetroArch uses, no key needed) and, when one is missing, from [SteamGridDB](https://www.steamgriddb.com/), which also provides the background art; description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
 - **Details view**: the main library view. Your games are listed on the left, with icons. On the right: the background art, the cover above the title, the **Play** and **More** buttons, the details and the description.
 - **Grid view**: covers in a grid that adapts to the window, with the status on a strip under each cover and a details panel when you click a game.
+- **Full cover art**: Grid, Details and the side panel preserve each image's original proportions, with no cropping, stretching or blurred filler.
 - **Ratings**: from the **More** menu, rate a game (half to five stars) and mark its difficulty in peppers (halves too); in the same menu, write your review. The rating and difficulty appear next to **Play**, and the review above the description.
 - **List view**: one row per game, with the name, status, platform, library, playtime, rating, difficulty and achievements.
 - **Kanban view**: a board with one column per status (Plan to play, Playing, Beaten, Platinum...), all visible at once. Drag a game to another column to change its status.
@@ -61,6 +62,7 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Achievements**: with your [RetroAchievements](https://retroachievements.org/) account, achievements for emulated games show up as PlayStation-style trophies: bronze, silver and gold (by how hard each achievement is) and platinum for unlocking them all, with how rare each one is (common, rare, very rare and ultra rare). Progress appears in the game list, Grid, List and a card next to the title; the **Achievements** tab brings together a summary, charts by day and by month, your games and your latest unlocks. The app checks the site every 5 minutes and when you close a game, and lets you know when you unlock something new.
 - **PS3 trophies**: trophies stored by RPCS3 show up too, no account needed: bronze, silver, gold and platinum, like on the console, with hidden trophies kept hidden until you ask to see them.
 - **Statistics**: total playtime and the average per game, your 10 most played, games by status, platform and library, activity over the last 30 days, recently played and never played.
+- **Readable layouts**: Statistics, Achievements, Settings and Emulators adapt their columns, text and actions to the available window space.
 - **Top toolbar**: search (which finds games even without accents), the filters button and the view switcher, always at hand.
 - **Filter panel**: on the right, like Playnite. Favorites and Recent are checkboxes. Status, Playtime, Rating, Difficulty, Library, Platform, Genre, Developer, Publisher and Release year are dropdowns where you can pick several options, each showing how many games it has.
 - **Favorites**: mark your favorite games from the **More** menu.
@@ -71,6 +73,8 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Dark theme**.
 
 ## Screenshots
+
+Demonstration images from version 0.7.0.
 
 <table>
   <tr>

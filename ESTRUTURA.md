@@ -2,6 +2,8 @@
 
 Guia de onde fica cada coisa no Playtrove e de qual arquivo abrir para criar cada funcionalidade nova.
 
+Para trabalhar no projeto, Codex e Claude Code usam o mesmo guia de regras, decisões e estado atual: `CLAUDE.md`. O Codex começa pelo `AGENTS.md`, que orienta a leitura integral desse guia e a consulta a este mapa, sem manter uma segunda cópia das regras.
+
 ## A ideia geral: 3 partes que conversam
 
 Um app Electron roda em partes separadas, que trocam mensagens entre si (isso se chama **IPC**):
@@ -104,6 +106,8 @@ Os canais IPC de hoje:
 | `tests/unit/` | Testes rápidos da lógica (Vitest), sem abrir o app: filtros, datas, bateria do controle, banco de dados, emuladores, pastas de ROMs, abrir jogos e contar o tempo (com um emulador de mentira), maximizar a janela (`emulatorWindow.test.ts`, com uma janela de teste invisível no lugar do emulador), os idiomas (`i18n.test.ts`: os dois dicionários completos e nenhum texto da tela fora deles) e `npm run versao` |
 | `tests/fakeDiscs.ts` | Discos de mentira para os testes: ISOs, a versão "crua" de CD (os .bin de PS1), o PARAM.SFO dos jogos de PS3 e PSP, o EBOOT.PBP, o começo dos discos de GameCube e Wii (e os formatos do Dolphin) e os jogos de 3DS |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela e clicam como uma pessoa. `helpers.ts` abre o app com uma pasta de dados temporária, cria pastas de arquivos de mentira (`createFiles()`) e simula a janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB e um SteamGridDB de mentira (com imagens geradas na hora), para os testes de metadados não usarem a internet |
+| `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
+| `tests/app/covers.spec.ts` | Confere as capas no Electron pelas dimensões e pelo DOM (sem capturas): proporção original, limites de tamanho na Grade, nos Detalhes e no painel lateral, alinhamento dos cartões e desenho padrão durante carregamento, sem imagem ou em erro |
 | `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste |
 | `tsconfig.test.json` | TypeScript dos testes e dos scripts |
 | `README.md` e `README.pt-BR.md` | Página de apresentação do projeto no GitHub, em inglês (a que o GitHub mostra) e em português: logo, sobre, recursos, capturas de tela, download, privacidade, bugs, como compilar e roadmap |
@@ -114,7 +118,8 @@ Os canais IPC de hoje:
 | `.github/ISSUE_TEMPLATE/` | Os formulários das Issues no GitHub: bug (`bug_report.yml`, com os campos `version` e `windows` que o botão "Reportar um problema" preenche) e ideia (`feature_request.yml`) |
 | `docs/logo.svg` | Logo do projeto (o mesmo baú do ícone do app), usado no README |
 | `docs/screenshots/` | Capturas de tela do app usadas nos READMEs: `en/` e `pt-BR/`, com os mesmos nomes de arquivo |
-| `CLAUDE.md` | Instruções e estado do projeto para o Claude Code |
+| `AGENTS.md` | Ponto de entrada do Codex: orienta a leitura integral do guia compartilhado e a consulta a este mapa |
+| `CLAUDE.md` | Guia compartilhado do Codex e do Claude Code: regras de trabalho, decisões e estado atual do projeto |
 | `out/` | Gerada automaticamente pelo build. Não edite |
 | `dist/` | Gerada pelo `npm run dist`: o instalador, a versão portátil e a pasta `win-unpacked` (o app pronto, sem instalar). Não edite |
 
@@ -231,7 +236,7 @@ Os canais IPC de hoje:
 | `AchievementsPage.tsx` | Conquistas: a conta e o botão "Atualizar", o resumo, os gráficos por dia e por mês, os jogos com o progresso e as desbloqueadas por último. Sem conta, um botão leva às Configurações |
 | `LibraryPage.tsx` | Biblioteca nos modos Detalhes (o principal), Grade, Lista e Kanban, com o painel de filtros na direita quando ele está aberto. A filtragem em si fica em `lib/filters.ts`. Vazia, mostra um botão que leva à aba Emuladores |
 | `EmulatorsPage.tsx` | Emuladores: onde está cada emulador e as pastas de ROMs, com os botões de procurar jogos. Resume cada procura num aviso rápido (`describeScan()`) |
-| `SettingsPage.tsx` | Configurações: seções Geral (o idioma), Status, Metadados, Conquistas e Sobre (nome e **versão do app**) |
+| `SettingsPage.tsx` | Configurações: Geral, Status e Sobre (nome e **versão do app**) numa pilha, Metadados e Conquistas na outra; duas colunas a partir de 1120 px úteis, sem desmontar formulários ao redimensionar |
 
 #### `src/renderer/components`: pedaços da interface
 
@@ -265,7 +270,8 @@ Os canais IPC de hoje:
 
 | Arquivo | O que faz |
 |---|---|
-| `BarList.tsx` | Lista com barras horizontais de uma cor só: nome, barra proporcional e o valor escrito (os mais jogados, os status, as plataformas...) |
+| `ContentPage.tsx` | Área comum de Estatísticas, Conquistas, Configurações e Emuladores: rolagem vertical, margens de 16/24 px, largura máxima de 1600 px e container `content` para organizar as colunas pela largura útil |
+| `BarList.tsx` | Lista com barras horizontais de uma cor só: nome, barra proporcional e o valor escrito (os mais jogados, os status, as plataformas...); nos cartões estreitos, a barra fica abaixo do nome e do valor |
 | `ActivityChart.tsx` | O gráfico da atividade dos últimos 30 dias (um `ColumnChart` com o tempo jogado de cada dia) |
 | `ColumnChart.tsx` | O gráfico de colunas das Estatísticas e das Conquistas: dica ao passar o mouse (ou com o foco do teclado), o maior valor escrito em cima e a versão em tabela |
 | `StatsBlocks.tsx` | Os blocos das telas de números: `StatTile` (um número do resumo), `StatsCard` (um bloco com título) e `EmptyNote` (bloco sem dados) |
@@ -291,15 +297,15 @@ Os canais IPC de hoje:
 |---|---|
 | `GameList.tsx` | Lista de jogos da esquerda (ícone, nome e o troféu com o progresso nas conquistas) |
 | `GameIcon.tsx` | Ícone pequeno do jogo (lista, Lista e Kanban). Sem ícone, um pedaço da capa; sem os dois, o desenho padrão |
-| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa acima do título, a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
+| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa na proporção original acima do título (até 160 × 288 px), a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
 
 **Biblioteca, modo Grade**
 
 | Arquivo | O que faz |
 |---|---|
-| `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela |
-| `GameCard.tsx` | Card do jogo: capa com o status numa faixa logo embaixo dela (sem cobrir a imagem), título, tempo jogado e o progresso nas conquistas, com zoom no hover |
-| `GameCover.tsx` | Capa do jogo (retrato, 2:3). Sem capa, ou se ela não carregar, o desenho padrão |
+| `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela; os cartões ficam alinhados pelo topo e têm alturas variáveis conforme as capas |
+| `GameCard.tsx` | Card do jogo: capa na proporção original, com até 384 px de altura e o status numa faixa logo embaixo dela (sem cobrir a imagem), título, tempo jogado e o progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
+| `GameCover.tsx` | Capa inteira na proporção original, sem moldura fixa 2:3 nem preenchimento desfocado. Durante o carregamento, sem capa ou se ela não carregar, mostra o desenho padrão |
 
 **Biblioteca, modo Lista**
 
@@ -317,7 +323,7 @@ Os canais IPC de hoje:
 
 | Arquivo | O que faz |
 |---|---|
-| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa, o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
+| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa na proporção original (até 176 × 320 px), o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
 | `GameBackdrop.tsx` | A arte de fundo do jogo, que vai sumindo para baixo (modo Detalhes e painel lateral) |
 | `GameActionsMenu.tsx` | O menu "Mais" de um jogo: avaliar (abre a `RatingDialog`), escrever ou editar a análise (abre a `ReviewDialog`), baixar metadados, marcar como favorito e mostrar a ROM no Explorador |
 | `RatingDialog.tsx` | Janela "Avaliar jogo": a nota em estrelas e a dificuldade em pimentas, as duas com meio ícone (pelo `ScoreInput`) |
@@ -437,6 +443,7 @@ A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no mesmo padrão do [Ele
 - O número **só muda quando uma versão é lançada**. Enquanto o trabalho acontece, o app continua mostrando o número da última versão (em Configurações → "Sobre").
 - **Quem lança:** versões com novidades esperam você dizer "pode lançar". Versões só com correções o Claude lança sozinho, depois de testar, e te avisa.
 - **Qual número:** o comando `npm run versao` olha o que mudou desde a última versão e diz qual deve ser a próxima, e por quê.
+- **Lançamento de ajustes autorizado em 2026-10-20:** a **0.7.1** reúne capas na proporção original e a leitura das quatro abas. O usuário pediu explicitamente integrar e publicar esses ajustes como correção, embora os commits originais sejam `refactor`; essa decisão não altera o calculador nem reescreve o histórico. Novas funcionalidades continuariam seguindo o número do meio; a 1.0.0 depende do marco de estabilidade escolhido pelo usuário.
 
 ### Para voltar atrás
 

@@ -41,7 +41,11 @@ export function GameDetailsPanel({ game, onClose, className }: GameDetailsPanelP
       <div className="relative flex-1 overflow-y-auto">
         <GameBackdrop src={game.backgroundUrl} fadeTo="card" className="h-60" />
         <div className="relative p-5">
-          <GameCover title={game.title} src={game.coverUrl} className="mx-auto w-44 shadow-xl shadow-black/40" />
+          <GameCover
+            title={game.title}
+            src={game.coverUrl}
+            className="mx-auto w-44 shadow-xl shadow-black/40 [--cover-max-height:20rem]"
+          />
           <h2 className="mt-5 text-xl font-semibold">
             {game.title}
             {game.favorite && (

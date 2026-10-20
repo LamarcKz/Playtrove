@@ -50,14 +50,14 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-w-0 flex-col gap-4">
       <p className="text-sm text-muted-foreground">{t.metadata.intro}</p>
 
       <section aria-label="libretro-thumbnails" className="flex items-start gap-3 rounded-xl border bg-card p-4">
         <CircleCheck aria-label={t.metadata.alwaysOn} className="mt-0.5 size-5 shrink-0 text-charging" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">libretro-thumbnails</p>
-          <p className="text-xs text-muted-foreground">{t.metadata.libretroDescription}</p>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{t.metadata.libretroDescription}</p>
           <p className="mt-1 text-xs text-muted-foreground">{t.metadata.noKeyNeeded}</p>
         </div>
       </section>
@@ -91,7 +91,7 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
         onChange={setConfig}
       />
 
-      <div className="space-y-4 rounded-xl border bg-card p-4">
+      <div className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4">
         <label htmlFor={autoDownloadId} className="flex cursor-pointer items-start gap-3 text-sm">
           <Checkbox
             id={autoDownloadId}
@@ -108,7 +108,7 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
           <p className="text-sm text-muted-foreground">
             {missing === 0 ? t.metadata.allHaveMetadata : t.metadata.missing(t.common.games(missing))}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="ghost"
               disabled={games.length === 0 || running}

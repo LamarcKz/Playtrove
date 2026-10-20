@@ -5,6 +5,7 @@ import type { Game } from "@shared/types"
 import { GradeCounts, ProgressBar } from "@/components/AchievementParts"
 import { AchievementRow, AchievementsDialog } from "@/components/AchievementsDialog"
 import { ColumnChart, countAxisMax } from "@/components/ColumnChart"
+import { ContentPage } from "@/components/ContentPage"
 import { EmptyState } from "@/components/EmptyState"
 import { GameIcon } from "@/components/GameIcon"
 import { EmptyNote, StatsCard, StatTile } from "@/components/StatsBlocks"
@@ -38,19 +39,21 @@ export function AchievementsPage({ games, onOpenSettings }: AchievementsPageProp
   // Sem a conta e sem troféus do PS3, não há o que mostrar ainda.
   if (!config.username && overview.games.length === 0) {
     return (
-      <div className="flex h-full">
-        <EmptyState
-          icon={Trophy}
-          title={words.emptyTitle}
-          description={words.emptyDescription}
-          action={
-            <Button variant="secondary" onClick={onOpenSettings}>
-              <Settings />
-              {words.goToSettings}
-            </Button>
-          }
-        />
-      </div>
+      <ContentPage>
+        <div className="flex flex-1">
+          <EmptyState
+            icon={Trophy}
+            title={words.emptyTitle}
+            description={words.emptyDescription}
+            action={
+              <Button variant="secondary" onClick={onOpenSettings}>
+                <Settings />
+                {words.goToSettings}
+              </Button>
+            }
+          />
+        </div>
+      </ContentPage>
     )
   }
 
@@ -58,122 +61,134 @@ export function AchievementsPage({ games, onOpenSettings }: AchievementsPageProp
   const percent = progressPercent(overview.unlocked, overview.total)
 
   return (
-    <div className="@container h-full overflow-y-auto p-8">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <div className="flex flex-wrap items-center justify-end gap-3 text-sm text-muted-foreground">
-          {!config.username ? (
-            <p className="mr-auto">
-              {words.ps3Hint.before}
-              <button type="button" onClick={onOpenSettings} className="text-foreground underline-offset-4 hover:underline">
-                {words.ps3Hint.link}
-              </button>
-              {words.ps3Hint.after}
-            </p>
-          ) : config.lastError && !config.syncing ? (
-            <p role="alert" className="mr-auto text-destructive">
-              {config.lastError}
-            </p>
-          ) : (
-            <p className="mr-auto">
-              {words.account} <span className="text-foreground">{config.username}</span>
-              {config.lastSyncAt && ` · ${words.updatedAt(formatTime(config.lastSyncAt, t.locale))}`}
-            </p>
-          )}
-          <Button variant="secondary" size="sm" disabled={config.syncing} onClick={() => void window.api.achievements.sync()}>
-            <RefreshCw className={cn(config.syncing && "animate-spin")} />
-            {config.syncing ? words.updating : words.update}
-          </Button>
-        </div>
-
-        {overview && (
-          <>
-            <dl
-              aria-label={words.summary}
-              className={cn("grid grid-cols-2 gap-4", config.username ? "@4xl:grid-cols-4" : "@4xl:grid-cols-3")}
-            >
-              <StatTile
-                label={words.unlockedTile}
-                value={String(overview.unlocked)}
-                detail={words.unlockedTileDetail(overview.total, percent)}
-              />
-              <StatTile label={words.platinums} value={String(overview.platinums)} detail={words.platinumsDetail} />
-              {config.username && (
-                <StatTile
-                  label={words.pointsTile}
-                  value={overview.points.toLocaleString(t.locale)}
-                  detail={overview.games.some((game) => game.source === "rpcs3") ? words.pointsTileDetail : undefined}
-                />
-              )}
-              <StatTile label={words.gamesTile} value={String(overview.games.length)} />
-            </dl>
-
-            <div className="grid gap-6 @4xl:grid-cols-2">
-              <StatsCard title={words.perDay} detail={words.last30Days}>
-                <ColumnChart
-                  label={words.perDayChart}
-                  columns={dayColumns(
-                    overview.byDay.map((day) => ({ date: day.date, value: day.count })),
-                    t
-                  )}
-                  top={countAxisMax(Math.max(0, ...overview.byDay.map((day) => day.count)))}
-                  formatValue={words.chartCount}
-                  formatAxis={String}
-                  emptyText={words.chartNone}
-                  tableHeaders={[words.day, words.chartColumn]}
-                />
-              </StatsCard>
-              <StatsCard title={words.perMonth} detail={words.last12Months}>
-                <ColumnChart
-                  label={words.perMonthChart}
-                  columns={monthColumns(
-                    overview.byMonth.map((month) => ({ month: month.month, value: month.count })),
-                    t.locale
-                  )}
-                  top={countAxisMax(Math.max(0, ...overview.byMonth.map((month) => month.count)))}
-                  formatValue={words.chartCount}
-                  formatAxis={String}
-                  emptyText={words.chartNone}
-                  tableHeaders={[words.month, words.chartColumn]}
-                />
-              </StatsCard>
-            </div>
-
-            <div className="grid items-start gap-6 @5xl:grid-cols-[3fr_2fr]">
-              <StatsCard title={words.games} detail={overview.games.length > 0 ? `${overview.games.length}` : undefined}>
-                {overview.games.length > 0 ? (
-                  <ul aria-label={words.gamesList} className="space-y-0.5">
-                    {overview.games.map((row) => (
-                      <GameProgressRow
-                        key={row.gameId}
-                        row={row}
-                        game={gameById.get(row.gameId)}
-                        onOpen={() => setOpenGame(gameById.get(row.gameId) ?? null)}
-                      />
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyNote>
-                    {config.syncing ? words.searching : words.noGames}
-                  </EmptyNote>
-                )}
-              </StatsCard>
-              <StatsCard title={words.recent}>
-                {overview.recent.length > 0 ? (
-                  <ul aria-label={words.recentList} className="-mx-1">
-                    {overview.recent.map((achievement) => (
-                      <AchievementRow key={achievement.key} achievement={achievement} gameTitle={achievement.gameTitle} />
-                    ))}
-                  </ul>
-                ) : (
-                  <EmptyNote>{words.noRecent}</EmptyNote>
-                )}
-              </StatsCard>
-            </div>
-          </>
+    <ContentPage>
+      <div className="flex flex-wrap items-center justify-end gap-3 text-sm text-muted-foreground">
+        {!config.username ? (
+          <p className="min-w-0 flex-1 basis-64 [overflow-wrap:anywhere]">
+            {words.ps3Hint.before}
+            <button type="button" onClick={onOpenSettings} className="text-foreground underline-offset-4 hover:underline">
+              {words.ps3Hint.link}
+            </button>
+            {words.ps3Hint.after}
+          </p>
+        ) : config.lastError && !config.syncing ? (
+          <p role="alert" className="min-w-0 flex-1 basis-64 [overflow-wrap:anywhere] text-destructive">
+            {config.lastError}
+          </p>
+        ) : (
+          <p className="min-w-0 flex-1 basis-64 [overflow-wrap:anywhere]">
+            {words.account} <span className="text-foreground">{config.username}</span>
+            {config.lastSyncAt && ` · ${words.updatedAt(formatTime(config.lastSyncAt, t.locale))}`}
+          </p>
         )}
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={config.syncing}
+          onClick={() => void window.api.achievements.sync()}
+          className="shrink-0"
+        >
+          <RefreshCw className={cn(config.syncing && "animate-spin")} />
+          {config.syncing ? words.updating : words.update}
+        </Button>
       </div>
+
+      {overview && (
+        <>
+          <dl
+            aria-label={words.summary}
+            className={cn(
+              "grid grid-cols-2 items-start gap-4",
+              config.username ? "@4xl/content:grid-cols-4" : "@4xl/content:grid-cols-3"
+            )}
+          >
+            <StatTile
+              label={words.unlockedTile}
+              value={String(overview.unlocked)}
+              detail={words.unlockedTileDetail(overview.total, percent)}
+            />
+            <StatTile label={words.platinums} value={String(overview.platinums)} detail={words.platinumsDetail} />
+            {config.username && (
+              <StatTile
+                label={words.pointsTile}
+                value={overview.points.toLocaleString(t.locale)}
+                detail={overview.games.some((game) => game.source === "rpcs3") ? words.pointsTileDetail : undefined}
+              />
+            )}
+            <StatTile label={words.gamesTile} value={String(overview.games.length)} />
+          </dl>
+
+          <div className="grid items-start gap-4 @[70rem]/content:grid-cols-2 @[70rem]/content:gap-6">
+            <StatsCard title={words.perDay} detail={words.last30Days}>
+              <ColumnChart
+                label={words.perDayChart}
+                columns={dayColumns(
+                  overview.byDay.map((day) => ({ date: day.date, value: day.count })),
+                  t
+                )}
+                top={countAxisMax(Math.max(0, ...overview.byDay.map((day) => day.count)))}
+                formatValue={words.chartCount}
+                formatAxis={String}
+                emptyText={words.chartNone}
+                tableHeaders={[words.day, words.chartColumn]}
+              />
+            </StatsCard>
+            <StatsCard title={words.perMonth} detail={words.last12Months}>
+              <ColumnChart
+                label={words.perMonthChart}
+                columns={monthColumns(
+                  overview.byMonth.map((month) => ({ month: month.month, value: month.count })),
+                  t.locale
+                )}
+                top={countAxisMax(Math.max(0, ...overview.byMonth.map((month) => month.count)))}
+                formatValue={words.chartCount}
+                formatAxis={String}
+                emptyText={words.chartNone}
+                tableHeaders={[words.month, words.chartColumn]}
+              />
+            </StatsCard>
+          </div>
+
+          <div className="grid items-start gap-4 @[70rem]/content:grid-cols-[3fr_2fr] @[70rem]/content:gap-6">
+            <StatsCard title={words.games} detail={overview.games.length > 0 ? `${overview.games.length}` : undefined}>
+              {overview.games.length > 0 ? (
+                <ul aria-label={words.gamesList} className="flex flex-col gap-1">
+                  {overview.games.map((row) => (
+                    <GameProgressRow
+                      key={row.gameId}
+                      row={row}
+                      game={gameById.get(row.gameId)}
+                      onOpen={() => setOpenGame(gameById.get(row.gameId) ?? null)}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <EmptyNote>
+                  {config.syncing ? words.searching : words.noGames}
+                </EmptyNote>
+              )}
+            </StatsCard>
+            <StatsCard title={words.recent}>
+              {overview.recent.length > 0 ? (
+                <ul aria-label={words.recentList} className="-mx-1">
+                  {overview.recent.map((achievement) => (
+                    <AchievementRow
+                      key={achievement.key}
+                      achievement={achievement}
+                      gameTitle={achievement.gameTitle}
+                      compact={false}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <EmptyNote>{words.noRecent}</EmptyNote>
+              )}
+            </StatsCard>
+          </div>
+        </>
+      )}
       {openGame && <AchievementsDialog game={openGame} open onOpenChange={(open) => !open && setOpenGame(null)} />}
-    </div>
+    </ContentPage>
   )
 }
 
@@ -190,22 +205,24 @@ function GameProgressRow({ row, game, onOpen }: { row: AchievementGameRow; game:
       >
         {game && <GameIcon game={game} className="size-9" />}
         <div className="min-w-0 flex-1">
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="truncate text-sm font-medium">{row.title}</span>
-            <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <span className="min-w-0 flex-1 basis-48 [overflow-wrap:anywhere] text-sm font-medium">{row.title}</span>
+            <span className="shrink-0 text-sm text-muted-foreground tabular-nums">
               {row.unlocked}/{row.total} · {percent}%
             </span>
           </div>
           <ProgressBar value={percent} label={t.achievements.progressIn(row.title)} className="mt-1.5" />
-          <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
             {row.platinum && (
               <span className="inline-flex items-center gap-1 font-medium text-platinum">
-                <Trophy aria-hidden="true" className="size-3" />
+                <Trophy aria-hidden="true" className="size-3.5 shrink-0" />
                 {t.achievements.platinum}
               </span>
             )}
-            <GradeCounts counts={row.byGrade} className="[&_svg]:size-3" />
-            {row.lastUnlockedAt && <span className="ml-auto">{formatLastPlayed(row.lastUnlockedAt, t)}</span>}
+            <GradeCounts counts={row.byGrade} className="min-w-0" />
+            {row.lastUnlockedAt && (
+              <span className="ml-auto max-w-full [overflow-wrap:anywhere]">{formatLastPlayed(row.lastUnlockedAt, t)}</span>
+            )}
           </div>
         </div>
       </button>
