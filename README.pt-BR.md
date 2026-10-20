@@ -25,6 +25,7 @@
 </p>
 
 <p align="center">
+  <a href="https://lamarckz.github.io/Playtrove-site/">Site e guias</a> ·
   <a href="#sobre-o-projeto">Sobre</a> ·
   <a href="#recursos">Recursos</a> ·
   <a href="#capturas-de-tela">Capturas de tela</a> ·
