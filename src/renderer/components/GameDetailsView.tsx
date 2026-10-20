@@ -32,7 +32,11 @@ export function GameDetailsView({ game }: GameDetailsViewProps) {
             janelas estreitas). */}
         <div className="flex min-h-[max(26rem,60vh)] flex-wrap items-end justify-between gap-x-10 gap-y-6 pt-10 pb-8">
           <div className="flex min-w-0 flex-col items-start">
-            <GameCover title={game.title} src={game.coverUrl} className="w-40 shadow-xl shadow-black/40" />
+            <GameCover
+              title={game.title}
+              src={game.coverUrl}
+              className="w-40 shadow-xl shadow-black/40 [--cover-max-height:18rem]"
+            />
             <h1 className="mt-6 max-w-3xl text-4xl font-semibold tracking-tight text-balance drop-shadow-lg">
               {game.title}
               {game.favorite && (
