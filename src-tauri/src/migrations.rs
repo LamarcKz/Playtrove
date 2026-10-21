@@ -219,9 +219,13 @@ const OLD_GENRE_NAMES: [(&str, &str); 18] = [
     ("Visual novel", "Visual Novel"),
 ];
 
+/// A versão do banco em que o app ficou em português e inglês (migração 8).
+pub const LANGUAGES_VERSION: i64 = 8;
+
 /// O que a migração 8 faz nos dados: marca os status padrão (o nome deles passa a mudar com o
-/// idioma) e volta os gêneros para o nome do IGDB.
-fn upgrade_to_languages(db: &Connection) -> rusqlite::Result<()> {
+/// idioma) e volta os gêneros para o nome do IGDB. O conserto de um banco de antes dela também usa,
+/// nas linhas que recuperou.
+pub fn upgrade_to_languages(db: &Connection) -> rusqlite::Result<()> {
     for (name, preset) in DEFAULT_STATUS_PRESETS {
         db.execute("UPDATE statuses SET preset = ?1 WHERE name = ?2 AND preset IS NULL", (preset, name))?;
     }

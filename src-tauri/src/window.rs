@@ -1,6 +1,7 @@
 //! A janela principal: sem a barra padrão do Windows (a barra do topo é a da interface), aberta já
 //! maximizada e com o idioma e a marca DEV no endereço, como no app em Electron (src/main/window.ts).
 
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use serde::Serialize;
@@ -38,7 +39,11 @@ fn dev_mark() -> Option<&'static str> {
 
 /// Cria a janela principal. O idioma vai no endereço da interface (?lang=en), para a primeira tela já
 /// aparecer no idioma certo.
-pub fn create_main_window(app: &AppHandle, language: Language) -> tauri::Result<()> {
+///
+/// O navegador da janela (WebView2) guarda o que precisa numa pasta dentro da pasta de dados desta vez
+/// (`webview_folder`), como o Electron: o app de verdade, o modo de desenvolvimento e os testes ficam
+/// cada um com a sua. Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
+pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: PathBuf) -> tauri::Result<WebviewWindow> {
     let mut query = format!("lang={}", language.id());
     if let Some(mark) = dev_mark() {
         query.push_str(&format!("&dev={mark}"));
@@ -50,11 +55,12 @@ pub fn create_main_window(app: &AppHandle, language: Language) -> tauri::Result<
         .decorations(false)
         .background_color(BACKGROUND_COLOR)
         .maximized(true)
+        .data_directory(webview_folder)
         // Segurança: a janela nunca sai do endereço da própria interface.
         .on_navigation(is_app_url)
         .build()?;
     send_state_changes(&window);
-    Ok(())
+    Ok(window)
 }
 
 /// É o endereço da interface? (O build, servido pelo Tauri, ou o Vite, no modo de desenvolvimento.)

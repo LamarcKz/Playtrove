@@ -352,15 +352,20 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `capabilities/default.json` | O que a janela pode pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar pela barra do topo |
 | `messages.json` | Os textos que o Rust mostra, gerados dos dicionários pelo `npm run tauri:mensagens` (não editar à mão) |
 | `rustfmt.toml` | A formatação do Rust (`cargo fmt`) |
-| `src/main.rs` | Abre o app: a pasta de dados, o banco, o idioma, o protocolo das imagens, a janela e a lista dos comandos |
-| `src/commands.rs` | Os comandos que a interface chama (o `ipc.ts` do Electron): conferem o que vem da tela e devolvem o erro como a mensagem que ela mostra |
+| `src/main.rs` | Abre o app: a pasta de dados, o banco (com o aviso, se ele foi consertado), o idioma, os jogos de exemplo dos testes, o protocolo das imagens, a janela e a lista dos comandos |
+| `src/commands.rs` | Os comandos que a interface chama (o `ipc.ts` do Electron). Recebem os valores crus (JSON), conferem pelo `validation.rs` e avisam a tela (`library:changed`) depois de gravar |
+| `src/validation.rs` | Confere o que vem da tela (ids, textos, sim ou não, a ordem e as regras dos status, a avaliação), com os mesmos erros do Electron |
+| `src/errors.rs` | `AppError`: o erro que a tela mostra, já no idioma do app (`AppError::text`) |
+| `src/dates.rs` | `iso()`: as datas no formato do banco (o `toISOString()` do JavaScript) |
+| `src/sample_games.rs` | Os 12 jogos de exemplo dos testes (`PLAYTROVE_SAMPLE_GAMES=1`) |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma do Electron) |
-| `src/database.rs` e `src/migrations.rs` | Abre o banco (sem WAL) e cria ou atualiza as tabelas, com as mesmas migrações do Electron, na mesma ordem |
+| `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta como o Electron: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
+| `src/migrations.rs` | Cria ou atualiza as tabelas, com as mesmas migrações do Electron, na mesma ordem |
 | `src/settings.rs` | Ler e gravar na tabela `settings` |
 | `src/i18n.rs` | O idioma (o escolhido ou o do Windows) e `text()`, que busca os textos no `messages.json` |
-| `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus |
+| `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus. Também muda o status, o favorito e a avaliação de um jogo, e cria, renomeia, reordena e apaga status e troca as regras automáticas |
 | `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (no Tauri, `http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens |
-| `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state` |
+| `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state`. O WebView2 guarda o que precisa em `<pasta de dados>\webview`, para o app de verdade, o desenvolvimento e os testes poderem ficar abertos juntos |
 | `src/state.rs` | O banco e o idioma enquanto o app está aberto |
 | `src/test_mode.rs` | As variáveis `PLAYTROVE_*` dos testes, que só valem no build de desenvolvimento |
 

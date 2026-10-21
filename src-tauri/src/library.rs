@@ -5,15 +5,17 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
-use chrono::DateTime;
-use rusqlite::Connection;
+use chrono::{DateTime, Utc};
+use rusqlite::{Connection, OptionalExtension};
 use serde::Serialize;
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
 
-use crate::i18n::{Language, status_preset_name};
+use crate::dates::iso;
+use crate::errors::{AppError, AppResult};
+use crate::i18n::{LANGUAGES, Language, status_preset_name};
 use crate::images::image_url;
-use crate::settings::get_setting;
+use crate::settings::{get_setting, set_setting};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,7 +27,7 @@ pub struct LibrarySnapshot {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct Status {
+pub struct Status {
     id: i64,
     name: String,
     position: i64,
@@ -238,16 +240,174 @@ fn games_waiting_for_trophies(db: &Connection) -> rusqlite::Result<Vec<i64>> {
         .collect()
 }
 
-/// Os status, na ordem das colunas do Kanban, com o nome no idioma do app: o dos status que vêm com o
-/// app sai do dicionário; o dos outros é o que o usuário escreveu.
-fn list_statuses(db: &Connection, language: Language) -> rusqlite::Result<Vec<Status>> {
+// ---------------------------------------------------------------- jogos
+
+/// O que muda na avaliação: só as partes enviadas (None = não mexe; Some(None) = apaga a parte).
+#[derive(Debug)]
+pub struct GameEvaluation {
+    pub rating: Option<Option<i64>>,
+    pub difficulty: Option<Option<i64>>,
+    pub review: Option<Option<String>>,
+}
+
+/// Marca ou desmarca um jogo como favorito.
+pub fn set_game_favorite(db: &Connection, language: Language, game_id: i64, favorite: bool) -> AppResult<()> {
+    let changed = db.execute("UPDATE games SET favorite = ?1 WHERE id = ?2", (i64::from(favorite), game_id))?;
+    if changed == 0 {
+        return Err(AppError::text(language, "errors.gameNotFound", &[]));
+    }
+    Ok(())
+}
+
+/// Muda a avaliação de um jogo: só as partes enviadas; a análise só com espaços também apaga. A data
+/// da avaliação some quando não sobra nada.
+pub fn save_game_evaluation(
+    db: &Connection,
+    language: Language,
+    game_id: i64,
+    changes: GameEvaluation,
+    now: DateTime<Utc>,
+) -> AppResult<()> {
+    let current = db
+        .query_row("SELECT rating, difficulty, review FROM games WHERE id = ?1", [game_id], |row| {
+            Ok((row.get::<_, Option<i64>>(0)?, row.get::<_, Option<i64>>(1)?, row.get::<_, Option<String>>(2)?))
+        })
+        .optional()?
+        .ok_or_else(|| AppError::text(language, "errors.gameNotFound", &[]))?;
+    let rating = changes.rating.unwrap_or(current.0);
+    let difficulty = changes.difficulty.unwrap_or(current.1);
+    let review = match changes.review {
+        None => current.2,
+        Some(review) => review.map(|text| text.trim().to_string()).filter(|text| !text.is_empty()),
+    };
+    let empty = rating.is_none() && difficulty.is_none() && review.is_none();
+    db.execute(
+        "UPDATE games SET rating = ?1, difficulty = ?2, review = ?3, evaluated_at = ?4 WHERE id = ?5",
+        (rating, difficulty, review, (!empty).then(|| iso(now)), game_id),
+    )?;
+    Ok(())
+}
+
+/// Muda o status de um jogo (ex.: ao arrastar no Kanban).
+pub fn set_game_status(db: &Connection, language: Language, game_id: i64, status_id: i64) -> AppResult<()> {
+    assert_status_exists(db, language, status_id)?;
+    if db.execute("UPDATE games SET status_id = ?1 WHERE id = ?2", (status_id, game_id))? == 0 {
+        return Err(AppError::text(language, "errors.gameNotFound", &[]));
+    }
+    Ok(())
+}
+
+// ---------------------------------------------------------------- status
+
+/// Tamanho máximo do nome de um status (em caracteres, como a tela conta).
+const MAX_STATUS_NAME: usize = 40;
+
+/// Uma linha da tabela statuses. `preset` diz qual status padrão ela é (None nos criados ou renomeados).
+struct StatusRow {
+    id: i64,
+    name: String,
+    preset: Option<String>,
+    position: i64,
+}
+
+fn status_rows(db: &Connection) -> rusqlite::Result<Vec<StatusRow>> {
     db.prepare("SELECT id, name, preset, position FROM statuses ORDER BY position")?
         .query_map([], |row| {
-            let preset: Option<String> = row.get("preset")?;
-            let name = preset.and_then(|preset| status_preset_name(language, &preset));
-            Ok(Status { id: row.get("id")?, name: name.map_or_else(|| row.get("name"), Ok)?, position: row.get("position")? })
+            Ok(StatusRow {
+                id: row.get("id")?,
+                name: row.get("name")?,
+                preset: row.get("preset")?,
+                position: row.get("position")?,
+            })
         })?
         .collect()
+}
+
+/// O nome de um status no idioma do app: o dos status que vêm com o app sai do dicionário (escolha do
+/// usuário em 2026-09-27); o dos outros é o que o usuário escreveu.
+fn status_name(row: &StatusRow, language: Language) -> String {
+    row.preset.as_deref().and_then(|preset| status_preset_name(language, preset)).unwrap_or_else(|| row.name.clone())
+}
+
+/// Os nomes que um status tem em todos os idiomas (um status novo não pode repetir nenhum deles).
+fn names_in_all_languages(row: &StatusRow) -> Vec<String> {
+    let mut names = vec![row.name.clone()];
+    if let Some(preset) = &row.preset {
+        names.extend(LANGUAGES.iter().filter_map(|language| status_preset_name(*language, preset)));
+    }
+    names
+}
+
+/// Os status, na ordem das colunas do Kanban, com o nome no idioma do app.
+fn list_statuses(db: &Connection, language: Language) -> rusqlite::Result<Vec<Status>> {
+    Ok(status_rows(db)?
+        .iter()
+        .map(|row| Status { id: row.id, name: status_name(row, language), position: row.position })
+        .collect())
+}
+
+/// Cria um status no fim da lista.
+pub fn create_status(db: &Connection, language: Language, name: &str) -> AppResult<Status> {
+    let name = validate_status_name(db, language, name, None)?;
+    let position: i64 = db.query_row("SELECT COALESCE(MAX(position) + 1, 0) FROM statuses", [], |row| row.get(0))?;
+    db.execute("INSERT INTO statuses (name, position) VALUES (?1, ?2)", (&name, position))?;
+    Ok(Status { id: db.last_insert_rowid(), name, position })
+}
+
+/// Troca o nome de um status. Um status padrão renomeado passa a ter o nome que o usuário escreveu,
+/// nos dois idiomas.
+pub fn rename_status(db: &Connection, language: Language, id: i64, name: &str) -> AppResult<()> {
+    let rows = status_rows(db)?;
+    let row = rows.iter().find(|row| row.id == id).ok_or_else(|| AppError::text(language, "errors.statusNotFound", &[]))?;
+    let name = validate_status_name(db, language, name, Some(id))?;
+    // O mesmo nome de agora (ex.: só com espaços a mais): nada muda.
+    if name == status_name(row, language) {
+        return Ok(());
+    }
+    db.execute("UPDATE statuses SET name = ?1, preset = NULL WHERE id = ?2", (name, id))?;
+    Ok(())
+}
+
+/// Muda a ordem dos status. `ids` tem todos os status, na ordem nova.
+pub fn reorder_statuses(db: &Connection, language: Language, ids: &[i64]) -> AppResult<()> {
+    let transaction = db.unchecked_transaction()?;
+    write_order(&transaction, language, ids)?;
+    transaction.commit()?;
+    Ok(())
+}
+
+fn write_order(db: &Connection, language: Language, ids: &[i64]) -> AppResult<()> {
+    let current: Vec<i64> = status_rows(db)?.iter().map(|row| row.id).collect();
+    let same_set = ids.len() == current.len() && current.iter().all(|id| ids.contains(id));
+    if !same_set {
+        return Err(AppError::text(language, "errors.statusOrder", &[]));
+    }
+    for (position, id) in ids.iter().enumerate() {
+        db.execute("UPDATE statuses SET position = ?1 WHERE id = ?2", (position as i64, id))?;
+    }
+    Ok(())
+}
+
+/// Apaga um status. Os jogos dele (e as regras que usavam ele) passam para `move_to_id`. O último
+/// status que sobrar não pode ser apagado.
+pub fn delete_status(db: &Connection, language: Language, id: i64, move_to_id: i64) -> AppResult<()> {
+    assert_status_exists(db, language, id)?;
+    assert_status_exists(db, language, move_to_id)?;
+    if id == move_to_id {
+        return Err(AppError::text(language, "errors.chooseOtherStatus", &[]));
+    }
+
+    let transaction = db.unchecked_transaction()?;
+    transaction.execute("UPDATE games SET status_id = ?1 WHERE status_id = ?2", (move_to_id, id))?;
+    let rules = status_rules(&transaction, language)?;
+    let replace = |rule: i64| if rule == id { move_to_id } else { rule };
+    write_status_rules(&transaction, replace(rules.new_game_status_id), replace(rules.first_play_status_id))?;
+    transaction.execute("DELETE FROM statuses WHERE id = ?1", [id])?;
+    // Refaz as posições (0, 1, 2...) para não ficar um buraco na ordem.
+    let remaining: Vec<i64> = status_rows(&transaction)?.iter().map(|row| row.id).collect();
+    write_order(&transaction, language, &remaining)?;
+    transaction.commit()?;
+    Ok(())
 }
 
 /// As regras automáticas de status (sem regra gravada, vale o primeiro status).
@@ -258,6 +418,54 @@ fn status_rules(db: &Connection, language: Language) -> rusqlite::Result<StatusR
         Ok(saved.filter(|id| *id != 0).unwrap_or(first))
     };
     Ok(StatusRules { new_game_status_id: rule("newGameStatusId")?, first_play_status_id: rule("firstPlayStatusId")? })
+}
+
+/// Troca as regras automáticas de status.
+pub fn set_status_rules(
+    db: &Connection,
+    language: Language,
+    new_game_status_id: i64,
+    first_play_status_id: i64,
+) -> AppResult<()> {
+    assert_status_exists(db, language, new_game_status_id)?;
+    assert_status_exists(db, language, first_play_status_id)?;
+    write_status_rules(db, new_game_status_id, first_play_status_id)?;
+    Ok(())
+}
+
+fn write_status_rules(db: &Connection, new_game_status_id: i64, first_play_status_id: i64) -> rusqlite::Result<()> {
+    set_setting(db, "newGameStatusId", Some(&new_game_status_id.to_string()))?;
+    set_setting(db, "firstPlayStatusId", Some(&first_play_status_id.to_string()))
+}
+
+fn assert_status_exists(db: &Connection, language: Language, id: i64) -> AppResult<()> {
+    let exists = db.query_row("SELECT 1 FROM statuses WHERE id = ?1", [id], |_| Ok(())).optional()?.is_some();
+    if !exists {
+        return Err(AppError::text(language, "errors.statusNotFound", &[]));
+    }
+    Ok(())
+}
+
+/// Confere o nome de um status: não pode ser vazio, longo demais nem repetir o de outro status, em
+/// nenhum dos idiomas (senão, trocando o idioma, duas colunas do Kanban ficariam com o mesmo nome).
+/// Devolve o nome sem os espaços a mais.
+fn validate_status_name(db: &Connection, language: Language, name: &str, ignore_id: Option<i64>) -> AppResult<String> {
+    let name = name.split_whitespace().collect::<Vec<_>>().join(" ");
+    if name.is_empty() {
+        return Err(AppError::text(language, "errors.statusNameEmpty", &[]));
+    }
+    if name.encode_utf16().count() > MAX_STATUS_NAME {
+        return Err(AppError::text(language, "errors.statusNameTooLong", &[&MAX_STATUS_NAME.to_string()]));
+    }
+    let key = sort_key(&name);
+    let repeated = status_rows(db)?
+        .iter()
+        .filter(|row| Some(row.id) != ignore_id)
+        .any(|row| names_in_all_languages(row).iter().any(|other| sort_key(other) == key));
+    if repeated {
+        return Err(AppError::text(language, "errors.statusNameTaken", &[&name]));
+    }
+    Ok(name)
 }
 
 #[cfg(test)]
@@ -361,5 +569,186 @@ mod tests {
         let first = list_statuses(&db, Language::PtBr).unwrap()[0].id;
         assert_eq!(rules.first_play_status_id, first);
         assert_ne!(rules.new_game_status_id, 0);
+    }
+
+    const PT: Language = Language::PtBr;
+
+    fn status_id(db: &Connection, name: &str) -> i64 {
+        list_statuses(db, PT).unwrap().into_iter().find(|status| status.name == name).unwrap().id
+    }
+
+    fn status_names(db: &Connection) -> Vec<String> {
+        list_statuses(db, PT).unwrap().into_iter().map(|status| status.name).collect()
+    }
+
+    fn error(result: AppResult<impl Sized>) -> String {
+        match result {
+            Ok(_) => panic!("deveria ter dado erro"),
+            Err(error) => error.to_string(),
+        }
+    }
+
+    #[test]
+    fn muda_o_status_de_um_jogo() {
+        let db = library_database();
+        let id = add_game(&db, "Jogo");
+        let zerado = status_id(&db, "Zerado");
+        set_game_status(&db, PT, id, zerado).unwrap();
+        assert_eq!(list_games(&db).unwrap()[0].status_id, zerado);
+        assert_eq!(error(set_game_status(&db, PT, 999, zerado)), "Jogo não encontrado.");
+        assert_eq!(error(set_game_status(&db, PT, id, 999)), "Status não encontrado.");
+    }
+
+    #[test]
+    fn marca_e_desmarca_o_favorito() {
+        let db = library_database();
+        let id = add_game(&db, "Jogo");
+        set_game_favorite(&db, PT, id, true).unwrap();
+        assert!(list_games(&db).unwrap()[0].favorite);
+        set_game_favorite(&db, PT, id, false).unwrap();
+        assert!(!list_games(&db).unwrap()[0].favorite);
+        assert_eq!(error(set_game_favorite(&db, PT, 999, true)), "Jogo não encontrado.");
+    }
+
+    #[test]
+    fn cria_no_fim_tirando_espacos_extras() {
+        let db = library_database();
+        let status = create_status(&db, PT, "  Quero   rejogar ").unwrap();
+        assert_eq!((status.name.as_str(), status.position), ("Quero rejogar", 9));
+        assert_eq!(status_names(&db).last().unwrap(), "Quero rejogar");
+    }
+
+    #[test]
+    fn nao_aceita_nome_vazio_longo_demais_ou_repetido() {
+        let db = library_database();
+        assert!(error(create_status(&db, PT, "   ")).contains("precisa de um nome"));
+        assert!(error(create_status(&db, PT, &"x".repeat(41))).contains("até 40 letras"));
+        assert!(error(create_status(&db, PT, "ZERADO")).contains("Já existe um status chamado \"ZERADO\""));
+        // Repetido em outro idioma também não vale (o "Zerado" se chama "Beaten" em inglês).
+        assert!(error(create_status(&db, PT, "beaten")).contains("Já existe"));
+        assert!(error(rename_status(&db, PT, status_id(&db, "Jogando"), "zerado")).contains("Já existe"));
+        assert!(error(create_status(&db, PT, "ABANDONÉI")).contains("Já existe"));
+    }
+
+    #[test]
+    fn renomeia_inclusive_so_mudando_maiusculas_do_proprio_nome() {
+        let db = library_database();
+        let id = status_id(&db, "Planejo jogar");
+        rename_status(&db, PT, id, "Planejo Jogar").unwrap();
+        rename_status(&db, PT, id, "Quero jogar").unwrap();
+        assert_eq!(status_names(&db)[0], "Quero jogar");
+        // Renomeado, o nome fica o mesmo nos dois idiomas.
+        assert_eq!(list_statuses(&db, Language::En).unwrap()[0].name, "Quero jogar");
+    }
+
+    #[test]
+    fn muda_a_ordem_exigindo_todos_os_status_uma_vez_cada() {
+        let db = library_database();
+        let ids: Vec<i64> = list_statuses(&db, PT).unwrap().iter().map(|status| status.id).collect();
+        let reversed: Vec<i64> = ids.iter().rev().copied().collect();
+        reorder_statuses(&db, PT, &reversed).unwrap();
+        assert_eq!(status_names(&db)[0], "Platinado");
+        assert!(error(reorder_statuses(&db, PT, &ids[1..])).contains("todos os status"));
+        let repeated = [&ids[..1], &ids[..ids.len() - 1]].concat();
+        assert!(error(reorder_statuses(&db, PT, &repeated)).contains("todos os status"));
+    }
+
+    #[test]
+    fn apagar_passa_os_jogos_e_as_regras_para_outro_status_e_refaz_as_posicoes() {
+        let db = library_database();
+        crate::sample_games::seed_sample_games(&db).unwrap();
+        let planejo = status_id(&db, "Planejo jogar");
+        let jogando = status_id(&db, "Jogando");
+        let count = |id: i64| list_games(&db).unwrap().iter().filter(|game| game.status_id == id).count();
+        assert_eq!((count(planejo), count(jogando)), (2, 3));
+
+        delete_status(&db, PT, planejo, jogando).unwrap();
+
+        assert!(!status_names(&db).contains(&"Planejo jogar".to_string()));
+        let positions: Vec<i64> = list_statuses(&db, PT).unwrap().iter().map(|status| status.position).collect();
+        assert_eq!(positions, (0..8).collect::<Vec<_>>());
+        assert_eq!(count(jogando), 5);
+        assert_eq!(status_rules(&db, PT).unwrap().new_game_status_id, jogando);
+    }
+
+    #[test]
+    fn nao_apaga_para_ele_mesmo_nem_o_ultimo_status() {
+        let db = library_database();
+        let ids: Vec<i64> = list_statuses(&db, PT).unwrap().iter().map(|status| status.id).collect();
+        assert!(error(delete_status(&db, PT, ids[0], ids[0])).contains("Escolha outro status"));
+        for id in &ids[1..] {
+            delete_status(&db, PT, *id, ids[0]).unwrap();
+        }
+        assert_eq!(list_statuses(&db, PT).unwrap().len(), 1);
+        assert_eq!(error(delete_status(&db, PT, ids[0], 999)), "Status não encontrado.");
+    }
+
+    #[test]
+    fn regras_automaticas_so_aceitam_status_que_existem() {
+        let db = library_database();
+        let zerado = status_id(&db, "Zerado");
+        set_status_rules(&db, PT, zerado, zerado).unwrap();
+        let rules = status_rules(&db, PT).unwrap();
+        assert_eq!((rules.new_game_status_id, rules.first_play_status_id), (zerado, zerado));
+        assert_eq!(error(set_status_rules(&db, PT, 999, zerado)), "Status não encontrado.");
+    }
+
+    fn evaluation(rating: Option<Option<i64>>, difficulty: Option<Option<i64>>, review: Option<Option<&str>>) -> GameEvaluation {
+        GameEvaluation { rating, difficulty, review: review.map(|review| review.map(str::to_string)) }
+    }
+
+    fn evaluated_at(db: &Connection, id: i64) -> Option<String> {
+        db.query_row("SELECT evaluated_at FROM games WHERE id = ?1", [id], |row| row.get(0)).unwrap()
+    }
+
+    #[test]
+    fn guarda_a_nota_a_dificuldade_e_a_analise_sem_os_espacos_das_pontas() {
+        let db = library_database();
+        let id = add_game(&db, "Jogo");
+        let now = DateTime::parse_from_rfc3339("2026-09-24T23:00:00.000Z").unwrap().with_timezone(&Utc);
+        save_game_evaluation(
+            &db,
+            PT,
+            id,
+            evaluation(Some(Some(9)), Some(Some(7)), Some(Some("  Muito bom.\nRecomendo.  "))),
+            now,
+        )
+        .unwrap();
+        let game = list_games(&db).unwrap().remove(0);
+        assert_eq!((game.rating, game.difficulty, game.review.as_deref()), (Some(9), Some(7), Some("Muito bom.\nRecomendo.")));
+        assert_eq!(evaluated_at(&db, id).as_deref(), Some("2026-09-24T23:00:00.000Z"));
+    }
+
+    #[test]
+    fn null_apaga_cada_parte_e_a_analise_so_de_espacos_vira_vazia() {
+        let db = library_database();
+        let id = add_game(&db, "Jogo");
+        save_game_evaluation(&db, PT, id, evaluation(Some(Some(9)), Some(Some(7)), Some(Some("Texto"))), Utc::now()).unwrap();
+        save_game_evaluation(&db, PT, id, evaluation(Some(None), Some(Some(3)), Some(Some("   "))), Utc::now()).unwrap();
+        let game = list_games(&db).unwrap().remove(0);
+        assert_eq!((game.rating, game.difficulty, game.review), (None, Some(3), None));
+
+        save_game_evaluation(&db, PT, id, evaluation(Some(None), Some(None), Some(None)), Utc::now()).unwrap();
+        // Sem nada avaliado, também não fica a data.
+        assert_eq!(evaluated_at(&db, id), None);
+    }
+
+    #[test]
+    fn cada_janela_muda_so_a_sua_parte() {
+        let db = library_database();
+        let id = add_game(&db, "Jogo");
+        save_game_evaluation(&db, PT, id, evaluation(Some(Some(9)), Some(Some(7)), None), Utc::now()).unwrap();
+        save_game_evaluation(&db, PT, id, evaluation(None, None, Some(Some("Texto"))), Utc::now()).unwrap();
+        let game = list_games(&db).unwrap().remove(0);
+        assert_eq!((game.rating, game.difficulty, game.review.as_deref()), (Some(9), Some(7), Some("Texto")));
+
+        save_game_evaluation(&db, PT, id, evaluation(Some(None), Some(None), None), Utc::now()).unwrap();
+        assert_eq!(list_games(&db).unwrap()[0].review.as_deref(), Some("Texto"));
+        // Ainda tem a análise: a data continua.
+        assert!(evaluated_at(&db, id).is_some());
+        assert_eq!(
+            error(save_game_evaluation(&db, PT, 999, evaluation(Some(Some(5)), None, None), Utc::now())),
+            "Jogo não encontrado."
+        );
     }
 }
