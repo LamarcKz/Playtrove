@@ -24,6 +24,12 @@ impl AppState {
         self.db.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
+    /// O banco com a trava, para quem usa ele só em alguns momentos (ex.: a fila de metadados, que não
+    /// segura o banco enquanto espera a internet).
+    pub fn database(&self) -> &Mutex<Connection> {
+        &self.db
+    }
+
     /// O idioma do app agora.
     pub fn language(&self) -> Language {
         *self.language.lock().unwrap_or_else(PoisonError::into_inner)

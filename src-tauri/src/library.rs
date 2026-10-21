@@ -15,7 +15,7 @@ use crate::dates::iso;
 use crate::emulators::EmulatorId;
 use crate::errors::{AppError, AppResult};
 use crate::i18n::{LANGUAGES, Language, status_preset_name};
-use crate::images::image_url;
+use crate::images::{ImageKind, image_url};
 use crate::settings::{get_setting, set_setting};
 
 #[derive(Serialize)]
@@ -391,6 +391,82 @@ pub fn get_launch_info(db: &Connection, language: Language, game_id: i64) -> App
     })
     .optional()?
     .ok_or_else(|| AppError::text(language, "errors.gameNotFound", &[]))
+}
+
+// ---------------------------------------------------------------- metadados
+
+/// O que a busca de metadados precisa saber do jogo.
+#[derive(Debug, PartialEq)]
+pub struct MetadataTarget {
+    pub title: String,
+    pub platform: Option<String>,
+    pub rom_path: Option<String>,
+}
+
+pub fn get_metadata_target(db: &Connection, language: Language, game_id: i64) -> AppResult<MetadataTarget> {
+    db.query_row("SELECT title, platform, rom_path FROM games WHERE id = ?1", [game_id], |row| {
+        Ok(MetadataTarget { title: row.get(0)?, platform: row.get(1)?, rom_path: row.get(2)? })
+    })
+    .optional()?
+    .ok_or_else(|| AppError::text(language, "errors.gameNotFound", &[]))
+}
+
+/// O que foi encontrado para um jogo nos serviços de metadados. None = não encontrado (o valor antigo fica).
+#[derive(Default)]
+pub struct GameMetadata {
+    pub description: Option<String>,
+    pub genres: Option<Vec<String>>,
+    pub developers: Option<Vec<String>>,
+    pub publishers: Option<Vec<String>>,
+    pub release_date: Option<String>,
+    pub igdb_id: Option<i64>,
+    pub sgdb_id: Option<i64>,
+    /// Nomes dos arquivos das imagens baixadas (as que faltam continuam como estavam).
+    pub images: HashMap<ImageKind, String>,
+}
+
+/// Grava os metadados de um jogo. O que não foi encontrado agora não apaga o que o jogo já tinha. A data
+/// do download fica guardada mesmo sem nada encontrado: assim o jogo sai da lista dos "sem metadados".
+pub fn save_game_metadata(db: &Connection, game_id: i64, metadata: &GameMetadata, updated_at: &str) -> rusqlite::Result<()> {
+    let list = |values: &Option<Vec<String>>| values.as_ref().map(|values| serde_json::to_string(values).unwrap_or_default());
+    db.execute(
+        "UPDATE games SET
+           description = COALESCE(?1, description),
+           genres = COALESCE(?2, genres),
+           developer = COALESCE(?3, developer),
+           publisher = COALESCE(?4, publisher),
+           release_date = COALESCE(?5, release_date),
+           igdb_id = COALESCE(?6, igdb_id),
+           sgdb_id = COALESCE(?7, sgdb_id),
+           cover_image = COALESCE(?8, cover_image),
+           background_image = COALESCE(?9, background_image),
+           metadata_updated_at = ?10
+         WHERE id = ?11",
+        rusqlite::params![
+            metadata.description,
+            list(&metadata.genres),
+            list(&metadata.developers),
+            list(&metadata.publishers),
+            metadata.release_date,
+            metadata.igdb_id,
+            metadata.sgdb_id,
+            metadata.images.get(&ImageKind::Cover),
+            metadata.images.get(&ImageKind::Background),
+            updated_at,
+            game_id,
+        ],
+    )?;
+    Ok(())
+}
+
+/// Ids dos jogos que nunca tiveram os metadados baixados, em ordem alfabética.
+pub fn list_games_without_metadata(db: &Connection) -> rusqlite::Result<Vec<i64>> {
+    let mut rows: Vec<(i64, String)> = db
+        .prepare("SELECT id, title FROM games WHERE metadata_updated_at IS NULL")?
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    rows.sort_by(|a, b| compare_titles(&a.1, &b.1));
+    Ok(rows.into_iter().map(|(id, _)| id).collect())
 }
 
 // ---------------------------------------------------------------- status

@@ -27,15 +27,71 @@ const URI_COMPONENT: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'(')
     .remove(b')');
 
-fn encode(text: &str) -> String {
+/// Um texto num pedaço de endereço, como o encodeURIComponent do JavaScript.
+pub fn encode_uri_component(text: &str) -> String {
     utf8_percent_encode(text, URI_COMPONENT).to_string()
+}
+
+/// As imagens de um jogo: capa (retrato) e fundo (paisagem). O ícone da lista é um pedaço da capa.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum ImageKind {
+    Cover,
+    Background,
+}
+
+impl ImageKind {
+    /// O começo do nome do arquivo (cover.png, background.jpg).
+    fn file_prefix(self) -> &'static str {
+        match self {
+            ImageKind::Cover => "cover",
+            ImageKind::Background => "background",
+        }
+    }
+}
+
+/// Maior imagem aceita, em bytes (as capas e fundos costumam ter até uns 5 MB).
+pub const MAX_IMAGE_BYTES: usize = 20 * 1024 * 1024;
+
+/// Extensão de arquivo para o tipo da imagem (cabeçalho Content-Type), ou None se não for uma imagem aceita.
+pub fn image_extension(content_type: Option<&str>) -> Option<&'static str> {
+    let mime = content_type?.split(';').next()?.trim().to_lowercase();
+    match mime.as_str() {
+        "image/png" => Some("png"),
+        "image/jpeg" => Some("jpg"),
+        "image/webp" => Some("webp"),
+        "image/gif" => Some("gif"),
+        "image/x-icon" | "image/vnd.microsoft.icon" => Some("ico"),
+        _ => None,
+    }
+}
+
+/// Grava uma imagem do jogo na pasta dele (ex.: images/12/cover.png), apagando a anterior do mesmo tipo
+/// (que pode ter outra extensão). Devolve o nome do arquivo.
+pub fn save_game_image(
+    images_dir: &Path,
+    game_id: i64,
+    kind: ImageKind,
+    bytes: &[u8],
+    extension: &str,
+) -> std::io::Result<String> {
+    let dir = images_dir.join(game_id.to_string());
+    std::fs::create_dir_all(&dir)?;
+    let prefix = format!("{}.", kind.file_prefix());
+    for entry in std::fs::read_dir(&dir)?.flatten() {
+        if entry.file_name().to_string_lossy().starts_with(&prefix) {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+    let file_name = format!("{}.{extension}", kind.file_prefix());
+    std::fs::write(dir.join(&file_name), bytes)?;
+    Ok(file_name)
 }
 
 /// Endereço de uma imagem de jogo para a interface, ex.: http://playtrove-img.localhost/12/cover.png?v=...
 /// O `version` (a data do download) muda quando a imagem é trocada, para a tela não mostrar a antiga.
 pub fn image_url(game_id: i64, file_name: &str, version: Option<&str>) -> String {
-    let query = version.map(|version| format!("?v={}", encode(version))).unwrap_or_default();
-    format!("http://{IMAGE_PROTOCOL}.localhost/{game_id}/{}{query}", encode(file_name))
+    let query = version.map(|version| format!("?v={}", encode_uri_component(version))).unwrap_or_default();
+    format!("http://{IMAGE_PROTOCOL}.localhost/{game_id}/{}{query}", encode_uri_component(file_name))
 }
 
 /// Responde aos pedidos de imagem da interface com o arquivo da pasta de imagens.
@@ -101,5 +157,24 @@ mod tests {
         assert_eq!(image_file(&root, "/12/..%2F..%2Fsegredo.png"), None);
         assert_eq!(image_file(&root, "/12/notas.txt"), None);
         assert_eq!(image_file(&root, "/12/sumiu.png"), None);
+    }
+
+    #[test]
+    fn extensao_e_troca_da_imagem_de_um_tipo() {
+        assert_eq!(image_extension(Some("image/png; charset=binary")), Some("png"));
+        assert_eq!(image_extension(Some("image/jpeg")), Some("jpg"));
+        assert_eq!(image_extension(Some("text/html")), None);
+        assert_eq!(image_extension(None), None);
+
+        let dir = crate::test_support::temp_folder("imagens-troca");
+        save_game_image(&dir, 3, ImageKind::Cover, b"capa", "png").unwrap();
+        save_game_image(&dir, 3, ImageKind::Background, b"fundo", "png").unwrap();
+        assert_eq!(save_game_image(&dir, 3, ImageKind::Cover, b"capa nova", "jpg").unwrap(), "cover.jpg");
+        let mut files: Vec<String> = std::fs::read_dir(dir.join("3"))
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        files.sort();
+        assert_eq!(files, ["background.png", "cover.jpg"]);
     }
 }

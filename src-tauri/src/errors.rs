@@ -37,6 +37,12 @@ impl From<std::io::Error> for AppError {
     }
 }
 
+impl From<crate::metadata::http::MetadataError> for AppError {
+    fn from(error: crate::metadata::http::MetadataError) -> AppError {
+        AppError(error.to_string())
+    }
+}
+
 impl From<tauri::Error> for AppError {
     fn from(error: tauri::Error) -> AppError {
         AppError(error.to_string())

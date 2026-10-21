@@ -7,6 +7,7 @@ use crate::emulators::EmulatorId;
 use crate::errors::{AppError, AppResult};
 use crate::i18n::Language;
 use crate::library::GameEvaluation;
+use crate::metadata::igdb::IgdbCredentials;
 
 /// O valor mais alto da nota e da dificuldade (cinco ícones inteiros; cada ponto vale meio ícone).
 const SCORE_MAX: i64 = 10;
@@ -52,6 +53,38 @@ pub fn to_rom_folder(value: &Value, language: Language) -> AppResult<(String, Em
         core,
         to_text(field("platform"), language)?,
     ))
+}
+
+/// Uma lista de jogos (ids).
+pub fn to_id_list(value: &Value, language: Language) -> AppResult<Vec<i64>> {
+    let items = value.as_array().ok_or_else(|| AppError::text(language, "errors.invalidGameList", &[]))?;
+    items.iter().map(|item| to_id(item, language)).collect()
+}
+
+/// Uma chave de serviço: um texto, sem os espaços das pontas e de tamanho razoável. `field` é o nome do
+/// campo nos erros (errors.keyFields).
+pub fn to_secret(value: &Value, field: &str, language: Language) -> AppResult<String> {
+    let secret = value.as_str().unwrap_or_default().trim().to_string();
+    let field_name = crate::i18n::text(language, &format!("errors.keyFields.{field}"), &[]);
+    if secret.is_empty() {
+        return Err(AppError::text(language, "errors.fillIn", &[&field_name]));
+    }
+    if secret.chars().count() > 200 {
+        return Err(AppError::text(language, "errors.tooLong", &[&field_name]));
+    }
+    Ok(secret)
+}
+
+/// O Client ID e o Client Secret do IGDB (null = apagar).
+pub fn to_igdb_credentials(value: &Value, language: Language) -> AppResult<Option<IgdbCredentials>> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    let field = |name: &str| value.get(name).unwrap_or(&Value::Null);
+    Ok(Some(IgdbCredentials {
+        client_id: to_secret(field("clientId"), "igdbClientId", language)?,
+        client_secret: to_secret(field("clientSecret"), "igdbClientSecret", language)?,
+    }))
 }
 
 /// A ordem nova dos status: uma lista de ids.

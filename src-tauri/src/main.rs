@@ -14,10 +14,12 @@ mod i18n;
 mod images;
 mod launcher;
 mod library;
+mod metadata;
 mod migrations;
 mod playtime_sync;
 mod rom_scanner;
 mod sample_games;
+mod secrets;
 mod settings;
 mod state;
 mod stats;
@@ -58,8 +60,10 @@ fn main() {
                 sample_games::seed_sample_games(&db)?;
             }
             app.manage(images::ImagesDir(folder.join("images")));
+            app.manage(secrets::Secrets::new(&folder));
             app.manage(AppState::new(db, language));
             app.manage(Launcher::new(Arc::new(Utc::now)));
+            app.manage(metadata::service::MetadataService::new(app.handle().clone()));
             // O tempo jogado registrado pelos próprios emuladores (inclusive o que foi jogado fora do app).
             app.manage(PlaytimeSync::start(app.handle().clone(), commands::notify_library_changed));
             let window = window::create_main_window(app.handle(), language, folder.join("webview"))?;
@@ -101,6 +105,12 @@ fn main() {
             commands::rom_folders_remove,
             commands::rom_folders_scan,
             commands::stats_daily_playtime,
+            commands::metadata_get_config,
+            commands::metadata_set_igdb,
+            commands::metadata_set_steam_grid_db,
+            commands::metadata_set_auto_download,
+            commands::metadata_download,
+            commands::metadata_get_progress,
         ])
         .build(tauri::generate_context!())
         .expect("erro ao iniciar o Playtrove");

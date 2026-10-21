@@ -14,14 +14,19 @@ use crate::errors::{AppError, AppResult};
 use crate::i18n::{Language, save_language, text};
 use crate::launcher::{Launcher, SystemStarter};
 use crate::library::{self, LibrarySnapshot, Status};
+use crate::metadata::credentials::{self, MetadataConfig};
+use crate::metadata::queue::MetadataProgress;
+use crate::metadata::service::MetadataService;
 use crate::playtime_sync::{AFTER_GAME_DELAY, PlaytimeSync};
 use crate::rom_scanner::{self, RomFolder, ScanResult};
+use crate::secrets::Secrets;
 use crate::state::AppState;
 use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
 use crate::test_mode::test_mode;
 use crate::validation::{
-    to_bool, to_emulator_id, to_evaluation, to_id, to_optional_id, to_order, to_rom_folder, to_status_rules, to_text,
+    to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_rom_folder,
+    to_secret, to_status_rules, to_text,
 };
 use crate::window::WindowState;
 
@@ -300,8 +305,8 @@ pub fn rom_folders_remove(state: State<'_, AppState>, id: Value) -> AppResult<()
     Ok(rom_scanner::remove_rom_folder(&state.db(), to_id(&id, language)?)?)
 }
 
-/// Procura jogos numa pasta, ou em todas (sem id). Os jogos novos ganham o tempo que os emuladores já
-/// registraram para eles.
+/// Procura jogos numa pasta, ou em todas (sem id). Os jogos novos ganham os metadados (se o usuário deixou)
+/// e o tempo que os emuladores já registraram para eles.
 #[tauri::command(async)]
 pub fn rom_folders_scan(app: AppHandle, state: State<'_, AppState>, id: Value) -> AppResult<ScanResult> {
     let language = state.language();
@@ -309,6 +314,10 @@ pub fn rom_folders_scan(app: AppHandle, state: State<'_, AppState>, id: Value) -
     let result = rom_scanner::scan_rom_folders(&state.db(), language, ids.as_deref())?;
     if !result.added.is_empty() {
         notify_library_changed(&app);
+        // Os jogos novos já ganham os metadados, se o usuário deixou (Configurações → Metadados).
+        if credentials::auto_download(&state.db()) {
+            app.state::<MetadataService>().queue.enqueue(&result.added_ids);
+        }
         app.state::<PlaytimeSync>().run();
     }
     Ok(result)
@@ -320,4 +329,71 @@ pub fn rom_folders_scan(app: AppHandle, state: State<'_, AppState>, id: Value) -
 #[tauri::command]
 pub fn stats_daily_playtime(state: State<'_, AppState>) -> AppResult<Vec<DailyPlaytime>> {
     Ok(get_daily_playtime(&state.db(), ACTIVITY_DAYS, Local::now())?)
+}
+
+// ---------------------------------------------------------------- metadados (Configurações → Metadados)
+
+#[tauri::command]
+pub fn metadata_get_config(state: State<'_, AppState>, secrets: State<'_, Secrets>) -> MetadataConfig {
+    credentials::get_metadata_config(&state.db(), &secrets)
+}
+
+/// Confere o Client ID e o Client Secret do IGDB (pedindo um token) e salva; null apaga.
+#[tauri::command(async)]
+pub fn metadata_set_igdb(
+    state: State<'_, AppState>,
+    secrets: State<'_, Secrets>,
+    service: State<'_, MetadataService>,
+    credentials: Value,
+) -> AppResult<MetadataConfig> {
+    let language = state.language();
+    let credentials = to_igdb_credentials(&credentials, language)?;
+    if let Some(credentials) = &credentials {
+        service.igdb_session(credentials.clone(), language).validate()?;
+    }
+    credentials::save_igdb_credentials(&state.db(), &secrets, language, credentials.as_ref())?;
+    Ok(credentials::get_metadata_config(&state.db(), &secrets))
+}
+
+/// Confere a chave do SteamGridDB (com uma busca de teste) e salva; null apaga.
+#[tauri::command(async)]
+pub fn metadata_set_steam_grid_db(
+    state: State<'_, AppState>,
+    secrets: State<'_, Secrets>,
+    service: State<'_, MetadataService>,
+    key: Value,
+) -> AppResult<MetadataConfig> {
+    let language = state.language();
+    let key = if key.is_null() { None } else { Some(to_secret(&key, "steamGridDbKey", language)?) };
+    if let Some(key) = &key {
+        service.steam_grid_db_session(key.clone(), language).validate()?;
+    }
+    credentials::save_steam_grid_db_key(&state.db(), &secrets, language, key.as_deref())?;
+    Ok(credentials::get_metadata_config(&state.db(), &secrets))
+}
+
+#[tauri::command]
+pub fn metadata_set_auto_download(
+    state: State<'_, AppState>,
+    secrets: State<'_, Secrets>,
+    enabled: Value,
+) -> AppResult<MetadataConfig> {
+    credentials::set_metadata_auto_download(&state.db(), to_bool(&enabled, state.language())?)?;
+    Ok(credentials::get_metadata_config(&state.db(), &secrets))
+}
+
+/// Baixa os metadados dos jogos dados ou, sem ids, dos que ainda não têm. Devolve quantos entraram na fila.
+#[tauri::command]
+pub fn metadata_download(state: State<'_, AppState>, service: State<'_, MetadataService>, game_ids: Value) -> AppResult<usize> {
+    let ids = if game_ids.is_null() {
+        library::list_games_without_metadata(&state.db())?
+    } else {
+        to_id_list(&game_ids, state.language())?
+    };
+    Ok(service.queue.enqueue(&ids))
+}
+
+#[tauri::command]
+pub fn metadata_get_progress(service: State<'_, MetadataService>) -> MetadataProgress {
+    service.queue.progress()
 }

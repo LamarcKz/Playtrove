@@ -368,13 +368,21 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `src/playtime_sync.rs` | Relê esses registros ao abrir, a cada minuto, depois de uma varredura e logo depois de um jogo fechar |
 | `src/stats.rs` | A atividade por dia das Estatísticas (últimos 30 dias, no horário do computador) |
 | `src/test_support.rs` | Só dos testes: pastas temporárias, arquivos de mentira e o banco em memória |
+| `src/secrets.rs` | As chaves das APIs, criptografadas no mesmo formato do safeStorage do Electron: a chave AES protegida pelo Windows (DPAPI) no arquivo "Local State" da pasta de dados e cada segredo em AES-GCM ("v10"). Assim as chaves salvas num app valem no outro |
+| `src/metadata/http.rs` | Os pedidos pela internet (`HttpClient`, com o `ureq`; os testes passam uma internet de mentira, `fake::FakeFetch`), os endereços dos serviços (os de verdade ou os do servidor de mentira) e o erro que para a leva (`MetadataError::Stop`) ou pula um jogo (`Skip`) |
+| `src/metadata/igdb.rs`, `steam_grid_db.rs` e `libretro.rs` | Os três serviços: o IGDB (token da Twitch, busca, plataformas e o desempate pelo jogo original), o SteamGridDB (capa e fundo) e o endereço da capa no libretro-thumbnails |
+| `src/metadata/matching.rs` | O texto da busca e a escolha do resultado mais parecido |
+| `src/metadata/download.rs` | O download de um jogo: a ordem das fontes de cada imagem e a gravação, sem apagar o que o jogo já tinha |
+| `src/metadata/queue.rs` | A fila: um jogo de cada vez, numa linha de execução à parte, com o andamento (`MetadataProgress`) |
+| `src/metadata/credentials.rs` | As chaves e a configuração de Configurações → Metadados (a tela nunca recebe as chaves) |
+| `src/metadata/service.rs` | A ligação com o app: a sessão do IGDB guardada entre os downloads, a fila e os avisos `metadata:progress` |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma do Electron) |
 | `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta como o Electron: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
 | `src/migrations.rs` | Cria ou atualiza as tabelas, com as mesmas migrações do Electron, na mesma ordem |
 | `src/settings.rs` | Ler e gravar na tabela `settings` |
 | `src/i18n.rs` | O idioma (o escolhido ou o do Windows) e `text()`, que busca os textos no `messages.json` |
 | `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus. Também muda o status, o favorito e a avaliação de um jogo, e cria, renomeia, reordena e apaga status e troca as regras automáticas |
-| `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (no Tauri, `http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens |
+| `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (no Tauri, `http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens; o tipo de cada imagem e a gravação de uma imagem nova no lugar da antiga |
 | `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state`. O WebView2 guarda o que precisa em `<pasta de dados>\webview`, para o app de verdade, o desenvolvimento e os testes poderem ficar abertos juntos |
 | `src/state.rs` | O banco e o idioma enquanto o app está aberto |
 | `src/test_mode.rs` | As variáveis `PLAYTROVE_*` dos testes, que só valem no build de desenvolvimento |
