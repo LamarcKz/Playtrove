@@ -2,10 +2,13 @@
 <html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <!-- Segurança: só carrega scripts e estilos do próprio app. Imagens: as do app e as dos jogos (playtrove-img:). -->
+    <!--
+      Segurança: só carrega scripts e estilos do próprio app. Imagens: as do app e as dos jogos (playtrove-img:,
+      que no Tauri vira http://playtrove-img.localhost). Conexões: as do app e, no Tauri, a ponte com o Rust (ipc:).
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: playtrove-img:"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: playtrove-img: http://playtrove-img.localhost; connect-src 'self' ipc: http://ipc.localhost"
     />
     <title>Playtrove</title>
   </head>

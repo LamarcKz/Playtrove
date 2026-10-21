@@ -91,6 +91,7 @@ Os canais IPC de hoje:
 |---|---|
 | `package.json` | Nome, versão (a que aparece em Configurações), dependências e comandos (`npm run ...`) |
 | `electron.vite.config.ts` | Configuração do build (electron-vite) das 3 partes e dos atalhos de import `@/` e `@shared/` |
+| `vite.config.ts` | A interface na versão em Tauri (migração em andamento): a mesma de `src/renderer`, servida pelo Vite no endereço fixo 1420 (`npm run web:dev`, chamado pelo `npm run dev:tauri`) e gerada em `out/web` (`npm run web:build`) |
 | `electron-builder.config.mjs` | Como o app vira o instalador e a versão portátil (electron-builder): o que vai no pacote (o build e as dependências do main, com só o binário do Windows do `better-sqlite3`), o ícone, o instalador de um clique e de onde vêm as versões novas (as releases do GitHub) |
 | `tsconfig.json` | Junta as duas configurações do TypeScript abaixo |
 | `tsconfig.node.json` | TypeScript do lado Node: `src/main`, `src/preload` e `src/shared` |
@@ -101,6 +102,7 @@ Os canais IPC de hoje:
 | `.githooks/` | Travas do Git: impedem commit e envio direto na `main` (ver "Histórico e versões") |
 | `.claude/settings.json` | Configuração do Claude Code para o projeto: os comandos liberados sem perguntar (leitura, conferência de tipos, build e testes rápidos) e os bloqueados pelo guia (ver "Convenções de código" no `CLAUDE.md`). A pasta `.claude/worktrees/` e o `settings.local.json` são só deste computador e ficam fora do Git |
 | `scripts/next-version.mjs` | O comando `npm run versao`: diz qual deve ser a próxima versão, pelos commits desde a última, e monta o rascunho das notas |
+| `scripts/backend-messages.mjs` | O comando `npm run tauri:mensagens`: gera o `src-tauri/messages.json`, com as partes dos dicionários que o Rust usa (nomes dos status padrão, erros e janelas do Windows), nos dois idiomas. As funções viram modelos com `{0}`, `{1}`... O `tests/unit/backendMessages.test.ts` acusa quando o arquivo ficou para trás |
 | `scripts/dev-library.mjs` | O comando `npm run dev:nova-copia`: joga fora a cópia da biblioteca do `npm run dev` (`%APPDATA%\Playtrove Dev`), só com ele fechado; o próximo `npm run dev` copia de novo a do app instalado |
 | `scripts/dist.mjs` | O comando `npm run dist`: gera em `dist/` o instalador (`Playtrove-Setup-X.Y.Z.exe`, com o `latest.yml` e o `.blockmap` que a atualização automática lê) e a versão portátil (`Playtrove-X.Y.Z-portable.zip`, com o `portable.txt` ao lado do .exe) |
 | `build/` | Arquivos do instalador: o ícone (`icon.ico`, com todos os tamanhos do Windows) e o `portable.txt` que vai no .zip da versão portátil |
@@ -223,6 +225,7 @@ Os canais IPC de hoje:
 | `lib/format.ts` | Textos no idioma do app: `formatPlaytime()` ("12 h 30 min" ou "12h 30m"), `formatLastPlayed()` ("Hoje", "Há 5 dias", "12/08/2026"), `formatReleaseDate()` ("14/10/2003" ou "10/14/2003"), `formatDateTime()`, `formatTime()`, `listTitles()` (os primeiros nomes e "e mais 2", nos avisos) e `shortCoreName()` (o nome curto de um core do RetroArch, como "mGBA") |
 | `lib/filters.ts` | A busca e os filtros: `LibraryFilters` (o que pode ser filtrado), `filterGames()` (quem passa), as faixas de tempo jogado, as de nota e dificuldade (`SCORE_RANGES`) e o período de "Recentes" (`RECENT_DAYS`, 30 dias) |
 | `lib/errors.ts` | `errorMessage()`: a mensagem de um erro para mostrar ao usuário |
+| `lib/tauriApi.ts` | A ponte da versão em Tauri: `isTauri()` e `createTauriApi()`, o mesmo `window.api` do preload do Electron, com cada função chamando o comando do Rust de mesmo nome (em snake_case) e os avisos pelos mesmos nomes dos canais. O `main.tsx` liga a ponte quando a interface roda no Tauri |
 | `lib/metadata.ts` | `describeMetadataResult()`: o aviso que resume uma leva de downloads de metadados |
 | `lib/score.ts` | As contas das estrelas e das pimentas: quanto de cada ícone fica pintado, a nota escolhida pelo clique ou pelo teclado e o texto para leitores de tela ("4,5 de 5 estrelas") |
 | `lib/stats.ts` | As contas das Estatísticas: o resumo, os mais jogados, os grupos por plataforma e biblioteca, os jogos por status, o eixo do gráfico de atividade e as colunas dos gráficos por dia e por mês (`dayColumns()` e `monthColumns()`) |
@@ -337,6 +340,29 @@ Os canais IPC de hoje:
 | `GameInfoList.tsx` | Lista de informações do jogo (Status, Tempo jogado, Última vez jogado, Biblioteca, Plataforma, Gênero, Desenvolvedora, Publicadora e Lançamento) |
 
 **`ui/`**: componentes do shadcn/ui (`button`, `input`, `textarea`, `separator`, `tooltip`, `toggle`, `toggle-group`, `checkbox`, `select`, `dropdown-menu` e `dialog`), criados pelo `npx shadcn add`. O `dropdown-menu` é a lista que abre nos seletores de filtro.
+
+### `src-tauri`: a versão em Rust (migração em andamento)
+
+A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (escolha do usuário em 2026-10-21). A interface é a mesma de `src/renderer`; no lugar do preload, ela usa a ponte `lib/tauriApi.ts`. Cada módulo corresponde a um arquivo de `src/main`, com o nome em snake_case. O que ainda não foi migrado (ver "Estado atual" no `CLAUDE.md`) não tem comando: a parte da tela que depende dele não funciona no Tauri por enquanto.
+
+| Arquivo | O que faz |
+|---|---|
+| `Cargo.toml` | O projeto em Rust e as dependências (`tauri`, `rusqlite` com o SQLite embutido, `serde`...). A versão do app vem do `package.json` (pelo `tauri.conf.json`) |
+| `tauri.conf.json` | Configuração do Tauri: nome, id, o Vite no endereço 1420 no desenvolvimento e `out/web` no build. O instalador fica desligado (`bundle.active: false`) até a fase do instalador |
+| `capabilities/default.json` | O que a janela pode pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar pela barra do topo |
+| `messages.json` | Os textos que o Rust mostra, gerados dos dicionários pelo `npm run tauri:mensagens` (não editar à mão) |
+| `rustfmt.toml` | A formatação do Rust (`cargo fmt`) |
+| `src/main.rs` | Abre o app: a pasta de dados, o banco, o idioma, o protocolo das imagens, a janela e a lista dos comandos |
+| `src/commands.rs` | Os comandos que a interface chama (o `ipc.ts` do Electron): conferem o que vem da tela e devolvem o erro como a mensagem que ela mostra |
+| `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma do Electron) |
+| `src/database.rs` e `src/migrations.rs` | Abre o banco (sem WAL) e cria ou atualiza as tabelas, com as mesmas migrações do Electron, na mesma ordem |
+| `src/settings.rs` | Ler e gravar na tabela `settings` |
+| `src/i18n.rs` | O idioma (o escolhido ou o do Windows) e `text()`, que busca os textos no `messages.json` |
+| `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus |
+| `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (no Tauri, `http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens |
+| `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state` |
+| `src/state.rs` | O banco e o idioma enquanto o app está aberto |
+| `src/test_mode.rs` | As variáveis `PLAYTROVE_*` dos testes, que só valem no build de desenvolvimento |
 
 ## Onde implementar cada funcionalidade futura
 

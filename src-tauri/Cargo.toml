@@ -1,0 +1,24 @@
+# O Playtrove em Tauri: a parte de trás do app (banco, emuladores, metadados, conquistas...), em Rust.
+# A interface continua em React (src/renderer). A versão do app vem do package.json (tauri.conf.json).
+[package]
+name = "playtrove"
+version = "0.0.0"
+description = "Your game library for Windows: emulators, achievements and playtime in one place."
+authors = ["LamarcKz"]
+license = "MIT"
+repository = "https://github.com/LamarcKz/Playtrove"
+edition = "2024"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+chrono = "0.4.45"
+percent-encoding = "2.3.2"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+sys-locale = "0.3.2"
+tauri = { version = "2", features = [] }
+unicode-normalization = "0.1.26"

@@ -12,6 +12,8 @@ export default {
   // vai só o binário do Windows (os dos outros sistemas e o código-fonte do SQLite ficam de fora).
   files: [
     "out/**/*",
+    // A interface da versão em Tauri (npm run web:build) não vai no app em Electron.
+    "!out/web/**",
     "!**/*.map",
     "!node_modules/better-sqlite3/{deps,src}/**",
     "!node_modules/better-sqlite3/prebuilds/{darwin-*,linux*,win32-arm64.node}",

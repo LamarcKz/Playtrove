@@ -1,0 +1,22 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Playtrove",
+  "version": "../package.json",
+  "identifier": "io.github.lamarckz.playtrove",
+  "build": {
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../out/web",
+    "beforeDevCommand": "npm run web:dev",
+    "beforeBuildCommand": "npm run web:build"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["../build/icon.ico"]
+  }
+}
