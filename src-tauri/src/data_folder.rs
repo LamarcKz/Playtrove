@@ -42,6 +42,11 @@ pub fn data_folder(app_data: &Path) -> Result<PathBuf, Box<dyn Error>> {
     Ok(portable_data_folder(&std::env::current_exe()?).unwrap_or(real))
 }
 
+/// Esta é a versão portátil (o .zip, com o portable.txt ao lado do .exe)? Nunca no modo de desenvolvimento.
+pub fn is_portable() -> bool {
+    !cfg!(debug_assertions) && std::env::current_exe().is_ok_and(|exe| portable_data_folder(&exe).is_some())
+}
+
 /// A pasta de dados da versão portátil: "data", ao lado do .exe, quando o portable.txt está lá (como nos
 /// emuladores portáteis). None se não for a portátil.
 fn portable_data_folder(exe: &Path) -> Option<PathBuf> {

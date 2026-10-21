@@ -98,6 +98,10 @@ export function createTauriApi(): AppApi {
       setAutoCheck: (enabled) => invoke("updates_set_auto_check", { enabled }),
       onStatus: (callback) => subscribe(IPC_CHANNELS.updatesStatus, callback),
     },
+    controllers: {
+      list: () => invoke("controllers_list"),
+      onChange: (callback) => subscribe(IPC_CHANNELS.controllersChanged, callback),
+    },
     statuses: {
       create: (name) => invoke("statuses_create", { name }),
       rename: (id, name) => invoke("statuses_rename", { id, name }),

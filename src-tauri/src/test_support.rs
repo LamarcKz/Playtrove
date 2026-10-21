@@ -1,14 +1,19 @@
 //! Ajuda para os testes: pastas temporárias e bancos em memória, nunca os dados do computador.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use rusqlite::Connection;
 
 use crate::migrations::run_migrations;
 
-/// Uma pasta temporária vazia, só deste teste.
+/// Conta as pastas temporárias, para cada chamada ter a sua (os testes rodam ao mesmo tempo).
+static NEXT_FOLDER: AtomicUsize = AtomicUsize::new(1);
+
+/// Uma pasta temporária vazia, só desta chamada.
 pub fn temp_folder(name: &str) -> PathBuf {
-    let folder = std::env::temp_dir().join(format!("playtrove-teste-{name}-{}", std::process::id()));
+    let number = NEXT_FOLDER.fetch_add(1, Ordering::Relaxed);
+    let folder = std::env::temp_dir().join(format!("playtrove-teste-{name}-{}-{number}", std::process::id()));
     let _ = std::fs::remove_dir_all(&folder);
     std::fs::create_dir_all(&folder).unwrap();
     folder

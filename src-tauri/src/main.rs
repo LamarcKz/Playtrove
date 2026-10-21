@@ -3,6 +3,7 @@
 
 mod achievements;
 mod commands;
+mod controllers;
 mod data_folder;
 mod database;
 mod dates;
@@ -15,6 +16,7 @@ mod i18n;
 mod images;
 mod launcher;
 mod library;
+mod links;
 mod metadata;
 mod migrations;
 mod playtime_sync;
@@ -70,6 +72,8 @@ fn main() {
             app.state::<achievements::service::AchievementsService>().start();
             // O tempo jogado registrado pelos próprios emuladores (inclusive o que foi jogado fora do app).
             app.manage(PlaytimeSync::start(app.handle().clone(), commands::notify_library_changed));
+            // Os controles conectados (DualSense) e a bateria deles, na barra do topo.
+            app.manage(controllers::Controllers::start(app.handle().clone()));
             let window = window::create_main_window(app.handle(), language, folder.join("webview"))?;
 
             // O banco estava danificado: avisa o que foi recuperado e onde ficou o arquivo danificado.
@@ -81,6 +85,8 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_version,
+            commands::app_open_link,
+            commands::app_report_bug,
             commands::app_get_language,
             commands::app_set_language,
             commands::window_minimize,
@@ -120,6 +126,7 @@ fn main() {
             commands::achievements_sync,
             commands::achievements_game,
             commands::achievements_overview,
+            commands::controllers_list,
         ])
         .build(tauri::generate_context!())
         .expect("erro ao iniciar o Playtrove");

@@ -3,6 +3,7 @@
  * Os dois lados importam daqui, então os nomes dos canais nunca ficam diferentes.
  */
 import type { AchievementsConfig, AchievementsOverview, GameAchievements, UnlockedAchievement } from "./achievements"
+import type { ConnectedController } from "./controllers"
 import type { GameEvaluation } from "./evaluation"
 import type { Language } from "./i18n"
 import type {
@@ -103,6 +104,8 @@ export const IPC_CHANNELS = {
   updatesCheck: "updates:check",
   updatesInstall: "updates:install",
   updatesSetAutoCheck: "updates:set-auto-check",
+  /** Só no Tauri: os controles conectados (o renderer pergunta e o Rust avisa quando mudam). */
+  controllersChanged: "controllers:changed",
 } as const
 
 /**
@@ -228,6 +231,15 @@ export interface AppApi {
     setAutoCheck: (enabled: boolean) => Promise<void>
     /** Chama `callback` sempre que a situação muda. Devolve uma função para parar de ouvir. */
     onStatus: (callback: (status: UpdateStatus) => void) => () => void
+  }
+  /**
+   * Só no Tauri, onde o Rust lê os controles (no Electron, a interface lê direto pela WebHID): os
+   * conectados agora e o aviso de quando mudam (um controle conectou, desconectou ou a bateria mudou).
+   */
+  controllers?: {
+    list: () => Promise<ConnectedController[]>
+    /** Chama `callback` com a lista nova. Devolve uma função para parar de ouvir. */
+    onChange: (callback: (controllers: ConnectedController[]) => void) => () => void
   }
   statuses: {
     create: (name: string) => Promise<Status>

@@ -23,7 +23,7 @@ Um app Electron roda em partes separadas, que trocam mensagens entre si (isso se
 - **preload** (`src/preload`): a ponte segura. Entrega ao React só as funções liberadas, em `window.api`.
 - **shared** (`src/shared`): código usado pelos dois lados, como os nomes dos canais IPC e o tipo `Game`.
 
-Uma exceção: o controle (DualSense) é lido direto pela interface, pela **WebHID** (o acesso a aparelhos USB e Bluetooth que o próprio navegador oferece). O main só libera esse acesso, e apenas para os controles reconhecidos (`src/main/controllers.ts`).
+Uma exceção: o controle (DualSense) é lido direto pela interface, pela **WebHID** (o acesso a aparelhos USB e Bluetooth que o próprio navegador oferece). O main só libera esse acesso, e apenas para os controles reconhecidos (`src/main/controllers.ts`). Na versão em Tauri, quem lê é o Rust (`src-tauri/src/controllers.rs`, pelo `hidapi`), e a interface só ouve o aviso `controllers:changed`.
 
 Os canais IPC de hoje:
 
@@ -200,7 +200,7 @@ Os canais IPC de hoje:
 | `evaluation.ts` | A avaliação do usuário: a nota e a dificuldade vão de 1 a 10, em meios ícones (`SCORE_MAX`, `isScore()` e `formatScore()`: 9 → "4,5", ou "4.5" em inglês), o tamanho máximo da análise e o formato que a janela salva (`GameEvaluation`) |
 | `types.ts` | Tipos de dados: `DailyPlaytime` (o tempo de um dia, para as Estatísticas), `Game` (o jogo), `Status` (um status), `StatusRules` (as regras automáticas), `LibrarySnapshot` (tudo junto, como a interface recebe) os da aba Emuladores (`EmulatorInfo`, `RetroArchCore`, `RomFolder` e `ScanResult`) e os dos metadados (`MetadataConfig` e `MetadataProgress`) |
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
-| `controllers.ts` | Os controles reconhecidos (`SUPPORTED_CONTROLLERS`: DualSense e DualSense Edge), usados pelo main para liberar o acesso e pela interface para mostrar o nome |
+| `controllers.ts` | Os controles reconhecidos (`SUPPORTED_CONTROLLERS`: DualSense e DualSense Edge), usados pelo main para liberar o acesso e pela interface para mostrar o nome, e os tipos do controle conectado e da bateria (`ConnectedController`), os mesmos que o Rust manda |
 
 ### `src/renderer`: interface React
 
@@ -213,7 +213,7 @@ Os canais IPC de hoje:
 | `hooks/useI18n.ts` | `useI18n()`: o idioma, os textos dele (`t`, ex.: `t.pages.library`) e `setLanguage()` para trocar |
 | `hooks/useLibrary.ts` | A biblioteca que está no banco (jogos, status e regras). Recarrega sozinha quando algo muda. `setGameStatus()` muda o status de um jogo |
 | `hooks/useStatuses.ts` | Os status para qualquer componente: `useStatuses()` (a lista) e `useStatusName()` (o nome pelo id) |
-| `hooks/useControllers.ts` | Acompanha os controles conectados: aparecem e somem sozinhos, e a bateria é lida de novo a cada 5 segundos |
+| `hooks/useControllers.ts` | Acompanha os controles conectados: aparecem e somem sozinhos, e a bateria é lida de novo a cada 5 segundos. No Tauri, só ouve o Rust (`window.api.controllers`); no Electron, lê pela WebHID |
 | `hooks/useEmulators.ts` | Os dados da aba Emuladores (emuladores, cores do RetroArch e pastas de ROMs) e as ações de cada um |
 | `hooks/useRunningGames.ts` | Os jogos abertos agora (o main avisa quando um abre ou fecha) |
 | `hooks/useToast.ts` | `useToast()`: mostra um aviso rápido no canto da tela (ex.: "3 jogos novos na biblioteca") |
@@ -377,6 +377,8 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `src/metadata/credentials.rs` | As chaves e a configuração de Configurações → Metadados (a tela nunca recebe as chaves) |
 | `src/achievements/` | As conquistas, um arquivo para cada um de `src/main/achievements` (em snake_case): os tipos que a tela recebe (`types.rs`), o RetroAchievements (`client.rs`, `matching.rs`, `store.rs`, `sync.rs` e `badges.rs`), os troféus do RPCS3 (`trophy_files.rs`, `trophy_store.rs`, `trophy_sync.rs` e `trophy_icons.rs`), o que as telas mostram (`views.rs`) e o serviço que atualiza sozinho e avisa (`service.rs`) |
 | `src/metadata/service.rs` | A ligação com o app: a sessão do IGDB guardada entre os downloads, a fila e os avisos `metadata:progress` |
+| `src/controllers.rs` | O DualSense na barra do topo: acha os controles pelo `hidapi` a cada segundo (USB ou Bluetooth, pelo que o Windows diz do aparelho), lê a bateria a cada 5 s (abre, espera o relatório completo e fecha, pedindo a configuração no modo simples do Bluetooth) e avisa a tela (`controllers:changed`) |
+| `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, os mesmos do `ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma do Electron) |
 | `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta como o Electron: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
 | `src/migrations.rs` | Cria ou atualiza as tabelas, com as mesmas migrações do Electron, na mesma ordem |
@@ -434,7 +436,7 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | Criar uma página nova no menu | Um arquivo novo em `src/renderer/pages`; o id e o ícone em `pages/index.ts`, e o nome nos dois dicionários (`pages`); mostrar a página em `App.tsx`; e colocar no menu em `components/Sidebar.tsx` (`MAIN_NAV`) |
 | Mudar o instalador ou a versão portátil | `electron-builder.config.mjs` (o que vai no pacote, o instalador) e `scripts/dist.mjs` (as duas rodadas: o instalador e o .zip portátil) |
 | Mudar o ícone do app | `build/icon.ico` (o .exe, o instalador e a janela no `npm run dev`), `docs/logo.svg` (README) e `src/renderer/components/AppLogo.tsx` (barra do topo). Os três têm o mesmo desenho |
-| Mostrar outro modelo de controle (ex.: DualShock 4) | O modelo em `src/shared/controllers.ts` (`SUPPORTED_CONTROLLERS`) e o jeito de ler a bateria dele, como em `src/renderer/lib/dualsense.ts` |
+| Mostrar outro modelo de controle (ex.: DualShock 4) | O modelo em `src/shared/controllers.ts` (`SUPPORTED_CONTROLLERS`) e o jeito de ler a bateria dele, como em `src/renderer/lib/dualsense.ts`; no Tauri, os mesmos dois em `src-tauri/src/controllers.rs` |
 | Importar jogos de outros lugares (Steam, GOG, pastas de jogos de PC) | Código novo no main, como o `src/main/romScanner.ts` faz com as pastas de ROMs, entregue ao React por IPC |
 | Usar outro componente do shadcn/ui | Rode `npx shadcn add nome-do-componente`: ele aparece em `src/renderer/components/ui/` |
 

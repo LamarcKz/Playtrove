@@ -10,11 +10,11 @@ import {
   Usb,
   type LucideIcon,
 } from "lucide-react"
+import type { BatteryReading, ConnectedController } from "@shared/controllers"
 import type { Messages } from "@shared/i18n"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { useControllers, type ConnectedController } from "@/hooks/useControllers"
+import { useControllers } from "@/hooks/useControllers"
 import { useI18n } from "@/hooks/useI18n"
-import type { BatteryReading } from "@/lib/dualsense"
 import { cn } from "@/lib/utils"
 
 /** Até quanto a bateria é considerada fraca (fica vermelha). */

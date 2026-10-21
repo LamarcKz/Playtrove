@@ -15,12 +15,15 @@ use crate::achievements::service::AchievementsService;
 use crate::achievements::trophy_icons::trophy_icon_url;
 use crate::achievements::types::{AchievementsConfig, AchievementsOverview, GameAchievements};
 use crate::achievements::{self};
+use crate::controllers::{ConnectedController, Controllers};
+use crate::data_folder::is_portable;
 use crate::emulators::{self, EmulatorId, EmulatorInfo, RetroArchCore};
 use crate::errors::{AppError, AppResult};
 use crate::i18n::{Language, save_language, text};
 use crate::images::ImagesDir;
 use crate::launcher::{Launcher, SystemStarter};
 use crate::library::{self, LibrarySnapshot, Status};
+use crate::links;
 use crate::metadata::credentials::{self, MetadataConfig};
 use crate::metadata::queue::MetadataProgress;
 use crate::metadata::service::MetadataService;
@@ -64,6 +67,22 @@ fn path_exists(path: &str) -> bool {
 #[tauri::command]
 pub fn app_version(app: AppHandle) -> String {
     app.package_info().version.to_string()
+}
+
+/// Abre no navegador só os sites conhecidos (as páginas para criar as chaves e a de download).
+#[tauri::command]
+pub fn app_open_link(link: Value) {
+    if let Some(url) = link.as_str().and_then(links::external_link) {
+        let _ = tauri_plugin_opener::open_url(url, None::<&str>);
+    }
+}
+
+/// O formulário de bug do GitHub, já com a versão do app e a do Windows.
+#[tauri::command]
+pub fn app_report_bug(app: AppHandle) {
+    let version = app.package_info().version.to_string();
+    let url = links::bug_report_url(&version, is_portable(), &links::windows_description());
+    let _ = tauri_plugin_opener::open_url(url, None::<&str>);
 }
 
 #[tauri::command]
@@ -467,4 +486,12 @@ pub fn achievements_overview(state: State<'_, AppState>, images: State<'_, Image
     let badge = |name: Option<&str>, earned: bool| badge_url(&images.0, name, earned);
     let icon = |set: &str, id: i64| trophy_icon_url(&images.0, set, id);
     Ok(achievements::views::get_overview(&state.db(), &badge, &icon, Local::now())?)
+}
+
+// ---------------------------------------------------------------- controles (barra do topo)
+
+/// Os controles conectados agora, com a bateria (depois, a interface ouve o aviso "controllers:changed").
+#[tauri::command]
+pub fn controllers_list(controllers: State<'_, Controllers>) -> Vec<ConnectedController> {
+    controllers.list()
 }

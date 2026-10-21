@@ -1,18 +1,9 @@
 /**
  * Leitura do DualSense (e do DualSense Edge) pela WebHID: por onde ele está conectado e a bateria.
- * Os números seguem o driver oficial desses controles no Linux (hid-playstation).
+ * Os números seguem o driver oficial desses controles no Linux (hid-playstation). No Tauri, quem lê é o
+ * Rust (src-tauri/src/controllers.rs).
  */
-
-export type ControllerConnection = "usb" | "bluetooth"
-
-/** Situação da bateria: descarregando (em uso), carregando, cheia ou desconhecida (erro). */
-export type BatteryState = "discharging" | "charging" | "full" | "unknown"
-
-export interface BatteryReading {
-  /** Carga em %, estimada: o controle só informa de 10 em 10%. null quando desconhecida. */
-  percent: number | null
-  state: BatteryState
-}
+import type { BatteryReading, ControllerConnection } from "@shared/controllers"
 
 /**
  * O relatório completo de cada conexão, o que traz a bateria (o id não entra na conta dos bytes).

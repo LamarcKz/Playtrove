@@ -17,6 +17,7 @@ tauri-build = { version = "2", features = [] }
 aes-gcm = { version = "0.11.1", features = ["getrandom"] }
 base64 = "0.22"
 chrono = "0.4.45"
+hidapi = { version = "2.6.7", default-features = false, features = ["windows-native"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 percent-encoding = "2.3.2"
 regex = "1"
@@ -29,4 +30,4 @@ tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 unicode-normalization = "0.1.26"
 ureq = "3"
-windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Storage_FileSystem", "Win32_Security_Cryptography", "Win32_System_Memory"] }
+windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Storage_FileSystem", "Win32_Security_Cryptography", "Win32_System_Memory", "Win32_System_Registry"] }
