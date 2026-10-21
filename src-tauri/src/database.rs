@@ -40,6 +40,13 @@ pub struct RepairReport {
     damaged_file: PathBuf,
 }
 
+impl RepairReport {
+    /// O conserto perdeu essa tabela?
+    pub fn lost(&self, table: &str) -> bool {
+        self.lost.contains(&table)
+    }
+}
+
 /// Abre o banco do arquivo (criando se não existir) e deixa ele pronto para uso:
 /// 1. confere se ele está íntegro; se não estiver, conserta (veja `repair_database`);
 /// 2. usa o diário comum do SQLite (sem WAL): cada gravação vai direto para o arquivo do banco, e não

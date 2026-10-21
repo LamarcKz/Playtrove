@@ -62,7 +62,7 @@ export function createTauriApi(): AppApi {
       setIgdb: (credentials) => invoke("metadata_set_igdb", { credentials }),
       setSteamGridDb: (key) => invoke("metadata_set_steam_grid_db", { key }),
       setAutoDownload: (enabled) => invoke("metadata_set_auto_download", { enabled }),
-      download: (gameIds) => invoke("metadata_download", { gameIds }),
+      download: (gameIds) => invoke("metadata_download", { gameIds: gameIds ?? null }),
       getProgress: () => invoke("metadata_get_progress"),
       onProgress: (callback) => subscribe(IPC_CHANNELS.metadataProgress, callback),
     },
@@ -77,7 +77,7 @@ export function createTauriApi(): AppApi {
       pick: () => invoke("rom_folders_pick"),
       add: (folder) => invoke("rom_folders_add", { folder }),
       remove: (id) => invoke("rom_folders_remove", { id }),
-      scan: (id) => invoke("rom_folders_scan", { id }),
+      scan: (id) => invoke("rom_folders_scan", { id: id ?? null }),
     },
     stats: {
       dailyPlaytime: () => invoke("stats_daily_playtime"),

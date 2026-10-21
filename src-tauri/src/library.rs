@@ -12,6 +12,7 @@ use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
 
 use crate::dates::iso;
+use crate::emulators::EmulatorId;
 use crate::errors::{AppError, AppResult};
 use crate::i18n::{LANGUAGES, Language, status_preset_name};
 use crate::images::image_url;
@@ -162,7 +163,7 @@ fn parse_list(value: Option<String>) -> Vec<String> {
 
 /// Compara dois nomes como a ordem alfabética do app: sem diferença entre maiúsculas e minúsculas nem
 /// acentos, e com espaços e pontuação antes dos números, e os números antes das letras.
-fn compare_titles(a: &str, b: &str) -> Ordering {
+pub fn compare_titles(a: &str, b: &str) -> Ordering {
     sort_key(a).cmp(&sort_key(b))
 }
 
@@ -295,6 +296,101 @@ pub fn set_game_status(db: &Connection, language: Language, game_id: i64, status
         return Err(AppError::text(language, "errors.gameNotFound", &[]));
     }
     Ok(())
+}
+
+/// Sessões mais curtas que isto não contam: o emulador nem chegou a abrir. Qualquer abertura de verdade
+/// conta, mesmo fechando antes de jogar (pedido do usuário em 2026-09-19).
+const MIN_SESSION_SECONDS: f64 = 3.0;
+
+/// Um jogo de emulador encontrado na varredura de uma pasta de ROMs.
+pub struct EmulatedGame<'a> {
+    pub title: &'a str,
+    pub rom_path: &'a str,
+    pub platform: &'a str,
+    pub library: &'a str,
+    pub emulator: EmulatorId,
+    pub core: Option<&'a str>,
+}
+
+/// Coloca um jogo de emulador na biblioteca, com o status de "jogo novo" (regra automática). Devolve o
+/// id do jogo novo, ou None se a ROM já estava na biblioteca.
+pub fn add_emulated_game(db: &Connection, language: Language, game: &EmulatedGame) -> rusqlite::Result<Option<i64>> {
+    let rules = status_rules(db, language)?;
+    let added = db.execute(
+        "INSERT INTO games (title, status_id, added_at, platform, library, rom_path, emulator_id, core)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+         ON CONFLICT(rom_path) DO NOTHING",
+        (
+            game.title,
+            rules.new_game_status_id,
+            iso(Utc::now()),
+            game.platform,
+            game.library,
+            game.rom_path,
+            game.emulator.id(),
+            game.core,
+        ),
+    )?;
+    Ok((added > 0).then(|| db.last_insert_rowid()))
+}
+
+/// Registra uma vez que o jogo foi jogado: soma o tempo, guarda a data e a sessão (para a atividade por
+/// dia das Estatísticas). Na primeira vez, se o jogo ainda está no status de "jogo novo", ele vai para o
+/// status de "primeiro jogo" (regra automática). Sessões curtas demais (menos de MIN_SESSION_SECONDS)
+/// não contam.
+pub fn record_play_session(
+    db: &Connection,
+    language: Language,
+    game_id: i64,
+    seconds: f64,
+    ended_at: DateTime<Utc>,
+) -> rusqlite::Result<()> {
+    if seconds < MIN_SESSION_SECONDS {
+        return Ok(());
+    }
+    let Some((status_id, last_played_at)) = db
+        .query_row("SELECT status_id, last_played_at FROM games WHERE id = ?1", [game_id], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?))
+        })
+        .optional()?
+    else {
+        return Ok(());
+    };
+
+    let rules = status_rules(db, language)?;
+    let first_time = last_played_at.is_none();
+    let status_id = if first_time && status_id == rules.new_game_status_id { rules.first_play_status_id } else { status_id };
+    let rounded = seconds.round() as i64;
+    let started_at = ended_at - chrono::Duration::seconds(rounded);
+    let transaction = db.unchecked_transaction()?;
+    transaction.execute(
+        "UPDATE games SET playtime_seconds = playtime_seconds + ?1, last_played_at = ?2, status_id = ?3 WHERE id = ?4",
+        (rounded, iso(ended_at), status_id, game_id),
+    )?;
+    transaction.execute(
+        "INSERT INTO play_sessions (game_id, started_at, ended_at, seconds) VALUES (?1, ?2, ?3, ?4)",
+        (game_id, iso(started_at), iso(ended_at), rounded),
+    )?;
+    transaction.commit()
+}
+
+/// O que o app precisa para abrir um jogo de emulador.
+pub struct LaunchInfo {
+    pub rom_path: Option<String>,
+    pub emulator: Option<EmulatorId>,
+    pub core: Option<String>,
+}
+
+pub fn get_launch_info(db: &Connection, language: Language, game_id: i64) -> AppResult<LaunchInfo> {
+    db.query_row("SELECT rom_path, emulator_id, core FROM games WHERE id = ?1", [game_id], |row| {
+        Ok(LaunchInfo {
+            rom_path: row.get(0)?,
+            emulator: row.get::<_, Option<String>>(1)?.as_deref().and_then(EmulatorId::from_id),
+            core: row.get(2)?,
+        })
+    })
+    .optional()?
+    .ok_or_else(|| AppError::text(language, "errors.gameNotFound", &[]))
 }
 
 // ---------------------------------------------------------------- status

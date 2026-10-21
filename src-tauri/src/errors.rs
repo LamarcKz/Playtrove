@@ -31,6 +31,12 @@ impl From<rusqlite::Error> for AppError {
     }
 }
 
+impl From<std::io::Error> for AppError {
+    fn from(error: std::io::Error) -> AppError {
+        AppError(error.to_string())
+    }
+}
+
 impl From<tauri::Error> for AppError {
     fn from(error: tauri::Error) -> AppError {
         AppError(error.to_string())

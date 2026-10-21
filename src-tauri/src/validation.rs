@@ -3,6 +3,7 @@
 
 use serde_json::Value;
 
+use crate::emulators::EmulatorId;
 use crate::errors::{AppError, AppResult};
 use crate::i18n::Language;
 use crate::library::GameEvaluation;
@@ -26,6 +27,31 @@ pub fn to_text(value: &Value, language: Language) -> AppResult<String> {
 /// Sim ou não.
 pub fn to_bool(value: &Value, language: Language) -> AppResult<bool> {
     value.as_bool().ok_or_else(|| AppError::text(language, "errors.invalidValue", &[]))
+}
+
+/// Um id ou nada (null = todos, ex.: procurar em todas as pastas).
+pub fn to_optional_id(value: &Value, language: Language) -> AppResult<Option<i64>> {
+    if value.is_null() { Ok(None) } else { to_id(value, language).map(Some) }
+}
+
+/// Um dos emuladores que o app conhece.
+pub fn to_emulator_id(value: &Value, language: Language) -> AppResult<EmulatorId> {
+    value.as_str().and_then(EmulatorId::from_id).ok_or_else(|| AppError::text(language, "errors.unknownEmulator", &[]))
+}
+
+/// Uma pasta de ROMs nova: o caminho, o emulador, o core (só no RetroArch; null = nenhum) e o console.
+pub fn to_rom_folder(value: &Value, language: Language) -> AppResult<(String, EmulatorId, Option<String>, String)> {
+    let field = |name: &str| value.get(name).unwrap_or(&Value::Null);
+    let core = match field("core") {
+        Value::Null => None,
+        core => Some(to_text(core, language)?),
+    };
+    Ok((
+        to_text(field("path"), language)?,
+        to_emulator_id(field("emulatorId"), language)?,
+        core,
+        to_text(field("platform"), language)?,
+    ))
 }
 
 /// A ordem nova dos status: uma lista de ids.

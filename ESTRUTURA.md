@@ -358,6 +358,16 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `src/errors.rs` | `AppError`: o erro que a tela mostra, já no idioma do app (`AppError::text`) |
 | `src/dates.rs` | `iso()`: as datas no formato do banco (o `toISOString()` do JavaScript) |
 | `src/sample_games.rs` | Os 12 jogos de exemplo dos testes (`PLAYTROVE_SAMPLE_GAMES=1`) |
+| `src/emulators.rs` | O que o app sabe de cada emulador (`PRESETS`: nome do executável, lugares comuns, extensões, argumentos e se abre maximizado), a tabela `emulators`, a detecção automática (atalhos, lugares comuns e pastas vizinhas), os cores do RetroArch e o comando para abrir um jogo |
+| `src/system_sources.rs` | De onde a detecção lê no Windows de verdade: os atalhos do menu Iniciar e da Área de Trabalho, lidos pelo próprio Windows (COM) |
+| `src/rom_scanner.rs` | As pastas de ROMs (tabela `rom_folders`) e a varredura: o nome limpo do jogo (`title_from_file_name`), as ISOs e pastas de PS3 e o .cue no lugar dos .bin |
+| `src/discs.rs` | O código do jogo no disco (PS1, PS2, PS3, PSP, GameCube, Wii e 3DS) e o nome dos jogos de PS3, lendo só alguns bytes. Os discos de mentira dos testes ficam no módulo `fake_discs` |
+| `src/launcher.rs` | O Jogar: abre o emulador separado do app, guarda os jogos abertos e, quando ele fecha, devolve o tempo jogado. Ao fechar o app, `finish_all` registra o tempo até ali |
+| `src/emulator_window.rs` | Maximiza a janela do RetroArch quando ela aparecer, pelas funções do Windows (sem o PowerShell do Electron) |
+| `src/emulator_playtime.rs` | Lê o tempo que os emuladores registram (PCSX2, DuckStation, RPCS3, PPSSPP, Dolphin, Azahar e RetroArch) e junta com a biblioteca, sem contar duas vezes |
+| `src/playtime_sync.rs` | Relê esses registros ao abrir, a cada minuto, depois de uma varredura e logo depois de um jogo fechar |
+| `src/stats.rs` | A atividade por dia das Estatísticas (últimos 30 dias, no horário do computador) |
+| `src/test_support.rs` | Só dos testes: pastas temporárias, arquivos de mentira e o banco em memória |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma do Electron) |
 | `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta como o Electron: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
 | `src/migrations.rs` | Cria ou atualiza as tabelas, com as mesmas migrações do Electron, na mesma ordem |
