@@ -1,6 +1,7 @@
 // Sem a janela do console no app de verdade (no "npm run dev:tauri" ela mostra os registros).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod achievements;
 mod commands;
 mod data_folder;
 mod database;
@@ -64,6 +65,9 @@ fn main() {
             app.manage(AppState::new(db, language));
             app.manage(Launcher::new(Arc::new(Utc::now)));
             app.manage(metadata::service::MetadataService::new(app.handle().clone()));
+            // As conquistas do RetroAchievements (a cada 5 minutos) e os troféus do RPCS3 (a cada minuto).
+            app.manage(achievements::service::AchievementsService::new(app.handle().clone()));
+            app.state::<achievements::service::AchievementsService>().start();
             // O tempo jogado registrado pelos próprios emuladores (inclusive o que foi jogado fora do app).
             app.manage(PlaytimeSync::start(app.handle().clone(), commands::notify_library_changed));
             let window = window::create_main_window(app.handle(), language, folder.join("webview"))?;
@@ -111,6 +115,11 @@ fn main() {
             commands::metadata_set_auto_download,
             commands::metadata_download,
             commands::metadata_get_progress,
+            commands::achievements_get_config,
+            commands::achievements_set_account,
+            commands::achievements_sync,
+            commands::achievements_game,
+            commands::achievements_overview,
         ])
         .build(tauri::generate_context!())
         .expect("erro ao iniciar o Playtrove");

@@ -3,6 +3,7 @@
 
 use serde_json::Value;
 
+use crate::achievements::client::RaAccount;
 use crate::emulators::EmulatorId;
 use crate::errors::{AppError, AppResult};
 use crate::i18n::Language;
@@ -85,6 +86,25 @@ pub fn to_igdb_credentials(value: &Value, language: Language) -> AppResult<Optio
         client_id: to_secret(field("clientId"), "igdbClientId", language)?,
         client_secret: to_secret(field("clientSecret"), "igdbClientSecret", language)?,
     }))
+}
+
+/// A conta do RetroAchievements (null = apagar a conta): o nome (de 2 a 32 letras, números, ".", "_" ou
+/// "-") e a Web API Key.
+pub fn to_ra_account(value: &Value, language: Language) -> AppResult<Option<RaAccount>> {
+    if value.is_null() {
+        return Ok(None);
+    }
+    if !value.is_object() {
+        return Err(AppError::text(language, "errors.invalidAccount", &[]));
+    }
+    let username = value.get("username").and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    let valid = (2..=32).contains(&username.chars().count())
+        && username.chars().all(|character| character.is_ascii_alphanumeric() || "_.-".contains(character));
+    if !valid {
+        return Err(AppError::text(language, "errors.raUsername", &[]));
+    }
+    let api_key = to_secret(value.get("apiKey").unwrap_or(&Value::Null), "raApiKey", language)?;
+    Ok(Some(RaAccount { username, api_key }))
 }
 
 /// A ordem nova dos status: uma lista de ids.

@@ -87,6 +87,13 @@ pub fn save_game_image(
     Ok(file_name)
 }
 
+/// Endereço de um arquivo da pasta de imagens para a interface (ex.: "trophies/NPWR01234_00/3.png", as
+/// imagens dos troféus, e "achievements/123.png", as insígnias).
+pub fn images_url(relative: &str) -> String {
+    let path: Vec<String> = relative.split('/').map(encode_uri_component).collect();
+    format!("http://{IMAGE_PROTOCOL}.localhost/{}", path.join("/"))
+}
+
 /// Endereço de uma imagem de jogo para a interface, ex.: http://playtrove-img.localhost/12/cover.png?v=...
 /// O `version` (a data do download) muda quando a imagem é trocada, para a tela não mostrar a antiga.
 pub fn image_url(game_id: i64, file_name: &str, version: Option<&str>) -> String {

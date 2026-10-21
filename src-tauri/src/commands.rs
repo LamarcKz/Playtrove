@@ -9,9 +9,16 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow};
 use tauri_plugin_dialog::DialogExt;
 
+use crate::achievements::badges::badge_url;
+use crate::achievements::client::RaApi;
+use crate::achievements::service::AchievementsService;
+use crate::achievements::trophy_icons::trophy_icon_url;
+use crate::achievements::types::{AchievementsConfig, AchievementsOverview, GameAchievements};
+use crate::achievements::{self};
 use crate::emulators::{self, EmulatorId, EmulatorInfo, RetroArchCore};
 use crate::errors::{AppError, AppResult};
 use crate::i18n::{Language, save_language, text};
+use crate::images::ImagesDir;
 use crate::launcher::{Launcher, SystemStarter};
 use crate::library::{self, LibrarySnapshot, Status};
 use crate::metadata::credentials::{self, MetadataConfig};
@@ -25,8 +32,8 @@ use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
 use crate::test_mode::test_mode;
 use crate::validation::{
-    to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_rom_folder,
-    to_secret, to_status_rules, to_text,
+    to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_ra_account,
+    to_rom_folder, to_secret, to_status_rules, to_text,
 };
 use crate::window::WindowState;
 
@@ -182,7 +189,8 @@ pub fn statuses_set_rules(app: AppHandle, state: State<'_, AppState>, rules: Val
 // ---------------------------------------------------------------- jogar
 
 /// Abre o jogo no emulador e avisa a interface quando ele abre e quando fecha. Quando o emulador fecha,
-/// registra o tempo jogado e relê o tempo que ele mesmo registrou (ele grava ao fechar).
+/// registra o tempo jogado e relê o tempo que ele mesmo registrou (ele grava ao fechar), as conquistas e os
+/// troféus.
 #[tauri::command]
 pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
     let language = state.language();
@@ -198,6 +206,7 @@ pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_
         notify_running(&handle);
         notify_library_changed(&handle);
         handle.state::<PlaytimeSync>().run_after(AFTER_GAME_DELAY);
+        handle.state::<AchievementsService>().after_game_closed();
     });
     launcher.launch(&state.db(), language, game_id, &SystemStarter, on_exit)?;
     notify_running(&app);
@@ -265,6 +274,9 @@ pub fn emulators_pick_path(
         .blocking_pick_file();
     if let Some(path) = picked.and_then(|file| file.into_path().ok()) {
         emulators::set_emulator_path(&state.db(), emulator, &path.to_string_lossy())?;
+        if emulator == EmulatorId::Rpcs3 {
+            app.state::<AchievementsService>().read_trophies();
+        }
     }
     Ok(emulators::list_emulators(&state.db(), &path_exists)?)
 }
@@ -319,6 +331,7 @@ pub fn rom_folders_scan(app: AppHandle, state: State<'_, AppState>, id: Value) -
             app.state::<MetadataService>().queue.enqueue(&result.added_ids);
         }
         app.state::<PlaytimeSync>().run();
+        app.state::<AchievementsService>().read_trophies();
     }
     Ok(result)
 }
@@ -396,4 +409,62 @@ pub fn metadata_download(state: State<'_, AppState>, service: State<'_, Metadata
 #[tauri::command]
 pub fn metadata_get_progress(service: State<'_, MetadataService>) -> MetadataProgress {
     service.queue.progress()
+}
+
+// ---------------------------------------------------------------- conquistas
+
+#[tauri::command]
+pub fn achievements_get_config(service: State<'_, AchievementsService>) -> AchievementsConfig {
+    service.config()
+}
+
+/// Confere a conta do RetroAchievements no site e salva (null apaga). Com uma conta, atualiza tudo logo
+/// depois.
+#[tauri::command(async)]
+pub fn achievements_set_account(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    secrets: State<'_, Secrets>,
+    service: State<'_, AchievementsService>,
+    account: Value,
+) -> AppResult<AchievementsConfig> {
+    let language = state.language();
+    let account = to_ra_account(&account, language)?;
+    if let Some(account) = &account {
+        service.client(account.clone(), language).validate()?;
+    }
+    achievements::store::save_ra_account(&state.db(), &secrets, language, account.as_ref())?;
+    notify_library_changed(&app);
+    if account.is_some() {
+        let handle = app.clone();
+        std::thread::spawn(move || handle.state::<AchievementsService>().sync(true));
+    }
+    Ok(service.config())
+}
+
+/// O botão "Atualizar": relê os troféus do RPCS3 e atualiza as conquistas de todos os jogos.
+#[tauri::command(async)]
+pub fn achievements_sync(service: State<'_, AchievementsService>) {
+    service.refresh();
+}
+
+/// As conquistas de um jogo da biblioteca, ou null se ele não tiver.
+#[tauri::command]
+pub fn achievements_game(
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<Option<GameAchievements>> {
+    let game_id = to_id(&game_id, state.language())?;
+    let badge = |name: Option<&str>, earned: bool| badge_url(&images.0, name, earned);
+    let icon = |set: &str, id: i64| trophy_icon_url(&images.0, set, id);
+    Ok(achievements::views::get_game_achievements(&state.db(), game_id, &badge, &icon)?)
+}
+
+/// Tudo o que a aba Conquistas mostra.
+#[tauri::command]
+pub fn achievements_overview(state: State<'_, AppState>, images: State<'_, ImagesDir>) -> AppResult<AchievementsOverview> {
+    let badge = |name: Option<&str>, earned: bool| badge_url(&images.0, name, earned);
+    let icon = |set: &str, id: i64| trophy_icon_url(&images.0, set, id);
+    Ok(achievements::views::get_overview(&state.db(), &badge, &icon, Local::now())?)
 }

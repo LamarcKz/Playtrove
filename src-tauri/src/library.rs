@@ -11,6 +11,9 @@ use serde::Serialize;
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
 
+use crate::achievements::trophy_store::games_waiting_for_trophies;
+use crate::achievements::types::AchievementProgress;
+use crate::achievements::views::progress_by_game;
 use crate::dates::iso;
 use crate::emulators::EmulatorId;
 use crate::errors::{AppError, AppResult};
@@ -39,15 +42,6 @@ pub struct Status {
 struct StatusRules {
     new_game_status_id: i64,
     first_play_status_id: i64,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct AchievementProgress {
-    unlocked: i64,
-    total: i64,
-    platinum: bool,
-    source: &'static str,
 }
 
 #[derive(Serialize)]
@@ -184,60 +178,6 @@ fn sort_key(title: &str) -> Vec<(u8, char)> {
             };
             (group, character)
         })
-        .collect()
-}
-
-/// O progresso de cada jogo nas conquistas (id do jogo → pegos, total e platina): os troféus do RPCS3
-/// e, por cima, o RetroAchievements.
-fn progress_by_game(db: &Connection) -> rusqlite::Result<HashMap<i64, AchievementProgress>> {
-    let mut progress = trophy_progress_by_game(db)?;
-    let mut query = db.prepare(
-        "SELECT g.id, COUNT(a.id), COUNT(a.earned_at)
-         FROM games g JOIN ra_games rg ON rg.id = g.ra_game_id JOIN achievements a ON a.ra_game_id = g.ra_game_id
-         GROUP BY g.id",
-    )?;
-    let rows = query.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?)))?;
-    for row in rows {
-        let (game_id, total, unlocked) = row?;
-        let platinum = total > 0 && unlocked == total;
-        progress.insert(game_id, AchievementProgress { unlocked, total, platinum, source: "retroachievements" });
-    }
-    Ok(progress)
-}
-
-fn trophy_progress_by_game(db: &Connection) -> rusqlite::Result<HashMap<i64, AchievementProgress>> {
-    let mut query =
-        db.prepare("SELECT g.id, t.grade, t.unlocked_at IS NOT NULL FROM games g JOIN trophies t ON t.set_id = g.trophy_set")?;
-    let mut by_game: HashMap<i64, Vec<(String, bool)>> = HashMap::new();
-    for row in query.query_map([], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, bool>(2)?)))? {
-        let (game_id, grade, earned) = row?;
-        by_game.entry(game_id).or_default().push((grade, earned));
-    }
-    Ok(by_game
-        .into_iter()
-        .map(|(game_id, trophies)| {
-            let unlocked = trophies.iter().filter(|(_, earned)| *earned).count() as i64;
-            let progress =
-                AchievementProgress { unlocked, total: trophies.len() as i64, platinum: is_platinum(&trophies), source: "rpcs3" };
-            (game_id, progress)
-        })
-        .collect())
-}
-
-/// A platina do PS3: o troféu de platina pego; num conjunto sem platina, todos os troféus pegos.
-fn is_platinum(trophies: &[(String, bool)]) -> bool {
-    let platinum: Vec<_> = trophies.iter().filter(|(grade, _)| grade == "platina").collect();
-    if platinum.is_empty() {
-        !trophies.is_empty() && trophies.iter().all(|(_, earned)| *earned)
-    } else {
-        platinum.iter().any(|(_, earned)| *earned)
-    }
-}
-
-/// Os jogos de PS3 com conjunto de troféus (do disco) que o RPCS3 ainda não instalou.
-fn games_waiting_for_trophies(db: &Connection) -> rusqlite::Result<Vec<i64>> {
-    db.prepare("SELECT id FROM games WHERE trophy_set IS NOT NULL AND trophy_set NOT IN (SELECT DISTINCT set_id FROM trophies)")?
-        .query_map([], |row| row.get(0))?
         .collect()
 }
 
@@ -726,9 +666,15 @@ mod tests {
 
         let games: HashMap<i64, Game> = list_games(&db).unwrap().into_iter().map(|game| (game.id, game)).collect();
         let trophies = games[&ps3].achievements.as_ref().unwrap();
-        assert_eq!((trophies.unlocked, trophies.total, trophies.platinum, trophies.source), (1, 2, true, "rpcs3"));
+        assert_eq!(
+            (trophies.unlocked, trophies.total, trophies.platinum, trophies.source),
+            (1, 2, true, crate::achievements::types::AchievementSource::Rpcs3)
+        );
         let retro = games[&gba].achievements.as_ref().unwrap();
-        assert_eq!((retro.unlocked, retro.total, retro.platinum, retro.source), (2, 2, true, "retroachievements"));
+        assert_eq!(
+            (retro.unlocked, retro.total, retro.platinum, retro.source),
+            (2, 2, true, crate::achievements::types::AchievementSource::Retroachievements)
+        );
         assert!(games[&waiting].trophies_pending);
         assert!(!games[&ps3].trophies_pending);
     }

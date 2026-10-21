@@ -161,6 +161,18 @@ impl fmt::Display for MetadataError {
     }
 }
 
+/// Um valor no formato dos formulários (o URLSearchParams do JavaScript: espaço vira "+").
+pub fn form_encode(value: &str) -> String {
+    value
+        .bytes()
+        .map(|byte| match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'*' | b'-' | b'.' | b'_' => char::from(byte).to_string(),
+            b' ' => "+".to_string(),
+            _ => format!("%{byte:02X}"),
+        })
+        .collect()
+}
+
 /// Faz um pedido. Sem conexão, o erro vira uma mensagem clara (e para a leva).
 pub fn request(
     fetch: &dyn Fetch,

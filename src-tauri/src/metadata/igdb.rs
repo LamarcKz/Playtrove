@@ -8,7 +8,7 @@ use std::time::{Duration, Instant};
 use chrono::DateTime;
 use serde::Deserialize;
 
-use super::http::{Fetch, HttpRequest, MetadataEndpoints, MetadataError, request};
+use super::http::{Fetch, HttpRequest, MetadataEndpoints, MetadataError, form_encode, request};
 use super::matching::{Named, comparable_name};
 use crate::i18n::{Language, text};
 
@@ -228,18 +228,6 @@ impl IgdbSession {
         }
         Ok(response.json().unwrap_or_default())
     }
-}
-
-/// Um valor no formato dos formulários (o URLSearchParams do JavaScript: espaço vira "+").
-fn form_encode(value: &str) -> String {
-    value
-        .bytes()
-        .map(|byte| match byte {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'*' | b'-' | b'.' | b'_' => char::from(byte).to_string(),
-            b' ' => "+".to_string(),
-            _ => format!("%{byte:02X}"),
-        })
-        .collect()
 }
 
 /// Desempate entre resultados do IGDB com o nome igualmente parecido (Less: `a` fica): o jogo em si

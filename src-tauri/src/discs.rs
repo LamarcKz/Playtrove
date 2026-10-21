@@ -10,6 +10,8 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
+use crate::achievements::trophy_files::is_trophy_set_id;
+
 /// Setor lógico de um CD/DVD (ISO 9660).
 const SECTOR: usize = 2048;
 
@@ -118,6 +120,31 @@ fn read_bytes(path: &Path, position: u64, length: usize) -> Option<Vec<u8>> {
 pub fn read_ps3_title(rom_path: &Path) -> Option<String> {
     let folder = ps3_game_folder(rom_path)?;
     string_field(&parse_param_sfo(&std::fs::read(folder.join("PS3_GAME").join("PARAM.SFO")).ok()?)?, "TITLE")
+}
+
+/// Os conjuntos de troféus de um jogo de PS3 (as pastas de PS3_GAME/TROPDIR, ex.: NPWR01234_00), na ISO
+/// ou na pasta do jogo. É assim que o app sabe quais troféus do RPCS3 são de qual jogo.
+pub fn read_ps3_trophy_sets(rom_path: &Path) -> Vec<String> {
+    if let Some(folder) = ps3_game_folder(rom_path) {
+        let Ok(entries) = std::fs::read_dir(folder.join("PS3_GAME").join("TROPDIR")) else { return Vec::new() };
+        return entries
+            .flatten()
+            .map(|entry| entry.file_name().to_string_lossy().to_uppercase())
+            .filter(|name| is_trophy_set_id(name))
+            .collect();
+    }
+    if extension_of(rom_path) != "iso" {
+        return Vec::new();
+    }
+    let Some(mut disc) = open_disc_image(rom_path) else { return Vec::new() };
+    match find_iso_entry(&mut disc, &["PS3_GAME", "TROPDIR"]) {
+        Some(dir) if dir.is_directory => list_directory(&mut disc, &dir)
+            .into_iter()
+            .filter(|record| record.is_directory && is_trophy_set_id(&record.name))
+            .map(|record| record.name)
+            .collect(),
+        _ => Vec::new(),
+    }
 }
 
 /// A pasta de um jogo de PS3 extraído, se a ROM for o EBOOT.BIN dele (…/PS3_GAME/USRDIR/EBOOT.BIN).
@@ -636,5 +663,29 @@ mod tests {
         let sfo = parse_param_sfo(&build_param_sfo(&[("TITLE_ID", "BLUS30100"), ("TITLE", "Manobras Radicais 3")])).unwrap();
         assert_eq!(sfo["TITLE_ID"], SfoValue::Text("BLUS30100".into()));
         assert_eq!(sfo["TITLE"], SfoValue::Text("Manobras Radicais 3".into()));
+    }
+
+    #[test]
+    fn o_conjunto_de_trofeus_de_um_jogo_na_pasta_e_na_iso() {
+        const SET: &str = "NPWR99999_00";
+        let dir = temp_folder("disco-tropdir");
+        crate::test_support::create_files(
+            &dir,
+            &[(&format!("Pasta/PS3_GAME/TROPDIR/{SET}/TROPHY.TRP"), "trp"), ("Pasta/PS3_GAME/USRDIR/EBOOT.BIN", "")],
+        );
+        assert_eq!(read_ps3_trophy_sets(&dir.join("Pasta").join("PS3_GAME").join("USRDIR").join("EBOOT.BIN")), [SET]);
+
+        let iso = dir.join("Manobras Radicais 3 (USA).iso");
+        let sfo = build_param_sfo(&[("TITLE_ID", "BLUS30100"), ("TITLE", "Manobras Radicais 3")]);
+        std::fs::write(
+            &iso,
+            build_iso(&[(&["PS3_GAME", "PARAM.SFO"], &sfo), (&["PS3_GAME", "TROPDIR", SET, "TROPHY.TRP"], b"trp")]),
+        )
+        .unwrap();
+        assert_eq!(read_ps3_trophy_sets(&iso), [SET]);
+        // Disco sem troféus, ou que não é de PS3: nada.
+        std::fs::write(dir.join("Outro.iso"), build_iso(&[(&["SYSTEM.CNF"], b"BOOT2 = cdrom0:\\SLUS_201.00;1")])).unwrap();
+        assert!(read_ps3_trophy_sets(&dir.join("Outro.iso")).is_empty());
+        assert!(read_ps3_trophy_sets(&dir.join("não existe.iso")).is_empty());
     }
 }

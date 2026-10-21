@@ -17,6 +17,7 @@ tauri-build = { version = "2", features = [] }
 aes-gcm = { version = "0.11.1", features = ["getrandom"] }
 base64 = "0.22"
 chrono = "0.4.45"
+image = { version = "0.25", default-features = false, features = ["png"] }
 percent-encoding = "2.3.2"
 regex = "1"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
