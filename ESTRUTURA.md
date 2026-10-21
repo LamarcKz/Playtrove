@@ -99,6 +99,7 @@ Os canais IPC de hoje:
 | `.gitignore` | O que o Git deve ignorar (`node_modules`, `out`, `dist`...) |
 | `.gitattributes` | Faz o Git guardar os arquivos de texto sempre com o mesmo tipo de quebra de linha (LF) |
 | `.githooks/` | Travas do Git: impedem commit e envio direto na `main` (ver "Histórico e versões") |
+| `.claude/settings.json` | Configuração do Claude Code para o projeto: os comandos liberados sem perguntar (leitura, conferência de tipos, build e testes rápidos) e os bloqueados pelo guia (ver "Convenções de código" no `CLAUDE.md`). A pasta `.claude/worktrees/` e o `settings.local.json` são só deste computador e ficam fora do Git |
 | `scripts/next-version.mjs` | O comando `npm run versao`: diz qual deve ser a próxima versão, pelos commits desde a última, e monta o rascunho das notas |
 | `scripts/dev-library.mjs` | O comando `npm run dev:nova-copia`: joga fora a cópia da biblioteca do `npm run dev` (`%APPDATA%\Playtrove Dev`), só com ele fechado; o próximo `npm run dev` copia de novo a do app instalado |
 | `scripts/dist.mjs` | O comando `npm run dist`: gera em `dist/` o instalador (`Playtrove-Setup-X.Y.Z.exe`, com o `latest.yml` e o `.blockmap` que a atualização automática lê) e a versão portátil (`Playtrove-X.Y.Z-portable.zip`, com o `portable.txt` ao lado do .exe) |

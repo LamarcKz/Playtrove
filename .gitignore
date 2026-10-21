@@ -7,3 +7,7 @@ dist
 # Resultados dos testes do app (Playwright)
 test-results/
 playwright-report/
+
+# Claude Code: as sessões em worktree e as permissões dadas só neste computador
+.claude/worktrees/
+.claude/settings.local.json
