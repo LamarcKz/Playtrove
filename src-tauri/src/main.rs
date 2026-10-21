@@ -30,6 +30,7 @@ mod system_sources;
 mod test_mode;
 #[cfg(test)]
 mod test_support;
+mod updates;
 mod validation;
 mod window;
 
@@ -45,8 +46,14 @@ use crate::state::AppState;
 use crate::test_mode::test_mode;
 
 fn main() {
-    let app = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // No app de verdade, uma janela só: abrir de novo traz para a frente a que já está aberta. No
+    // desenvolvimento e nos testes, não (eles abrem junto com o app instalado, com outros dados).
+    #[cfg(not(debug_assertions))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _folder| window::bring_to_front(app)));
+    let app = builder
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .register_uri_scheme_protocol(images::IMAGE_PROTOCOL, images::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
@@ -74,6 +81,8 @@ fn main() {
             app.manage(PlaytimeSync::start(app.handle().clone(), commands::notify_library_changed));
             // Os controles conectados (DualSense) e a bateria deles, na barra do topo.
             app.manage(controllers::Controllers::start(app.handle().clone()));
+            // A atualização do app (5 segundos depois de abrir, procura uma versão nova).
+            updates::start(app.handle());
             let window = window::create_main_window(app.handle(), language, folder.join("webview"))?;
 
             // O banco estava danificado: avisa o que foi recuperado e onde ficou o arquivo danificado.
@@ -127,6 +136,10 @@ fn main() {
             commands::achievements_game,
             commands::achievements_overview,
             commands::controllers_list,
+            commands::updates_get_status,
+            commands::updates_check,
+            commands::updates_install,
+            commands::updates_set_auto_check,
         ])
         .build(tauri::generate_context!())
         .expect("erro ao iniciar o Playtrove");
@@ -134,16 +147,7 @@ fn main() {
     app.run(|app, event| {
         // Fechando o app com jogos abertos: registra o tempo jogado até agora (os emuladores continuam).
         if let RunEvent::Exit = event {
-            let state = app.state::<AppState>();
-            for session in app.state::<Launcher>().finish_all() {
-                let _ = library::record_play_session(
-                    &state.db(),
-                    state.language(),
-                    session.game_id,
-                    session.seconds,
-                    session.ended_at,
-                );
-            }
+            commands::finish_open_games(app);
         }
     });
 }

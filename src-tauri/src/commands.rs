@@ -34,6 +34,7 @@ use crate::state::AppState;
 use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
 use crate::test_mode::test_mode;
+use crate::updates::{UpdateService, UpdateStatus};
 use crate::validation::{
     to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_ra_account,
     to_rom_folder, to_secret, to_status_rules, to_text,
@@ -47,6 +48,15 @@ const GAMES_RUNNING_EVENT: &str = "games:running";
 
 pub fn notify_library_changed(app: &AppHandle) {
     let _ = app.emit(LIBRARY_CHANGED_EVENT, ());
+}
+
+/// Fechando o app (ou saindo para instalar uma versão nova) com jogos abertos: registra o tempo jogado até
+/// agora (os emuladores continuam).
+pub fn finish_open_games(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    for session in app.state::<Launcher>().finish_all() {
+        let _ = library::record_play_session(&state.db(), state.language(), session.game_id, session.seconds, session.ended_at);
+    }
 }
 
 fn notify_running(app: &AppHandle) {
@@ -494,4 +504,32 @@ pub fn achievements_overview(state: State<'_, AppState>, images: State<'_, Image
 #[tauri::command]
 pub fn controllers_list(controllers: State<'_, Controllers>) -> Vec<ConnectedController> {
     controllers.list()
+}
+
+// ---------------------------------------------------------------- atualização (Configurações → Sobre)
+
+#[tauri::command]
+pub fn updates_get_status(updates: State<'_, UpdateService>) -> UpdateStatus {
+    updates.status()
+}
+
+/// Procura uma versão nova agora (pela internet, fora da linha da janela).
+#[tauri::command(async)]
+pub fn updates_check(updates: State<'_, UpdateService>) {
+    updates.check();
+}
+
+/// Baixa e instala a versão encontrada (o app fecha e abre de novo) ou, na portátil, abre a página de
+/// download.
+#[tauri::command(async)]
+pub fn updates_install(updates: State<'_, UpdateService>) {
+    updates.install();
+}
+
+/// Liga ou desliga a procura de versão nova sempre que o app abre.
+#[tauri::command]
+pub fn updates_set_auto_check(state: State<'_, AppState>, updates: State<'_, UpdateService>, enabled: Value) -> AppResult<()> {
+    let enabled = to_bool(&enabled, state.language())?;
+    updates.set_auto_check(enabled);
+    Ok(())
 }

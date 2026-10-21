@@ -17,6 +17,8 @@ pub struct TestMode {
     pub system_language: Option<String>,
     /// Sem a marca DEV, para as capturas de tela do README.
     pub hide_dev_mark: bool,
+    /// Uma versão nova de mentira (ex.: "9.9.0"), para o aviso de atualização.
+    pub fake_update: Option<String>,
 }
 
 static TEST_MODE: LazyLock<TestMode> = LazyLock::new(|| TestMode {
@@ -26,6 +28,7 @@ static TEST_MODE: LazyLock<TestMode> = LazyLock::new(|| TestMode {
     metadata_server: test_variable("METADATA_TEST_SERVER"),
     system_language: test_variable("SYSTEM_LANGUAGE"),
     hide_dev_mark: test_variable("HIDE_DEV_MARK").as_deref() == Some("1"),
+    fake_update: test_variable("FAKE_UPDATE"),
 });
 
 pub fn test_mode() -> &'static TestMode {

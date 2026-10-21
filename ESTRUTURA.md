@@ -104,6 +104,7 @@ Os canais IPC de hoje:
 | `scripts/next-version.mjs` | O comando `npm run versao`: diz qual deve ser a próxima versão, pelos commits desde a última, e monta o rascunho das notas |
 | `scripts/backend-messages.mjs` | O comando `npm run tauri:mensagens`: gera o `src-tauri/messages.json`, com as partes dos dicionários que o Rust usa (nomes dos status padrão, erros e janelas do Windows), nos dois idiomas. As funções viram modelos com `{0}`, `{1}`... O `tests/unit/backendMessages.test.ts` acusa quando o arquivo ficou para trás |
 | `scripts/dev-library.mjs` | O comando `npm run dev:nova-copia`: joga fora a cópia da biblioteca do `npm run dev` (`%APPDATA%\Playtrove Dev`), só com ele fechado; o próximo `npm run dev` copia de novo a do app instalado |
+| `scripts/dist-tauri.mjs` | O comando `npm run dist:tauri`: gera em `dist/tauri/` o instalador do app em Tauri (`Playtrove-Setup-X.Y.Z.exe`, assinado com a chave do projeto), a versão portátil (`Playtrove-X.Y.Z-portable.zip`, só o `Playtrove.exe` e o `portable.txt`), o `latest.json` (a atualização do app em Tauri, com a assinatura) e o `latest.yml` (o que o app em Electron lê: ele aponta para o instalador novo, e é assim que quem tem a 0.7.x passa para o Tauri) |
 | `scripts/dist.mjs` | O comando `npm run dist`: gera em `dist/` o instalador (`Playtrove-Setup-X.Y.Z.exe`, com o `latest.yml` e o `.blockmap` que a atualização automática lê) e a versão portátil (`Playtrove-X.Y.Z-portable.zip`, com o `portable.txt` ao lado do .exe) |
 | `build/` | Arquivos do instalador: o ícone (`icon.ico`, com todos os tamanhos do Windows) e o `portable.txt` que vai no .zip da versão portátil |
 | `tests/unit/` | Testes rápidos da lógica (Vitest), sem abrir o app: filtros, datas, bateria do controle, banco de dados, emuladores, pastas de ROMs, abrir jogos e contar o tempo (com um emulador de mentira), maximizar a janela (`emulatorWindow.test.ts`, com uma janela de teste invisível no lugar do emulador), os idiomas (`i18n.test.ts`: os dois dicionários completos e nenhum texto da tela fora deles) e `npm run versao` |
@@ -347,8 +348,9 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 
 | Arquivo | O que faz |
 |---|---|
-| `Cargo.toml` | O projeto em Rust e as dependências (`tauri`, `rusqlite` com o SQLite embutido, `serde`...). A versão do app vem do `package.json` (pelo `tauri.conf.json`) |
-| `tauri.conf.json` | Configuração do Tauri: nome, id, o Vite no endereço 1420 no desenvolvimento e `out/web` no build. O instalador fica desligado (`bundle.active: false`) até a fase do instalador |
+| `Cargo.toml` | O projeto em Rust e as dependências (`tauri`, `rusqlite` com o SQLite embutido, `serde`...). A versão do app vem do `package.json` (pelo `tauri.conf.json`). Os build scripts saem com as informações de depuração também no release (`[profile.release.build-override]`), porque o Smart App Control do Windows bloqueou um deles sem elas |
+| `tauri.conf.json` | Configuração do Tauri: nome, id, o Vite no endereço 1420 no desenvolvimento e `out/web` no build; o instalador (o padrão do Tauri, só para o usuário, em inglês e português, com os ganchos de `windows/hooks.nsh`) e a atualização (a chave pública que confere a assinatura e o endereço do `latest.json` da última release) |
+| `windows/hooks.nsh` | Os ganchos do instalador: a passagem de quem tem o app em Electron (até a 0.7.x). Antes de instalar, tira o app antigo sem perguntar nada (a biblioteca fica) e, quando veio do atualizador dele (sem telas), abre o app novo no fim |
 | `capabilities/default.json` | O que a janela pode pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar pela barra do topo |
 | `messages.json` | Os textos que o Rust mostra, gerados dos dicionários pelo `npm run tauri:mensagens` (não editar à mão) |
 | `rustfmt.toml` | A formatação do Rust (`cargo fmt`) |
@@ -386,7 +388,8 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `src/i18n.rs` | O idioma (o escolhido ou o do Windows) e `text()`, que busca os textos no `messages.json` |
 | `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus. Também muda o status, o favorito e a avaliação de um jogo, e cria, renomeia, reordena e apaga status e troca as regras automáticas |
 | `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (no Tauri, `http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens; o tipo de cada imagem e a gravação de uma imagem nova no lugar da antiga |
-| `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state`. O WebView2 guarda o que precisa em `<pasta de dados>\webview`, para o app de verdade, o desenvolvimento e os testes poderem ficar abertos juntos |
+| `src/updates.rs` | A atualização do app (o `updateService.ts` e o `updates.ts` do Electron): procurar versão nova (5 s depois de abrir, se a opção estiver ligada, ou quando o usuário pede), baixar avisando o andamento (`updates:status`) e instalar; na portátil, só abrir a página de download. Quem procura é o atualizador do Tauri, que só instala o que tiver a assinatura da chave do projeto; nos testes, um de mentira (`PLAYTROVE_FAKE_UPDATE`); no `npm run dev:tauri`, ninguém |
+| `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state`. No app de verdade, abrir de novo traz para a frente a que já está aberta (`bring_to_front`, pela janela única do `main.rs`). O WebView2 guarda o que precisa em `<pasta de dados>\webview`, para o app de verdade, o desenvolvimento e os testes poderem ficar abertos juntos |
 | `src/state.rs` | O banco e o idioma enquanto o app está aberto |
 | `src/test_mode.rs` | As variáveis `PLAYTROVE_*` dos testes, que só valem no build de desenvolvimento |
 
@@ -434,7 +437,7 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | Opções em Configurações (ex.: tema claro/escuro) | `src/renderer/pages/SettingsPage.tsx`, seção "Geral". O tema é a classe `dark` do `<html>` (`src/renderer/index.html`) |
 | Mudar as cores | `src/renderer/styles/globals.css` (bloco `.dark`). Se mudar o fundo, ajuste também `BACKGROUND_COLOR` em `src/main/window.ts` |
 | Criar uma página nova no menu | Um arquivo novo em `src/renderer/pages`; o id e o ícone em `pages/index.ts`, e o nome nos dois dicionários (`pages`); mostrar a página em `App.tsx`; e colocar no menu em `components/Sidebar.tsx` (`MAIN_NAV`) |
-| Mudar o instalador ou a versão portátil | `electron-builder.config.mjs` (o que vai no pacote, o instalador) e `scripts/dist.mjs` (as duas rodadas: o instalador e o .zip portátil) |
+| Mudar o instalador ou a versão portátil | `electron-builder.config.mjs` (o que vai no pacote, o instalador) e `scripts/dist.mjs` (as duas rodadas: o instalador e o .zip portátil); no Tauri, o `bundle` do `src-tauri/tauri.conf.json`, os ganchos de `src-tauri/windows/hooks.nsh` e o `scripts/dist-tauri.mjs` |
 | Mudar o ícone do app | `build/icon.ico` (o .exe, o instalador e a janela no `npm run dev`), `docs/logo.svg` (README) e `src/renderer/components/AppLogo.tsx` (barra do topo). Os três têm o mesmo desenho |
 | Mostrar outro modelo de controle (ex.: DualShock 4) | O modelo em `src/shared/controllers.ts` (`SUPPORTED_CONTROLLERS`) e o jeito de ler a bateria dele, como em `src/renderer/lib/dualsense.ts`; no Tauri, os mesmos dois em `src-tauri/src/controllers.rs` |
 | Importar jogos de outros lugares (Steam, GOG, pastas de jogos de PC) | Código novo no main, como o `src/main/romScanner.ts` faz com as pastas de ROMs, entregue ao React por IPC |

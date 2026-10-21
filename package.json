@@ -19,6 +19,7 @@
     "test:app": "npm run build && playwright test",
     "versao": "node scripts/next-version.mjs",
     "dist": "npm run build && node scripts/dist.mjs",
+    "dist:tauri": "npm run typecheck && node scripts/dist-tauri.mjs",
     "dev:tauri": "tauri dev",
     "web:dev": "vite",
     "web:build": "vite build",

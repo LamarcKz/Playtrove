@@ -28,6 +28,14 @@ sys-locale = "0.3.2"
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2.5.4"
+tauri-plugin-updater = "2.14.0"
 unicode-normalization = "0.1.26"
 ureq = "3"
 windows = { version = "0.62", features = ["Win32_Foundation", "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging", "Win32_System_Threading", "Win32_Storage_FileSystem", "Win32_Security_Cryptography", "Win32_System_Memory", "Win32_System_Registry"] }
+
+# Os programas que compilam as dependências (build scripts) saem com as informações de depuração também no
+# build de release, como no de desenvolvimento: sem elas, o Smart App Control do Windows bloqueou um deles
+# (o do serde_core) num computador com ele ligado. O app em si não muda.
+[profile.release.build-override]
+debug = true

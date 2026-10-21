@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 use serde::Serialize;
 use tauri::window::Color;
-use tauri::{AppHandle, Emitter, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
 use crate::i18n::Language;
 use crate::test_mode::test_mode;
@@ -61,6 +61,16 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
         .build()?;
     send_state_changes(&window);
     Ok(window)
+}
+
+/// Traz a janela principal para a frente (abriram o app de novo com ele já aberto).
+#[cfg_attr(debug_assertions, allow(dead_code))]
+pub fn bring_to_front(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window(MAIN_WINDOW) {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
 }
 
 /// É o endereço da interface? (O build, servido pelo Tauri, ou o Vite, no modo de desenvolvimento.)
