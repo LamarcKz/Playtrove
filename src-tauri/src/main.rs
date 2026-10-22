@@ -27,6 +27,7 @@ mod settings;
 mod state;
 mod stats;
 mod system_sources;
+mod test_hooks;
 mod test_mode;
 #[cfg(test)]
 mod test_support;
@@ -54,7 +55,7 @@ fn main() {
     let app = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .register_uri_scheme_protocol(images::IMAGE_PROTOCOL, images::handle_request)
+        .register_asynchronous_uri_scheme_protocol(images::IMAGE_PROTOCOL, images::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
             // idioma (o escolhido ou o do Windows).
@@ -70,6 +71,7 @@ fn main() {
                 sample_games::seed_sample_games(&db)?;
             }
             app.manage(images::ImagesDir(folder.join("images")));
+            app.manage(test_hooks::TestHooks::default());
             app.manage(secrets::Secrets::new(&folder));
             app.manage(AppState::new(db, language));
             app.manage(Launcher::new(Arc::new(Utc::now)));
@@ -140,6 +142,13 @@ fn main() {
             commands::updates_check,
             commands::updates_install,
             commands::updates_set_auto_check,
+            test_hooks::test_mock_open_dialog,
+            test_hooks::test_opened,
+            test_hooks::test_window,
+            test_hooks::test_set_window_size,
+            test_hooks::test_hold_images,
+            test_hooks::test_image_requests,
+            test_hooks::test_release_image,
         ])
         .build(tauri::generate_context!())
         .expect("erro ao iniciar o Playtrove");

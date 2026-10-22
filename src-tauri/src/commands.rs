@@ -33,6 +33,7 @@ use crate::secrets::Secrets;
 use crate::state::AppState;
 use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
+use crate::test_hooks::{self, TestHooks, open_in_browser, show_in_explorer};
 use crate::test_mode::test_mode;
 use crate::updates::{UpdateService, UpdateStatus};
 use crate::validation::{
@@ -81,9 +82,9 @@ pub fn app_version(app: AppHandle) -> String {
 
 /// Abre no navegador só os sites conhecidos (as páginas para criar as chaves e a de download).
 #[tauri::command]
-pub fn app_open_link(link: Value) {
+pub fn app_open_link(app: AppHandle, link: Value) {
     if let Some(url) = link.as_str().and_then(links::external_link) {
-        let _ = tauri_plugin_opener::open_url(url, None::<&str>);
+        open_in_browser(&app, url);
     }
 }
 
@@ -92,7 +93,7 @@ pub fn app_open_link(link: Value) {
 pub fn app_report_bug(app: AppHandle) {
     let version = app.package_info().version.to_string();
     let url = links::bug_report_url(&version, is_portable(), &links::windows_description());
-    let _ = tauri_plugin_opener::open_url(url, None::<&str>);
+    open_in_browser(&app, &url);
 }
 
 #[tauri::command]
@@ -251,7 +252,7 @@ pub fn games_get_running(launcher: State<'_, Launcher>) -> Vec<i64> {
 
 /// Abre o Explorador de Arquivos com a ROM do jogo selecionada.
 #[tauri::command]
-pub fn games_show_rom(state: State<'_, AppState>, game_id: Value) -> AppResult<()> {
+pub fn games_show_rom(app: AppHandle, state: State<'_, AppState>, game_id: Value) -> AppResult<()> {
     let language = state.language();
     let info = library::get_launch_info(&state.db(), language, to_id(&game_id, language)?)?;
     let rom_path = info.rom_path.ok_or_else(|| AppError::text(language, "errors.noRom", &[]))?;
@@ -259,7 +260,7 @@ pub fn games_show_rom(state: State<'_, AppState>, game_id: Value) -> AppResult<(
         return Err(AppError::text(language, "errors.romNotFound", &[&rom_path]));
     }
     // Como no Electron: se o Explorador não abrir, não há o que avisar.
-    let _ = tauri_plugin_opener::reveal_item_in_dir(&rom_path);
+    show_in_explorer(&app, &rom_path);
     Ok(())
 }
 
@@ -294,14 +295,18 @@ pub fn emulators_pick_path(
     let language = state.language();
     let emulator = to_emulator_id(&id, language)?;
     let name = emulators::get_preset(emulator).name;
-    let picked = app
-        .dialog()
-        .file()
-        .set_parent(&window)
-        .set_title(text(language, "dialogs.pickEmulator", &[name]))
-        .add_filter(text(language, "dialogs.programs", &[]), &["exe"])
-        .blocking_pick_file();
-    if let Some(path) = picked.and_then(|file| file.into_path().ok()) {
+    let picked = if test_hooks::active() {
+        app.state::<TestHooks>().take_open_dialog()
+    } else {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(text(language, "dialogs.pickEmulator", &[name]))
+            .add_filter(text(language, "dialogs.programs", &[]), &["exe"])
+            .blocking_pick_file()
+            .and_then(|file| file.into_path().ok())
+    };
+    if let Some(path) = picked {
         emulators::set_emulator_path(&state.db(), emulator, &path.to_string_lossy())?;
         if emulator == EmulatorId::Rpcs3 {
             app.state::<AchievementsService>().read_trophies();
@@ -327,9 +332,13 @@ pub fn rom_folders_list(state: State<'_, AppState>) -> AppResult<Vec<RomFolder>>
 /// Abre a janela do Windows para escolher uma pasta. None se o usuário cancelar.
 #[tauri::command(async)]
 pub fn rom_folders_pick(app: AppHandle, window: WebviewWindow, state: State<'_, AppState>) -> AppResult<Option<String>> {
-    let title = text(state.language(), "dialogs.pickRomFolder", &[]);
-    let picked = app.dialog().file().set_parent(&window).set_title(title).blocking_pick_folder();
-    Ok(picked.and_then(|folder| folder.into_path().ok()).map(|path| path.to_string_lossy().into_owned()))
+    let picked = if test_hooks::active() {
+        app.state::<TestHooks>().take_open_dialog()
+    } else {
+        let title = text(state.language(), "dialogs.pickRomFolder", &[]);
+        app.dialog().file().set_parent(&window).set_title(title).blocking_pick_folder().and_then(|folder| folder.into_path().ok())
+    };
+    Ok(picked.map(|path| path.to_string_lossy().into_owned()))
 }
 
 #[tauri::command]

@@ -1,10 +1,10 @@
 import { mkdirSync, utimesSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import { expect, test, type ElectronApplication, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 import { buildParamSfo } from "../fakeDiscs"
 import { makePng } from "../fakePng"
 import { buildTropConf, buildTropUsr, type FakeTrophy } from "../fakeTrophies"
-import { chooseView, createFiles, launchApp, mockOpenDialog, removeDataDir, toast } from "./helpers"
+import { type AppProcess, chooseView, createFiles, launchApp, mockOpenDialog, removeDataDir, toast } from "./helpers"
 
 // Os testes deste arquivo seguem em ordem, no mesmo app, que começa com a biblioteca vazia. O RPCS3
 // é de mentira: um executável vazio e a pasta de troféus que ele guardaria, com um jogo fictício.
@@ -20,7 +20,7 @@ const TROPHIES: FakeTrophy[] = [
 ]
 const DAY = 24 * 60 * 60 * 1000
 
-let app: ElectronApplication
+let app: AppProcess
 let page: Page
 let dataDir: string
 let emulatorsDir: string
@@ -106,7 +106,7 @@ test("Detalhes: o cartão dos troféus, com quantos de cada tipo", async () => {
   const badges = card.locator('[aria-label="Últimos desbloqueados"] img')
   await expect(badges).toHaveCount(2)
   await expect(badges.first()).toHaveAttribute("alt", "Rei do half-pipe")
-  await expect(badges.first()).toHaveAttribute("src", `playtrove-img://images/trophies/${SET}/2.png`)
+  await expect(badges.first()).toHaveAttribute("src", `http://playtrove-img.localhost/trophies/${SET}/2.png`)
   await expect
     .poll(() => badges.first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
     .toBe(true)

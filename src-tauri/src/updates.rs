@@ -15,6 +15,7 @@ use crate::data_folder::is_portable;
 use crate::links::external_link;
 use crate::settings::{get_setting, set_setting};
 use crate::state::AppState;
+use crate::test_hooks::open_in_browser;
 use crate::test_mode::test_mode;
 
 /// O aviso de que a situação da atualização mudou.
@@ -218,7 +219,7 @@ pub fn start(app: &AppHandle) {
         None if cfg!(debug_assertions) => None,
         None => Some(Box::new(TauriUpdater { app: app.clone(), found: Mutex::new(None), downloaded: Mutex::new(None) })),
     };
-    let (get_handle, set_handle, emit_handle) = (app.clone(), app.clone(), app.clone());
+    let (get_handle, set_handle, open_handle, emit_handle) = (app.clone(), app.clone(), app.clone(), app.clone());
     app.manage(UpdateService::new(UpdateOptions {
         updater,
         portable: is_portable(),
@@ -230,9 +231,9 @@ pub fn start(app: &AppHandle) {
             let state = set_handle.state::<AppState>();
             let _ = set_setting(&state.db(), AUTO_CHECK_SETTING, if enabled { None } else { Some("0") });
         }),
-        open_download_page: Box::new(|| {
+        open_download_page: Box::new(move || {
             if let Some(url) = external_link("releases") {
-                let _ = tauri_plugin_opener::open_url(url, None::<&str>);
+                open_in_browser(&open_handle, url);
             }
         }),
         on_change: Box::new(move |status| {

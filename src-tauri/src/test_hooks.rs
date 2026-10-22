@@ -1,0 +1,157 @@
+//! Só para os testes automáticos do app (tests/app): no lugar das janelas de "Abrir" do Windows, do
+//! navegador e do Explorador, que os testes nunca abrem de verdade, e para mexer no tamanho da janela.
+//! Valem só com a pasta de dados dos testes (PLAYTROVE_DATA_DIR, que o app de verdade ignora); fora deles,
+//! os comandos não fazem nada.
+
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Condvar, Mutex, PoisonError};
+
+use serde::Serialize;
+use serde_json::Value;
+use tauri::{AppHandle, LogicalSize, Manager, State, WebviewWindow};
+
+use crate::test_mode::test_mode;
+
+/// Os testes automáticos estão rodando (com a pasta de dados deles)?
+pub fn active() -> bool {
+    test_mode().data_dir.is_some()
+}
+
+#[derive(Default)]
+pub struct TestHooks {
+    /// A resposta combinada para a próxima janela de "Abrir" (arquivo ou pasta).
+    open_dialog: Mutex<Option<PathBuf>>,
+    /// Os endereços e arquivos que o app pediu para abrir no navegador ou mostrar no Explorador.
+    opened: Mutex<Vec<String>>,
+    /// As imagens retidas (pelo caminho dentro da pasta de imagens, ex.: "8/cover.png"): o pedido espera
+    /// até o teste liberar, para conferir a tela enquanto a imagem carrega.
+    held_images: Mutex<HashMap<String, HeldImage>>,
+    image_released: Condvar,
+}
+
+#[derive(Default)]
+struct HeldImage {
+    requests: u32,
+    released: bool,
+}
+
+impl TestHooks {
+    /// A resposta para a janela de "Abrir" que o app ia mostrar agora (sem nada combinado: cancelar).
+    pub fn take_open_dialog(&self) -> Option<PathBuf> {
+        self.open_dialog.lock().unwrap_or_else(PoisonError::into_inner).take()
+    }
+
+    pub fn record_opened(&self, target: &str) {
+        self.opened.lock().unwrap_or_else(PoisonError::into_inner).push(target.to_string());
+    }
+
+    /// Um pedido de imagem: se o teste reteve essa imagem, espera ele liberar.
+    pub fn wait_if_held(&self, path: &str) {
+        let mut held = self.held_images.lock().unwrap_or_else(PoisonError::into_inner);
+        let Some(image) = held.get_mut(path) else { return };
+        image.requests += 1;
+        while held.get(path).is_some_and(|image| !image.released) {
+            held = self.image_released.wait(held).unwrap_or_else(PoisonError::into_inner);
+        }
+    }
+}
+
+/// Abre o endereço no navegador padrão (nos testes, só anota).
+pub fn open_in_browser(app: &AppHandle, url: &str) {
+    if active() {
+        app.state::<TestHooks>().record_opened(url);
+    } else {
+        let _ = tauri_plugin_opener::open_url(url, None::<&str>);
+    }
+}
+
+/// Mostra o arquivo no Explorador, já selecionado (nos testes, só anota).
+pub fn show_in_explorer(app: &AppHandle, path: &str) {
+    if active() {
+        app.state::<TestHooks>().record_opened(path);
+    } else {
+        let _ = tauri_plugin_opener::reveal_item_in_dir(path);
+    }
+}
+
+/// Combina a resposta da próxima janela de "Abrir": este caminho, sem abrir nada.
+#[tauri::command]
+pub fn test_mock_open_dialog(hooks: State<'_, TestHooks>, path: Value) {
+    if let (true, Some(path)) = (active(), path.as_str()) {
+        *hooks.open_dialog.lock().unwrap_or_else(PoisonError::into_inner) = Some(PathBuf::from(path));
+    }
+}
+
+/// O que o app pediu para abrir no navegador ou no Explorador até agora.
+#[tauri::command]
+pub fn test_opened(hooks: State<'_, TestHooks>) -> Vec<String> {
+    if active() { hooks.opened.lock().unwrap_or_else(PoisonError::into_inner).clone() } else { Vec::new() }
+}
+
+/// A janela, como os testes conferem: o título, se está maximizada, o tamanho e a área livre da tela
+/// (em pixels lógicos, como os da página).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestWindow {
+    title: String,
+    maximized: bool,
+    size: [f64; 2],
+    work_area: [f64; 2],
+}
+
+#[tauri::command]
+pub fn test_window(window: WebviewWindow) -> Option<TestWindow> {
+    if !active() {
+        return None;
+    }
+    let scale = window.scale_factor().ok()?;
+    // A área da janela, sem as bordas invisíveis que o Windows põe em volta (para puxar o tamanho).
+    let size = window.inner_size().ok()?.to_logical::<f64>(scale);
+    let monitor = window.current_monitor().ok().flatten()?;
+    let area = monitor.work_area().size.to_logical::<f64>(monitor.scale_factor());
+    Some(TestWindow {
+        title: window.title().ok()?,
+        maximized: window.is_maximized().ok()?,
+        size: [size.width.round(), size.height.round()],
+        work_area: [area.width.round(), area.height.round()],
+    })
+}
+
+/// Tira a janela do maximizado e deixa a área da página com este tamanho (os testes usam 1280×800).
+#[tauri::command]
+pub fn test_set_window_size(window: WebviewWindow, width: Value, height: Value) {
+    if let (true, Some(width), Some(height)) = (active(), width.as_f64(), height.as_f64()) {
+        let _ = window.unmaximize();
+        let _ = window.set_size(LogicalSize::new(width, height));
+    }
+}
+
+/// Retém estas imagens (caminhos dentro da pasta de imagens): os pedidos delas esperam o teste liberar.
+#[tauri::command]
+pub fn test_hold_images(hooks: State<'_, TestHooks>, paths: Value) {
+    if !active() {
+        return;
+    }
+    let mut held = hooks.held_images.lock().unwrap_or_else(PoisonError::into_inner);
+    for path in paths.as_array().into_iter().flatten().filter_map(Value::as_str) {
+        held.insert(path.to_string(), HeldImage::default());
+    }
+}
+
+/// Quantos pedidos de uma imagem retida já chegaram.
+#[tauri::command]
+pub fn test_image_requests(hooks: State<'_, TestHooks>, path: Value) -> u32 {
+    let held = hooks.held_images.lock().unwrap_or_else(PoisonError::into_inner);
+    path.as_str().and_then(|path| held.get(path)).map_or(0, |image| image.requests)
+}
+
+/// Libera uma imagem retida (os pedidos que esperavam recebem o arquivo).
+#[tauri::command]
+pub fn test_release_image(hooks: State<'_, TestHooks>, path: Value) {
+    let mut held = hooks.held_images.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some(image) = path.as_str().and_then(|path| held.get_mut(path)) {
+        image.released = true;
+    }
+    hooks.image_released.notify_all();
+}

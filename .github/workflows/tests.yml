@@ -15,7 +15,7 @@ permissions:
 jobs:
   tests:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Get the code
         uses: actions/checkout@v7
@@ -26,14 +26,20 @@ jobs:
           node-version: 24
           cache: npm
 
-      # O npm ci instala exatamente o que está no package-lock.json. O better-sqlite3 já vem compilado,
-      # e os scripts de instalação negados no allowScripts (package.json) não rodam.
+      # O npm ci instala exatamente o que está no package-lock.json. Os scripts de instalação negados no
+      # allowScripts (package.json) não rodam.
       - name: Install dependencies
         run: npm ci
 
-      # O Electron baixa o programa dele na primeira vez que é chamado; aqui, antes dos testes.
-      - name: Download Electron
-        run: node -e "require('electron')"
+      # O Rust já vem no Windows do GitHub: aqui, a versão estável mais nova e o que já foi compilado nas
+      # rodadas anteriores (as dependências levam alguns minutos na primeira vez).
+      - name: Set up Rust
+        run: rustup update stable --no-self-update && rustup default stable
+
+      - name: Reuse the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
 
       - name: Run the tests
         run: npm test

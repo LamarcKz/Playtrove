@@ -1,16 +1,79 @@
+import { spawn, type ChildProcess } from "node:child_process"
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
-import { _electron as electron, expect, type ElectronApplication, type Locator, type Page } from "@playwright/test"
+import { chromium, expect, type Browser, type Locator, type Page } from "@playwright/test"
 
 /** Pasta do projeto. */
 export const ROOT = resolve(__dirname, "../..")
 
-/** Caminho do executável do Electron (o pacote "electron", importado pelo Node, devolve isso). */
-const electronPath = require("electron") as string
+/**
+ * O app dos testes: o build de desenvolvimento do Tauri com a interface embutida (a marca DEV e as
+ * variáveis PLAYTROVE_* valem nele). O `npm run test:app` compila antes (scripts/build-test-app.mjs).
+ */
+export const TEST_APP = join(ROOT, "src-tauri", "target", "testes", "debug", "Playtrove.exe")
+
+/** A janela, como o Rust informa nos testes (src-tauri/src/test_hooks.rs), em pixels lógicos. */
+export interface TestWindow {
+  title: string
+  maximized: boolean
+  size: [number, number]
+  workArea: [number, number]
+}
+
+/** O app aberto pelo teste: o processo e a página da janela, ligada pelo protocolo de depuração do WebView2. */
+export class AppProcess {
+  constructor(
+    private readonly child: ChildProcess,
+    private readonly browser: Browser,
+    readonly page: Page
+  ) {}
+
+  /** Chama um comando do Rust, como a interface faz. */
+  invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
+    return this.page.evaluate(
+      ([command, args]) =>
+        (window as unknown as { __TAURI_INTERNALS__: { invoke: (command: string, args: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__.invoke(command, args),
+      [command, args] as const
+    ) as Promise<T>
+  }
+
+  version(): Promise<string> {
+    return this.invoke("app_version")
+  }
+
+  window(): Promise<TestWindow> {
+    return this.invoke("test_window")
+  }
+
+  /** Tira do maximizado e deixa a página com este tamanho. */
+  async setWindowSize(width: number, height: number): Promise<void> {
+    await this.invoke("test_set_window_size", { width, height })
+    await expect
+      .poll(() => this.page.evaluate(() => [innerWidth, innerHeight]))
+      .toEqual([width, height])
+  }
+
+  /** O que o app pediu para abrir no navegador ou mostrar no Explorador (nos testes, nada abre de verdade). */
+  opened(): Promise<string[]> {
+    return this.invoke("test_opened")
+  }
+
+  /** Fecha o app pela janela, como o usuário (ele registra o que precisa e sai). */
+  async close(): Promise<void> {
+    if (this.child.exitCode === null && this.child.signalCode === null) {
+      const exited = new Promise((resolve) => this.child.once("exit", resolve))
+      await this.invoke("window_close").catch(() => undefined)
+      await Promise.race([exited, new Promise((resolve) => setTimeout(resolve, 10_000))])
+      if (this.child.exitCode === null && this.child.signalCode === null) this.child.kill()
+    }
+    await this.browser.close().catch(() => undefined)
+  }
+}
 
 export interface TestApp {
-  app: ElectronApplication
+  app: AppProcess
   page: Page
   /** Pasta de dados temporária desta execução (banco, imagens...). */
   dataDir: string
@@ -29,18 +92,46 @@ interface LaunchOptions {
   systemLanguage?: string
 }
 
+/** Uma porta livre neste computador, para a depuração do WebView2 de cada app aberto. */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer()
+    server.once("error", reject)
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address()
+      server.close(() => (typeof address === "object" && address ? resolve(address.port) : reject(new Error("sem porta"))))
+    })
+  })
+}
+
+/** Liga o Playwright à janela do app, esperando o WebView2 abrir a porta de depuração. */
+async function connect(port: number, child: ChildProcess): Promise<Browser> {
+  const deadline = Date.now() + 60_000
+  for (;;) {
+    if (child.exitCode !== null) throw new Error(`o app fechou ao abrir (código ${child.exitCode})`)
+    try {
+      return await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
+    } catch (error) {
+      if (Date.now() > deadline) throw error
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
+  }
+}
+
 /**
- * Abre o app (build de produção em out/) com uma pasta de dados temporária, para nunca mexer na
- * biblioteca de verdade. Espera a janela aparecer e as fontes carregarem.
+ * Abre o app com uma pasta de dados temporária, para nunca mexer na biblioteca de verdade. Espera a
+ * janela aparecer e as fontes carregarem.
  */
 export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
   const dataDir = options.dataDir ?? mkdtempSync(join(tmpdir(), "playtrove-teste-"))
-  const app = await electron.launch({
-    executablePath: electronPath,
-    args: [ROOT],
+  const port = await freePort()
+  const child = spawn(TEST_APP, [], {
     cwd: ROOT,
+    stdio: "ignore",
     env: {
       ...process.env,
+      // A janela aceita o Playwright pela porta de depuração do WebView2 (só esta execução).
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
       PLAYTROVE_DATA_DIR: dataDir,
       PLAYTROVE_SAMPLE_GAMES: options.sampleGames === false ? "0" : "1",
       // Os testes não procuram os emuladores instalados neste computador: cada teste configura os seus.
@@ -50,18 +141,12 @@ export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
       ...options.env,
     },
   })
-  const page = await app.firstWindow()
+  const browser = await connect(port, child)
+  const context = browser.contexts()[0]
+  const page = context.pages()[0] ?? (await context.waitForEvent("page"))
+  const app = new AppProcess(child, browser, page)
   await page.waitForSelector("nav button")
-  await expect
-    .poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0]?.isVisible() ?? false))
-    .toBe(true)
-  if (!options.maximized) {
-    await app.evaluate(({ BrowserWindow }) => {
-      const win = BrowserWindow.getAllWindows()[0]
-      win.unmaximize()
-      win.setContentSize(1280, 800)
-    })
-  }
+  if (!options.maximized) await app.setWindowSize(1280, 800)
   // Espera as fontes: sem isso, o layout ainda muda um pouco e o primeiro arraste pode errar o alvo.
   await page.evaluate(() => document.fonts.ready.then(() => undefined))
   await page.waitForTimeout(300)
@@ -112,8 +197,6 @@ export function createFiles(files: Record<string, string> | string[]): string {
 }
 
 /** Faz a próxima janela de "Abrir" do Windows (arquivo ou pasta) responder com este caminho, sem abrir nada. */
-export async function mockOpenDialog(app: ElectronApplication, path: string): Promise<void> {
-  await app.evaluate(({ dialog }, path) => {
-    dialog.showOpenDialog = (async () => ({ canceled: false, filePaths: [path] })) as typeof dialog.showOpenDialog
-  }, path)
+export async function mockOpenDialog(app: AppProcess, path: string): Promise<void> {
+  await app.invoke("test_mock_open_dialog", { path })
 }

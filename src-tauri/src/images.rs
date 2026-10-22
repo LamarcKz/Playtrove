@@ -2,12 +2,13 @@
 //! A interface mostra pelo protocolo playtrove-img, que só entrega arquivos dessa pasta. No Windows, o
 //! Tauri serve um protocolo próprio como http://playtrove-img.localhost/.
 
-use std::borrow::Cow;
 use std::path::{Path, PathBuf};
 
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, percent_decode_str, utf8_percent_encode};
 use tauri::http::{HeaderValue, Request, Response, StatusCode, header::CONTENT_TYPE};
-use tauri::{Manager, Runtime, UriSchemeContext};
+use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
+
+use crate::test_hooks::{self, TestHooks};
 
 /// O protocolo das imagens dos jogos.
 pub const IMAGE_PROTOCOL: &str = "playtrove-img";
@@ -101,21 +102,30 @@ pub fn image_url(game_id: i64, file_name: &str, version: Option<&str>) -> String
     format!("http://{IMAGE_PROTOCOL}.localhost/{game_id}/{}{query}", encode_uri_component(file_name))
 }
 
-/// Responde aos pedidos de imagem da interface com o arquivo da pasta de imagens.
-pub fn handle_request<R: Runtime>(context: UriSchemeContext<'_, R>, request: Request<Vec<u8>>) -> Response<Cow<'static, [u8]>> {
-    let root = &context.app_handle().state::<ImagesDir>().0;
-    match image_file(root, request.uri().path()) {
-        Some((bytes, mime)) => {
-            let mut response = Response::new(Cow::Owned(bytes));
-            response.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static(mime));
-            response
+/// Responde aos pedidos de imagem da interface com o arquivo da pasta de imagens, fora da linha da janela
+/// (ler o disco não trava a tela). Nos testes, uma imagem pode ficar retida até o teste liberar
+/// (test_hooks.rs).
+pub fn handle_request<R: Runtime>(context: UriSchemeContext<'_, R>, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
+    let app = context.app_handle().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let path = request.uri().path();
+        if test_hooks::active() {
+            app.state::<TestHooks>().wait_if_held(path.trim_start_matches('/'));
         }
-        None => {
-            let mut response = Response::new(Cow::Borrowed(&[][..]));
-            *response.status_mut() = StatusCode::NOT_FOUND;
-            response
-        }
-    }
+        let response = match image_file(&app.state::<ImagesDir>().0, path) {
+            Some((bytes, mime)) => {
+                let mut response = Response::new(bytes);
+                response.headers_mut().insert(CONTENT_TYPE, HeaderValue::from_static(mime));
+                response
+            }
+            None => {
+                let mut response = Response::new(Vec::new());
+                *response.status_mut() = StatusCode::NOT_FOUND;
+                response
+            }
+        };
+        responder.respond(response);
+    });
 }
 
 /// O arquivo pedido e o tipo dele. Segurança: nada fora da pasta de imagens é entregue, nem com "..".
