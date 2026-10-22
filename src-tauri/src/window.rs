@@ -19,6 +19,10 @@ const WINDOW_STATE_EVENT: &str = "window:state";
 /// Cor de fundo da janela enquanto a interface carrega: a mesma de --background no tema escuro.
 const BACKGROUND_COLOR: Color = Color(0x12, 0x16, 0x1d, 0xff);
 
+/// As opções que o Tauri já passa ao WebView2 (sem o mini menu do Edge e sem o SmartScreen). Quem passa
+/// outras precisa repetir estas.
+const WEBVIEW_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
+
 /// O que a interface sabe da janela.
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -47,7 +51,7 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
     if let Some(mark) = dev_mark() {
         query.push_str(&format!("&dev={mark}"));
     }
-    let window = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::App(format!("index.html?{query}").into()))
+    let mut builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::App(format!("index.html?{query}").into()))
         .title(if cfg!(debug_assertions) { "Playtrove Dev" } else { "Playtrove" })
         .inner_size(1280.0, 800.0)
         .min_inner_size(960.0, 600.0)
@@ -56,8 +60,15 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
         .maximized(true)
         .data_directory(webview_folder)
         // Segurança: a janela nunca sai do endereço da própria interface.
-        .on_navigation(is_app_url)
-        .build()?;
+        .on_navigation(is_app_url);
+    // Nos testes do app, a janela aceita o Playwright por esta porta, e o WebView2 guarda o registro dele
+    // na pasta de dados (para o erro, se ela não abrir). Pela variável WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
+    // não dá: o Windows do robô dos testes ignora.
+    if let Some(port) = test_mode().remote_debugging_port {
+        builder =
+            builder.additional_browser_args(&format!("{WEBVIEW_ARGS} --remote-debugging-port={port} --enable-logging --v=0"));
+    }
+    let window = builder.build()?;
     send_state_changes(&window);
     Ok(window)
 }

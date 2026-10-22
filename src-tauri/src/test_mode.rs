@@ -19,6 +19,8 @@ pub struct TestMode {
     pub hide_dev_mark: bool,
     /// Uma versão nova de mentira (ex.: "9.9.0"), para o aviso de atualização.
     pub fake_update: Option<String>,
+    /// A porta em que a janela aceita o Playwright (a depuração do WebView2), nos testes do app.
+    pub remote_debugging_port: Option<u16>,
 }
 
 static TEST_MODE: LazyLock<TestMode> = LazyLock::new(|| TestMode {
@@ -29,6 +31,7 @@ static TEST_MODE: LazyLock<TestMode> = LazyLock::new(|| TestMode {
     system_language: test_variable("SYSTEM_LANGUAGE"),
     hide_dev_mark: test_variable("HIDE_DEV_MARK").as_deref() == Some("1"),
     fake_update: test_variable("FAKE_UPDATE"),
+    remote_debugging_port: test_variable("REMOTE_DEBUGGING_PORT").and_then(|port| port.parse().ok()),
 });
 
 pub fn test_mode() -> &'static TestMode {

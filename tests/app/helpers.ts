@@ -178,9 +178,8 @@ export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
     stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
-      // A janela aceita o Playwright pela porta de depuração do WebView2 (só esta execução), e o WebView2
-      // guarda o registro dele na pasta de dados, para o erro, se a janela não abrir.
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --enable-logging --v=0`,
+      // A janela aceita o Playwright pela porta de depuração do WebView2 (só esta execução).
+      PLAYTROVE_REMOTE_DEBUGGING_PORT: String(port),
       PLAYTROVE_DATA_DIR: dataDir,
       PLAYTROVE_SAMPLE_GAMES: options.sampleGames === false ? "0" : "1",
       // Os testes não procuram os emuladores instalados neste computador: cada teste configura os seus.
