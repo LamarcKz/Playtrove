@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process"
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -104,15 +104,33 @@ function freePort(): Promise<number> {
   })
 }
 
-/** Liga o Playwright à janela do app, esperando o WebView2 abrir a porta de depuração. */
-async function connect(port: number, child: ChildProcess): Promise<Browser> {
-  const deadline = Date.now() + 60_000
+/** Onde fica o que cada app aberto pelos testes escreveu (vai junto com os resultados, se algo falhar). */
+const APP_LOGS = join(ROOT, "test-results", "app-logs")
+
+/** O fim do que o app escreveu, para a mensagem de erro. */
+function logTail(log: string): string {
+  try {
+    return readFileSync(log, "utf8").split("\n").slice(-30).join("\n")
+  } catch {
+    return "(o app não escreveu nada)"
+  }
+}
+
+/**
+ * Liga o Playwright à janela do app, esperando o WebView2 abrir a porta de depuração. Desiste antes do
+ * limite do teste, para o erro dizer o que o app escreveu.
+ */
+async function connect(port: number, child: ChildProcess, log: string): Promise<Browser> {
+  const deadline = Date.now() + 40_000
   for (;;) {
-    if (child.exitCode !== null) throw new Error(`o app fechou ao abrir (código ${child.exitCode})`)
+    if (child.exitCode !== null) throw new Error(`o app fechou ao abrir (código ${child.exitCode}):\n${logTail(log)}`)
     try {
       return await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
-    } catch (error) {
-      if (Date.now() > deadline) throw error
+    } catch {
+      if (Date.now() > deadline) {
+        child.kill()
+        throw new Error(`a janela do app não aceitou o Playwright em 40 s:\n${logTail(log)}`)
+      }
       await new Promise((resolve) => setTimeout(resolve, 250))
     }
   }
@@ -125,9 +143,11 @@ async function connect(port: number, child: ChildProcess): Promise<Browser> {
 export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
   const dataDir = options.dataDir ?? mkdtempSync(join(tmpdir(), "playtrove-teste-"))
   const port = await freePort()
+  mkdirSync(APP_LOGS, { recursive: true })
+  const log = join(APP_LOGS, `app-${port}.log`)
   const child = spawn(TEST_APP, [], {
     cwd: ROOT,
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
       // A janela aceita o Playwright pela porta de depuração do WebView2 (só esta execução).
@@ -141,7 +161,11 @@ export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
       ...options.env,
     },
   })
-  const browser = await connect(port, child)
+  // O que o app escreve (inclusive os erros) vai para um arquivo, lido de novo se ele não abrir.
+  const write = (chunk: Buffer) => appendFileSync(log, chunk)
+  child.stdout?.on("data", write)
+  child.stderr?.on("data", write)
+  const browser = await connect(port, child, log)
   const context = browser.contexts()[0]
   const page = context.pages()[0] ?? (await context.waitForEvent("page"))
   const app = new AppProcess(child, browser, page)
