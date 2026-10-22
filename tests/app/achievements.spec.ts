@@ -65,7 +65,8 @@ test("a conta é conferida antes de salvar, e a chave nunca volta para a tela", 
   // A chave nunca volta para a interface e fica criptografada no banco.
   const config = await page.evaluate(() => window.api.achievements.getConfig())
   expect(JSON.stringify(config)).not.toContain(RA_API_KEY)
-  const db = new DatabaseSync(join(dataDir, "playtrove.db"), { readOnly: true })
+  // O app pode estar gravando neste instante: espera ele terminar, em vez de acusar o banco travado.
+  const db = new DatabaseSync(join(dataDir, "playtrove.db"), { readOnly: true, timeout: 10_000 })
   const stored = (db.prepare("SELECT group_concat(value, ' ') AS value FROM settings").get() as { value: string }).value
   db.close()
   expect(stored).not.toContain(RA_API_KEY)

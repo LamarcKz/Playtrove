@@ -80,7 +80,8 @@ test("chave errada mostra o erro; a certa é conferida e salva (sem voltar para 
   expect(JSON.stringify(config)).not.toContain(IGDB_CLIENT_SECRET)
   expect(JSON.stringify(config)).not.toContain(STEAMGRIDDB_KEY)
   // ...e ficam criptografadas no banco.
-  const db = new DatabaseSync(join(dataDir, "playtrove.db"), { readOnly: true })
+  // O app pode estar gravando neste instante: espera ele terminar, em vez de acusar o banco travado.
+  const db = new DatabaseSync(join(dataDir, "playtrove.db"), { readOnly: true, timeout: 10_000 })
   const stored = (db.prepare("SELECT group_concat(value, ' ') AS value FROM settings").get() as { value: string }).value
   db.close()
   expect(stored).not.toContain(IGDB_CLIENT_SECRET)

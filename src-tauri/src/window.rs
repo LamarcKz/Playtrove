@@ -41,19 +41,37 @@ fn dev_mark() -> Option<&'static str> {
     Some(if test_mode().data_dir.is_some() { "tests" } else { "library" })
 }
 
+/// O tamanho da janela fora do maximizado.
+const RESTORED_SIZE: (f64, f64) = (1280.0, 800.0);
+
+/// O tamanho da janela quando ela sai do maximizado: 1280×800 ou, numa tela menor, a área livre dela (sem
+/// a barra de tarefas). Sem isso, o Windows deixaria a janela passar da tela, por baixo da barra.
+fn restored_size(app: &AppHandle) -> (f64, f64) {
+    let (width, height) = RESTORED_SIZE;
+    match app.primary_monitor().ok().flatten() {
+        Some(monitor) => {
+            let area = monitor.work_area().size.to_logical::<f64>(monitor.scale_factor());
+            (width.min(area.width), height.min(area.height))
+        }
+        None => (width, height),
+    }
+}
+
 /// Cria a janela principal. O idioma vai no endereço da interface (?lang=en), para a primeira tela já
 /// aparecer no idioma certo.
 ///
 /// O navegador da janela (WebView2) guarda o que precisa numa pasta dentro da pasta de dados desta vez
-/// (`webview_folder`): o app de verdade, o modo de desenvolvimento e os testes ficam cada um com a sua. Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
+/// (`webview_folder`): o app de verdade, o modo de desenvolvimento e os testes ficam cada um com a sua.
+/// Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
 pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: PathBuf) -> tauri::Result<WebviewWindow> {
     let mut query = format!("lang={}", language.id());
     if let Some(mark) = dev_mark() {
         query.push_str(&format!("&dev={mark}"));
     }
+    let (width, height) = restored_size(app);
     let mut builder = WebviewWindowBuilder::new(app, MAIN_WINDOW, WebviewUrl::App(format!("index.html?{query}").into()))
         .title(if cfg!(debug_assertions) { "Playtrove Dev" } else { "Playtrove" })
-        .inner_size(1280.0, 800.0)
+        .inner_size(width, height)
         .min_inner_size(960.0, 600.0)
         .decorations(false)
         .background_color(BACKGROUND_COLOR)
