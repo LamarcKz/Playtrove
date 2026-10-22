@@ -1,5 +1,5 @@
-import { spawn, type ChildProcess } from "node:child_process"
-import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import { execSync, spawn, type ChildProcess } from "node:child_process"
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { createServer } from "node:net"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
@@ -117,10 +117,37 @@ function logTail(log: string): string {
 }
 
 /**
- * Liga o Playwright à janela do app, esperando o WebView2 abrir a porta de depuração. Desiste antes do
- * limite do teste, para o erro dizer o que o app escreveu.
+ * O que dá para saber quando a janela não aceita o Playwright: se ela existe, se o WebView2 está rodando,
+ * se a porta de depuração abriu e o fim do registro do próprio WebView2 (para o erro no robô dos testes).
  */
-async function connect(port: number, child: ChildProcess, log: string): Promise<Browser> {
+function diagnose(child: ChildProcess, port: number, dataDir: string): string {
+  const run = (command: string) => {
+    try {
+      return execSync(command, { encoding: "utf8", timeout: 15_000 }).trim()
+    } catch (error) {
+      return `(não deu: ${String(error).split("\n")[0]})`
+    }
+  }
+  const title = run(`powershell -NoProfile -Command "(Get-Process -Id ${child.pid}).MainWindowTitle"`)
+  const webviews = run('tasklist /FI "IMAGENAME eq msedgewebview2.exe" /NH').split("\n").length
+  const listening = run("netstat -ano -p TCP").split("\n").filter((line) => line.includes(`:${port} `))
+  const webviewFolder = join(dataDir, "webview")
+  const files = existsSync(webviewFolder) ? readdirSync(webviewFolder, { recursive: true }).map(String) : []
+  const webviewLog = files.find((file) => file.endsWith("chrome_debug.log"))
+  return [
+    `janela do app: ${title || "(sem janela)"}`,
+    `processos do WebView2: ${webviews}`,
+    `porta ${port}: ${listening.join(" | ") || "fechada"}`,
+    `pasta do WebView2: ${files.length} arquivos`,
+    webviewLog ? `registro do WebView2:\n${logTail(join(webviewFolder, webviewLog))}` : "(sem registro do WebView2)",
+  ].join("\n")
+}
+
+/**
+ * Liga o Playwright à janela do app, esperando o WebView2 abrir a porta de depuração. Desiste antes do
+ * limite do teste, para o erro dizer o que o app escreveu e como a janela estava.
+ */
+async function connect(port: number, child: ChildProcess, log: string, dataDir: string): Promise<Browser> {
   const deadline = Date.now() + 40_000
   for (;;) {
     if (child.exitCode !== null) throw new Error(`o app fechou ao abrir (código ${child.exitCode}):\n${logTail(log)}`)
@@ -128,8 +155,9 @@ async function connect(port: number, child: ChildProcess, log: string): Promise<
       return await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
     } catch {
       if (Date.now() > deadline) {
+        const details = diagnose(child, port, dataDir)
         child.kill()
-        throw new Error(`a janela do app não aceitou o Playwright em 40 s:\n${logTail(log)}`)
+        throw new Error(`a janela do app não aceitou o Playwright em 40 s.\n${details}\no app escreveu:\n${logTail(log)}`)
       }
       await new Promise((resolve) => setTimeout(resolve, 250))
     }
@@ -150,8 +178,9 @@ export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
     stdio: ["ignore", "pipe", "pipe"],
     env: {
       ...process.env,
-      // A janela aceita o Playwright pela porta de depuração do WebView2 (só esta execução).
-      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
+      // A janela aceita o Playwright pela porta de depuração do WebView2 (só esta execução), e o WebView2
+      // guarda o registro dele na pasta de dados, para o erro, se a janela não abrir.
+      WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port} --enable-logging --v=0`,
       PLAYTROVE_DATA_DIR: dataDir,
       PLAYTROVE_SAMPLE_GAMES: options.sampleGames === false ? "0" : "1",
       // Os testes não procuram os emuladores instalados neste computador: cada teste configura os seus.
@@ -165,7 +194,7 @@ export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
   const write = (chunk: Buffer) => appendFileSync(log, chunk)
   child.stdout?.on("data", write)
   child.stderr?.on("data", write)
-  const browser = await connect(port, child, log)
+  const browser = await connect(port, child, log, dataDir)
   const context = browser.contexts()[0]
   const page = context.pages()[0] ?? (await context.waitForEvent("page"))
   const app = new AppProcess(child, browser, page)
