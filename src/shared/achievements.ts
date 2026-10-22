@@ -2,7 +2,7 @@
  * Conquistas (pedidos do usuário em 2026-09-24): as do RetroAchievements e os troféus dos jogos de
  * PS3, que o próprio RPCS3 guarda. As duas aparecem do mesmo jeito, como troféus do PS3 (bronze,
  * prata, ouro e platina); as do RetroAchievements também têm a raridade no estilo da PlayStation.
- * Os tipos que o main e a interface trocam.
+ * Os tipos que a interface recebe do Rust (src-tauri/src/achievements/types.rs).
  */
 
 /** De onde vêm as conquistas de um jogo: o RetroAchievements (pela internet) ou o RPCS3 (troféus do PS3). */
@@ -11,39 +11,11 @@ export type AchievementSource = "retroachievements" | "rpcs3"
 /** Raridade de uma conquista, pela porcentagem de jogadores do RetroAchievements que a desbloquearam. */
 export type Rarity = "comum" | "rara" | "muito-rara" | "ultrarrara"
 
-/**
- * As faixas da PlayStation: a primeira cuja porcentagem mínima a conquista alcança. O nome de cada
- * uma fica no dicionário (achievements.rarities).
- */
-const RARITIES: { id: Rarity; min: number }[] = [
-  { id: "comum", min: 50 },
-  { id: "rara", min: 15 },
-  { id: "muito-rara", min: 5 },
-  { id: "ultrarrara", min: 0 },
-]
-
-/** A raridade pela porcentagem (0 a 100) de jogadores que desbloquearam. */
-export function rarityOf(percent: number): Rarity {
-  return (RARITIES.find((rarity) => percent >= rarity.min) ?? RARITIES[RARITIES.length - 1]).id
-}
-
 /** O tipo de um troféu do PS3. */
 export type TrophyGrade = "platina" | "ouro" | "prata" | "bronze"
 
 /** Os tipos de troféu, do mais valioso para o mais simples (o nome fica no dicionário: achievements.grades). */
 export const TROPHY_GRADES: TrophyGrade[] = ["platina", "ouro", "prata", "bronze"]
-
-/** A partir de quantos pontos uma conquista do RetroAchievements é prata e ouro. */
-const GRADE_POINTS = { prata: 10, ouro: 25 }
-
-/**
- * O tipo de uma conquista do RetroAchievements, que não tem bronze, prata e ouro: pelos pontos, que
- * lá dizem a dificuldade (escolha do usuário em 2026-09-24). Bronze até 9, prata de 10 a 24, ouro com
- * 25 ou mais. A platina é ter todas as conquistas do jogo.
- */
-export function gradeForPoints(points: number): TrophyGrade {
-  return points >= GRADE_POINTS.ouro ? "ouro" : points >= GRADE_POINTS.prata ? "prata" : "bronze"
-}
 
 /** O progresso de um jogo nas conquistas, como a biblioteca mostra (lista, grade e colunas). */
 export interface AchievementProgress {

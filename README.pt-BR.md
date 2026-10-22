@@ -19,7 +19,8 @@
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Testes" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Windows 10 e 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white">
-  <img alt="Electron" src="https://img.shields.io/badge/Electron-47848F?logo=electron&logoColor=white">
+  <img alt="Tauri" src="https://img.shields.io/badge/Tauri-24C8D8?logo=tauri&logoColor=white">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white">
   <img alt="React" src="https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
 </p>
@@ -155,7 +156,7 @@ Pull requests são bem-vindos; rode o `npm test` antes de mandar.
 
 ## Como compilar
 
-Você vai precisar do [Node.js](https://nodejs.org/) 22.12 ou mais novo e do [Git](https://git-scm.com/). Não é preciso Visual Studio nem compilador C++.
+Você vai precisar do [Node.js](https://nodejs.org/) 22.12 ou mais novo, do [Git](https://git-scm.com/) e do [Rust](https://www.rust-lang.org/tools/install) (estável), que no Windows também pede o Visual Studio Build Tools com a parte de C++. O primeiro `npm run dev` compila a parte em Rust, o que leva alguns minutos; depois, só o que mudou.
 
 ```bash
 git clone https://github.com/LamarcKz/Playtrove.git
@@ -168,13 +169,12 @@ O `git clone` traz a branch `main`, com a última versão estável. O desenvolvi
 
 | Comando | O que faz |
 |---|---|
-| `npm run dev` | Abre o app em modo de desenvolvimento, atualizando sozinho a cada alteração. Ele usa uma cópia da biblioteca do app instalado (`%APPDATA%\Playtrove Dev`), para o código em teste nunca mexer nos seus jogos de verdade |
+| `npm run dev` | Abre o app em modo de desenvolvimento: a interface atualiza sozinha a cada alteração, e o app reabre quando o código em Rust muda. Ele usa uma cópia da biblioteca do app instalado (`%APPDATA%\Playtrove Dev`), para o código em teste nunca mexer nos seus jogos de verdade |
 | `npm run dev:nova-copia` | Joga essa cópia fora (com o app do dev fechado); o próximo `npm run dev` copia a biblioteca de novo |
-| `npm run build` | Confere os tipos e gera o app compilado em `out/` |
-| `npm run preview` | Abre a versão compilada |
+| `npm run build` | Confere os tipos e gera a interface compilada em `out/web` |
 | `npm run typecheck` | Só confere os tipos do TypeScript |
-| `npm test` | Roda todos os testes automáticos: os da lógica e os que abrem o app e clicam como uma pessoa |
-| `npm run dist` | Gera o instalador e a versão portátil em `dist/` |
+| `npm test` | Roda todos os testes automáticos: os da lógica da interface, os da parte em Rust e os que abrem o app e clicam como uma pessoa |
+| `npm run dist` | Gera o instalador, a versão portátil e os arquivos da atualização em `dist/` (assinar as atualizações pede a chave privada de quem mantém o projeto) |
 
 Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde implementar cada funcionalidade, está em [ESTRUTURA.md](ESTRUTURA.md).
 
@@ -189,11 +189,11 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 
 ## Tecnologias
 
-- [Electron](https://www.electronjs.org/) com [electron-vite](https://electron-vite.org/) e [electron-builder](https://www.electron.build/)
+- [Tauri](https://tauri.app/) e [Rust](https://www.rust-lang.org/), com a interface gerada pelo [Vite](https://vite.dev/)
 - [React](https://react.dev/) e [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/) e ícones [Lucide](https://lucide.dev/)
-- [SQLite](https://sqlite.org/) com [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
-- Testes com [Vitest](https://vitest.dev/) e [Playwright](https://playwright.dev/)
+- [SQLite](https://sqlite.org/) com [rusqlite](https://github.com/rusqlite/rusqlite)
+- Testes com [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/) e os do próprio Rust (`cargo test`)
 
 ## Créditos
 

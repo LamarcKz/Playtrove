@@ -8,6 +8,10 @@ dist
 test-results/
 playwright-report/
 
+# Tauri: o que o Rust compila e os esquemas que ele gera
+src-tauri/target/
+src-tauri/gen/
+
 # Claude Code: as sessões em worktree e as permissões dadas só neste computador
 .claude/worktrees/
 .claude/settings.local.json

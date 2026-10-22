@@ -1,8 +1,8 @@
 import { join } from "node:path"
-import Database from "better-sqlite3"
-import { expect, test, type ElectronApplication, type Page } from "@playwright/test"
+import { DatabaseSync } from "node:sqlite"
+import { expect, test, type Page } from "@playwright/test"
 import { RA_API_KEY, RA_USERNAME, startFakeMetadataServer, type FakeMetadataServer } from "./fakeMetadataServer"
-import { chooseView, launchApp, removeDataDir, toast } from "./helpers"
+import { type AppProcess, chooseView, launchApp, removeDataDir, toast } from "./helpers"
 
 // Os testes deste arquivo seguem em ordem, no mesmo app (com os 12 jogos de exemplo). O
 // RetroAchievements é de mentira (fakeMetadataServer.ts): nada vai para a internet. Lá, os jogos de
@@ -11,7 +11,7 @@ import { chooseView, launchApp, removeDataDir, toast } from "./helpers"
 test.describe.configure({ mode: "serial" })
 
 let server: FakeMetadataServer
-let app: ElectronApplication
+let app: AppProcess
 let page: Page
 let dataDir: string
 
@@ -65,8 +65,9 @@ test("a conta é conferida antes de salvar, e a chave nunca volta para a tela", 
   // A chave nunca volta para a interface e fica criptografada no banco.
   const config = await page.evaluate(() => window.api.achievements.getConfig())
   expect(JSON.stringify(config)).not.toContain(RA_API_KEY)
-  const db = new Database(join(dataDir, "playtrove.db"), { readonly: true })
-  const stored = db.prepare("SELECT group_concat(value, ' ') FROM settings").pluck().get() as string
+  // O app pode estar gravando neste instante: espera ele terminar, em vez de acusar o banco travado.
+  const db = new DatabaseSync(join(dataDir, "playtrove.db"), { readOnly: true, timeout: 10_000 })
+  const stored = (db.prepare("SELECT group_concat(value, ' ') AS value FROM settings").get() as { value: string }).value
   db.close()
   expect(stored).not.toContain(RA_API_KEY)
 
@@ -109,7 +110,7 @@ test("Detalhes: o cartão das conquistas e a janela com todas", async () => {
   const badges = achievements.locator('[aria-label="Últimas desbloqueadas"] img')
   await expect(badges).toHaveCount(3)
   await expect(badges.first()).toHaveAttribute("alt", "Tempestade solar")
-  await expect(badges.first()).toHaveAttribute("src", "playtrove-img://images/achievements/30013.png")
+  await expect(badges.first()).toHaveAttribute("src", "http://playtrove-img.localhost/achievements/30013.png")
   await expect
     .poll(() => badges.first().evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0))
     .toBe(true)

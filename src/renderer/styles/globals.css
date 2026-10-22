@@ -74,7 +74,7 @@
 .dark {
   color-scheme: dark;
 
-  --background: oklch(0.2 0.016 262); /* = #12161d. Se mudar, ajuste BACKGROUND_COLOR em src/main/window.ts */
+  --background: oklch(0.2 0.016 262); /* = #12161d. Se mudar, ajuste BACKGROUND_COLOR em src-tauri/src/window.rs */
   --foreground: oklch(0.96 0.005 262);
   --card: oklch(0.235 0.018 262);
   --card-foreground: oklch(0.96 0.005 262);
@@ -187,15 +187,6 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-/* Área por onde a janela pode ser arrastada (a barra de título) e as exceções dentro dela (botões). */
-@utility app-drag {
-  -webkit-app-region: drag;
-}
-
-@utility app-no-drag {
-  -webkit-app-region: no-drag;
 }
 
 @layer base {

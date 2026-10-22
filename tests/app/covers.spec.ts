@@ -1,9 +1,8 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs"
+import { DatabaseSync } from "node:sqlite"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import Database from "better-sqlite3"
 import { expect, test, type Locator } from "@playwright/test"
-import { runMigrations } from "../../src/main/migrations"
 import { makePng } from "../fakePng"
 import { chooseView, launchApp, removeDataDir, type TestApp } from "./helpers"
 
@@ -28,23 +27,25 @@ const BROKEN = { id: 7, title: "Imagem inválida" }
 const LOADING = { id: 8, title: "Imagem em carregamento", width: 200, height: 360 }
 const PREVIOUS = { id: 9, title: "Imagem anterior lenta", width: 320, height: 200 }
 
+/** O endereço das imagens dos jogos no Tauri (src-tauri/src/images.rs). */
+const IMAGES = "http://playtrove-img.localhost"
+
 type CoverFixture = (typeof COVERS)[number]
-interface ProtocolGate {
-  wait: Promise<void>
-  release: () => void
-  requests: number
-}
-interface CoverProtocolState {
-  gates: Map<number, ProtocolGate>
-}
-type CoverTestGlobal = typeof globalThis & { __playtroveCoverTest?: CoverProtocolState }
 
 let session: TestApp
 let dataDir: string
+/** A capa de um jogo, pelo caminho dentro da pasta de imagens (como o app retém nos testes). */
+const coverPath = (id: number) => `${id}/cover.png`
 
-/** Prepara o banco e as imagens antes de abrir o Electron, sempre numa pasta temporária. */
-function createLibrary() {
+/**
+ * Prepara o banco e as imagens, sempre numa pasta temporária: o app cria o banco (com as migrações dele)
+ * e fecha; depois, o teste põe os jogos e as capas.
+ */
+async function createLibrary() {
   dataDir = mkdtempSync(join(tmpdir(), "playtrove-capas-"))
+  const first = await launchApp({ dataDir, sampleGames: false })
+  await first.app.close()
+
   const images = [...COVERS, LOADING, PREVIOUS].map((cover) => ({
     id: cover.id,
     bytes: makePng(cover.width, cover.height, [40, 120, 200], [15, 35, 75]),
@@ -56,9 +57,8 @@ function createLibrary() {
     writeFileSync(join(folder, "cover.png"), image.bytes)
   }
 
-  const db = new Database(join(dataDir, "playtrove.db"))
+  const db = new DatabaseSync(join(dataDir, "playtrove.db"))
   try {
-    runMigrations(db)
     db.prepare("INSERT INTO statuses (id, name, position) VALUES (?, ?, ?)").run(100, STATUS, 100)
     const insert = db.prepare(`
       INSERT INTO games (id, title, status_id, added_at, cover_image, metadata_updated_at)
@@ -70,40 +70,15 @@ function createLibrary() {
   } finally {
     db.close()
   }
-  return images.map((image) => ({ id: image.id, bytes: Array.from(image.bytes) }))
 }
 
 test.beforeAll(async () => {
-  const images = createLibrary()
+  await createLibrary()
   session = await launchApp({ dataDir, sampleGames: false })
-  // Os dois pedidos lentos ficam retidos por promessas, sem temporizadores ou dependência de rede.
-  // A troca de protocolo existe apenas neste processo de teste e desaparece quando ele fecha.
-  await session.app.evaluate(({ protocol }, fixtures) => {
-    const gates = new Map<number, ProtocolGate>()
-    for (const id of [8, 9]) {
-      let release!: () => void
-      const wait = new Promise<void>((resolve) => { release = resolve })
-      gates.set(id, { wait, release, requests: 0 })
-    }
-    ;(globalThis as CoverTestGlobal).__playtroveCoverTest = { gates }
-    const bytesById = new Map(fixtures.map((image) => [image.id, image.bytes]))
-    protocol.unhandle("playtrove-img")
-    protocol.handle("playtrove-img", async (request) => {
-      const match = /^\/(\d+)\/cover\.png$/.exec(new URL(request.url).pathname)
-      const id = match ? Number(match[1]) : -1
-      const bytes = bytesById.get(id)
-      if (!bytes) return new Response(null, { status: 404 })
-      const gate = gates.get(id)
-      if (gate) {
-        gate.requests++
-        await gate.wait
-      }
-      return new Response(new Uint8Array(bytes), {
-        headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
-      })
-    })
-  }, images)
-  await session.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].webContents.session.clearCache())
+  // Os dois pedidos lentos ficam retidos pelo app (só nos testes) até o teste liberar, sem temporizadores.
+  await session.app.invoke("test_hold_images", { paths: [coverPath(LOADING.id), coverPath(PREVIOUS.id)] })
+  const cdp = await session.page.context().newCDPSession(session.page)
+  await cdp.send("Network.clearBrowserCache")
   // Não espera o evento load: ele depende justamente das imagens que o teste segura.
   await session.page.reload({ waitUntil: "domcontentloaded" })
   await expect(gameButton(EMPTY.title)).toBeVisible()
@@ -111,12 +86,7 @@ test.beforeAll(async () => {
 })
 
 test.afterAll(async () => {
-  if (session) {
-    await session.app.evaluate(() => {
-      for (const gate of (globalThis as CoverTestGlobal).__playtroveCoverTest?.gates.values() ?? []) gate.release()
-    })
-    await session.app.close()
-  }
+  if (session) await session.app.close()
   if (dataDir) removeDataDir(dataDir)
 })
 
@@ -126,11 +96,7 @@ const mainCover = (title: string) => coverIn(session.page.locator("main"), title
 const detailsPanel = (title: string) => session.page.getByRole("complementary", { name: `Detalhes de ${title}`, exact: true })
 
 async function resize(size: (typeof SIZES)[number]) {
-  await session.app.evaluate(({ BrowserWindow }, requested) => {
-    const window = BrowserWindow.getAllWindows()[0]
-    window.unmaximize()
-    window.setContentSize(requested.width, requested.height)
-  }, size)
+  await session.app.invoke("test_set_window_size", { width: size.width, height: size.height })
   // O monitor do runner pode ser menor que a janela solicitada.
   await session.page.setViewportSize(size)
   await expect.poll(() => session.page.evaluate(() => ({ width: innerWidth, height: innerHeight }))).toEqual(size)
@@ -277,11 +243,8 @@ test("sem capa, imagem inválida e carregamento conservam um placeholder estáve
 })
 
 async function releaseImage(id: number) {
-  await expect.poll(() => session.app.evaluate((_electron, requested) =>
-    (globalThis as CoverTestGlobal).__playtroveCoverTest?.gates.get(requested)?.requests ?? 0, id)).toBeGreaterThan(0)
-  await session.app.evaluate((_electron, requested) => {
-    ;(globalThis as CoverTestGlobal).__playtroveCoverTest?.gates.get(requested)?.release()
-  }, id)
+  await expect.poll(() => session.app.invoke<number>("test_image_requests", { path: coverPath(id) })).toBeGreaterThan(0)
+  await session.app.invoke("test_release_image", { path: coverPath(id) })
 }
 
 test("uma imagem lenta do jogo anterior não substitui a seleção atual", async () => {
@@ -294,11 +257,11 @@ test("uma imagem lenta do jogo anterior não substitui a seleção atual", async
   await expectNativeCover(mainCover(selected.title), selected, 288, 160)
   await releaseImage(PREVIOUS.id)
   // Decodificar o pedido liberado confirma que o resultado tardio já chegou ao renderer.
-  await session.page.evaluate(async (id) => {
+  await session.page.evaluate(async ([images, id]) => {
     const image = new Image()
-    image.src = `playtrove-img://images/${id}/cover.png`
+    image.src = `${images}/${id}/cover.png`
     await image.decode()
-  }, PREVIOUS.id)
+  }, [IMAGES, PREVIOUS.id] as const)
   await expect(session.page.locator("main h1")).toHaveText(selected.title)
   await expect(mainCover(PREVIOUS.title)).toHaveCount(0)
   await expectNativeCover(mainCover(selected.title), selected, 288, 160)

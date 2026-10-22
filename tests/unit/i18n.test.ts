@@ -1,25 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs"
 import { join, relative } from "node:path"
-import { afterEach, describe, expect, it } from "vitest"
-import {
-  genreLabel,
-  isLanguage,
-  isStatusPreset,
-  languageFromSystem,
-  LANGUAGES,
-  messagesFor,
-  type Messages,
-} from "@shared/i18n"
-import { getLanguage, loadLanguage, saveLanguage, setCurrentLanguage } from "../../src/main/i18n"
-import { createStatus, listGames, listStatuses, renameStatus } from "../../src/main/library"
-import { DEFAULT_STATUSES, runMigrations } from "../../src/main/migrations"
-import { describeRepair } from "../../src/main/repairNotice"
-import { getSetting } from "../../src/main/settings"
-import { memoryDatabase } from "./helpers"
-import Database from "better-sqlite3"
-
-// O idioma do processo principal fica na memória: cada teste que troca volta ao português.
-afterEach(() => setCurrentLanguage("pt-BR"))
+import { describe, expect, it } from "vitest"
+import { genreLabel, isLanguage, LANGUAGES, messagesFor } from "@shared/i18n"
 
 const pt = messagesFor("pt-BR")
 const en = messagesFor("en")
@@ -83,127 +65,6 @@ describe("os dicionários", () => {
   })
 })
 
-describe("o idioma do Windows (escolha do usuário: igual ao Windows na primeira vez)", () => {
-  it("português → português; qualquer outro → inglês; vale o idioma principal", () => {
-    expect(languageFromSystem(["pt-BR", "en-US"])).toBe("pt-BR")
-    expect(languageFromSystem(["pt-PT"])).toBe("pt-BR")
-    expect(languageFromSystem(["en-US", "pt-BR"])).toBe("en")
-    expect(languageFromSystem(["es-ES"])).toBe("en")
-    expect(languageFromSystem(["ja"])).toBe("en")
-    expect(languageFromSystem([])).toBe("pt-BR")
-  })
-
-  it("sem escolha salva, usa o do Windows; depois de escolher, vale a escolha", () => {
-    const db = memoryDatabase()
-    expect(loadLanguage(db, ["en-US"])).toBe("en")
-    expect(getSetting(db, "language")).toBeNull()
-    saveLanguage(db, "pt-BR")
-    expect(getSetting(db, "language")).toBe("pt-BR")
-    expect(loadLanguage(db, ["en-US"])).toBe("pt-BR")
-    expect(getLanguage()).toBe("pt-BR")
-  })
-})
-
-describe("os status padrão mudam de nome com o idioma (escolha do usuário)", () => {
-  const presetNames = (messages: Messages) => Object.values(messages.statusPresets)
-
-  it("banco novo: os 9 status em português e em inglês", () => {
-    const db = memoryDatabase()
-    expect(listStatuses(db).map((status) => status.name)).toEqual(DEFAULT_STATUSES)
-    expect(presetNames(pt)).toEqual(DEFAULT_STATUSES)
-    setCurrentLanguage("en")
-    expect(listStatuses(db).map((status) => status.name)).toEqual([
-      "Plan to play",
-      "On hold",
-      "Abandoned",
-      "Playing",
-      "Going for 100%",
-      "Going for platinum",
-      "Beaten",
-      "100%",
-      "Platinum",
-    ])
-    expect(isStatusPreset("beaten")).toBe(true)
-    expect(isStatusPreset("Zerado")).toBe(false)
-  })
-
-  it("renomeado ou criado pelo usuário: o nome fica igual nos dois idiomas", () => {
-    const db = memoryDatabase()
-    const [planToPlay, , , playing] = listStatuses(db)
-    renameStatus(db, planToPlay.id, "Quero jogar")
-    createStatus(db, "Rejogando")
-    // Renomear para o mesmo nome (só com espaços a mais) não tira o status do padrão.
-    renameStatus(db, playing.id, "  Jogando ")
-    setCurrentLanguage("en")
-    const names = listStatuses(db).map((status) => status.name)
-    expect(names[0]).toBe("Quero jogar")
-    expect(names[3]).toBe("Playing")
-    expect(names.at(-1)).toBe("Rejogando")
-  })
-
-  it("um status novo não pode repetir o nome de outro em nenhum dos idiomas", () => {
-    const db = memoryDatabase()
-    expect(() => createStatus(db, "Playing")).toThrow('Já existe um status chamado "Playing".')
-    expect(() => createStatus(db, "zerado")).toThrow("Já existe um status chamado")
-    setCurrentLanguage("en")
-    expect(() => createStatus(db, "Jogando")).toThrow('There\'s already a status called "Jogando".')
-  })
-})
-
-describe("migração 8: bancos de antes dos idiomas", () => {
-  it("marca os status padrão (menos os renomeados) e volta os gêneros para o nome do IGDB", () => {
-    const db = new Database(":memory:")
-    runMigrations(db, 7)
-    db.prepare("UPDATE statuses SET name = 'Terminado' WHERE name = 'Zerado'").run()
-    const statusId = db.prepare("SELECT id FROM statuses LIMIT 1").pluck().get()
-    db.prepare("INSERT INTO games (title, status_id, added_at, genres) VALUES (?, ?, ?, ?)").run(
-      "Salto Estelar",
-      statusId,
-      new Date().toISOString(),
-      JSON.stringify(["Plataforma", "Aventura", "Arcade", "Gênero Novo"])
-    )
-    db.prepare("INSERT INTO games (title, status_id, added_at, genres) VALUES (?, ?, ?, ?)").run(
-      "Sem gêneros",
-      statusId,
-      new Date().toISOString(),
-      "isto não é uma lista"
-    )
-
-    runMigrations(db)
-
-    expect(db.pragma("user_version", { simple: true })).toBe(8)
-    const presets = db.prepare("SELECT name, preset FROM statuses ORDER BY position").all()
-    expect(presets).toContainEqual({ name: "Terminado", preset: null })
-    expect(presets).toContainEqual({ name: "Planejo jogar", preset: "planToPlay" })
-    expect(presets.filter((row) => (row as { preset: string | null }).preset !== null)).toHaveLength(8)
-    expect(listGames(db).map((game) => game.genres)).toEqual([["Platform", "Adventure", "Arcade", "Gênero Novo"], []])
-    setCurrentLanguage("en")
-    expect(listStatuses(db).map((status) => status.name)).toContain("Terminado")
-    expect(listStatuses(db).map((status) => status.name)).toContain("On hold")
-  })
-})
-
-describe("os textos do processo principal no idioma do app", () => {
-  it("os erros saem no idioma escolhido", () => {
-    const db = memoryDatabase()
-    expect(() => createStatus(db, " ")).toThrow("O status precisa de um nome.")
-    setCurrentLanguage("en")
-    expect(() => createStatus(db, " ")).toThrow("The status needs a name.")
-  })
-
-  it("o aviso do conserto do banco em inglês", () => {
-    setCurrentLanguage("en")
-    const { message, detail } = describeRepair({
-      recovered: [{ table: "games", rows: 7 }],
-      lost: ["emulators"],
-      damagedFile: "C:\\dados\\playtrove-danificado.db",
-    })
-    expect(message).toBe("The library database was damaged and has been repaired.")
-    expect(detail).toContain("Recovered: games (7).")
-    expect(detail).toContain("Couldn't recover: emulators. Because of that, the emulators will be searched for again.")
-  })
-})
-
 // ---------------------------------------------------------------- texto fora dos dicionários
 
 const ROOT = join(__dirname, "..", "..")
@@ -252,14 +113,5 @@ describe("todo texto da tela vem dos dicionários", () => {
     const names = [">libretro-thumbnails<", ">Playtrove<"]
     const components = sourceFiles(join(ROOT, "src", "renderer")).filter((file) => file.endsWith(".tsx"))
     expect(findLines(components, literalText, names)).toEqual([])
-  })
-
-  it("o processo principal não tem mensagem em português fora deles (só erros internos, que não aparecem)", () => {
-    const internal = ['"Não é um TROPUSR.DAT."', '"Não é um PARAM.SFO."', '"O banco ainda não foi aberto', "console.error("]
-    // As migrações guardam os nomes antigos de propósito; os jogos de exemplo são dados dos testes.
-    const main = sourceFiles(join(ROOT, "src", "main")).filter(
-      (file) => !file.endsWith("migrations.ts") && !file.endsWith("sampleGames.ts")
-    )
-    expect(findLines(main, /["'`][^"'`]*[ãõçáéíóúâêô][^"'`]*["'`]/, internal)).toEqual([])
   })
 })

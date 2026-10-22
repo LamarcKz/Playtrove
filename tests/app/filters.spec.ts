@@ -1,9 +1,9 @@
-import { expect, test, type ElectronApplication, type Locator, type Page } from "@playwright/test"
-import { chooseView, launchApp, removeDataDir } from "./helpers"
+import { expect, test, type Locator, type Page } from "@playwright/test"
+import { type AppProcess, chooseView, launchApp, removeDataDir } from "./helpers"
 
 test.describe.configure({ mode: "serial" })
 
-let app: ElectronApplication
+let app: AppProcess
 let page: Page
 let dataDir: string
 let panel: Locator
