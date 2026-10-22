@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.7.1" src="https://img.shields.io/badge/version-0.7.1-0072d0">
+  <img alt="Version 0.8.0" src="https://img.shields.io/badge/version-0.8.0-0072d0">
   <img alt="In development" src="https://img.shields.io/badge/status-in%20development-orange">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -68,7 +68,7 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Filter panel**: on the right, like Playnite. Favorites and Recent are checkboxes. Status, Playtime, Rating, Difficulty, Library, Platform, Genre, Developer, Publisher and Release year are dropdowns where you can pick several options, each showing how many games it has.
 - **Favorites**: mark your favorite games from the **More** menu.
 - **Connected controller**: with a DualSense connected, the top bar shows whether it's on USB or Bluetooth, its battery level and whether it's charging.
-- **Installer and portable version**: install with one click or use the portable .zip, which keeps everything in its own folder. When a new version comes out, the app lets you know and updates with one click.
+- **Installer and portable version**: a small installer (about 5 MB) or the portable .zip, which keeps everything in its own folder. When a new version comes out, the app lets you know and updates with one click.
 - **Custom window**: no Windows title bar; minimize, maximize/restore and close are part of the interface.
 - **English and Portuguese**: the whole app in both languages. The first time, it follows your Windows language; after that, switch in Settings → General and it changes right away. The built-in statuses are renamed too, and dates and numbers follow each language's format.
 - **Dark theme**.

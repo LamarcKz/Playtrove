@@ -189,7 +189,7 @@ Explicação usada com o usuário: commit = salvar o jogo; push = mandar o save 
 - O número do `package.json` **só muda no lançamento de uma versão**. Enquanto o trabalho acontece na `desenvolvimento`, ele continua igual ao da última versão lançada.
 - Para mudar: `npm version <X.Y.Z> --no-git-tag-version` (atualiza o `package.json` e o `package-lock.json`).
 - **Quem decide o número é o `npm run versao`** (`scripts/next-version.mjs`): algum `feat:` desde a última versão → sobe a MENOR; só `fix:` → sobe a CORREÇÃO; só `docs:`/`chore:`/`refactor:` → não precisa de versão. Por isso o tipo do commit tem que estar certo: `feat:` só para o que o app passa a fazer de novo, `fix:` para consertos.
-- Uma solicitação explícita do usuário para publicar ajustes já integrados pode definir o número do lançamento mesmo quando o histórico só contém `refactor`; registrar a decisão, sem inventar um commit `fix` nem reescrever commits anteriores. Em 2026-10-20, a publicação dos ajustes de capas e das quatro abas foi autorizada como **0.7.1**.
+- Uma solicitação explícita do usuário para publicar ajustes já integrados pode definir o número do lançamento mesmo quando o histórico só contém `refactor`; registrar a decisão, sem inventar um commit `fix` nem reescrever commits anteriores. Em 2026-10-20, a publicação dos ajustes de capas e das quatro abas foi autorizada como **0.7.1**. Em 2026-10-22, a primeira versão em Tauri foi autorizada pelo usuário como **0.8.0**: o `npm run versao` sugeria 0.7.2, porque a migração entrou como `refactor:` e só um `fix:`, mas a troca do Electron pelo Tauri pedia o número do meio.
 
 ### Lançar uma versão com novidades: só com o OK do usuário
 

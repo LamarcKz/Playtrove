@@ -1,7 +1,7 @@
 {
   "name": "playtrove",
   "productName": "Playtrove",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "description": "Your game library for Windows: emulators, achievements and playtime in one place.",
   "author": "LamarcKz",
   "homepage": "https://github.com/LamarcKz/Playtrove",

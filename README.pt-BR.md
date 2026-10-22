@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão 0.7.1" src="https://img.shields.io/badge/vers%C3%A3o-0.7.1-0072d0">
+  <img alt="Versão 0.8.0" src="https://img.shields.io/badge/vers%C3%A3o-0.8.0-0072d0">
   <img alt="Em desenvolvimento" src="https://img.shields.io/badge/status-em%20desenvolvimento-orange">
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Testes" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -68,7 +68,7 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 - **Painel de filtros**: na direita, como no Playnite. Favoritos e Recentes ficam em caixinhas. Status, Tempo jogado, Nota, Dificuldade, Biblioteca, Plataforma, Gênero, Desenvolvedora, Publicadora e Ano de lançamento são seletores em que dá para marcar várias opções, e cada opção mostra quantos jogos ela tem.
 - **Favoritos**: marque os jogos preferidos pelo menu **Mais**.
 - **Controle conectado**: com um DualSense ligado, a barra do topo mostra se ele está no USB ou no Bluetooth, quanto de bateria ele tem e se está carregando.
-- **Instalador e versão portátil**: instale com um clique ou use o .zip portátil, que guarda tudo na própria pasta. Quando sai uma versão nova, o app avisa e se atualiza com um clique.
+- **Instalador e versão portátil**: um instalador pequeno (uns 5 MB) ou o .zip portátil, que guarda tudo na própria pasta. Quando sai uma versão nova, o app avisa e se atualiza com um clique.
 - **Janela própria**: sem a barra do Windows, com os botões minimizar, maximizar/restaurar e fechar integrados à interface.
 - **Português e inglês**: o app inteiro nos dois idiomas. Na primeira vez, ele segue o idioma do Windows; depois, é só trocar em Configurações → Geral, e a troca vale na hora. Os status que vêm com o app mudam de nome junto, e as datas e os números seguem o formato de cada idioma.
 - **Tema escuro**.
