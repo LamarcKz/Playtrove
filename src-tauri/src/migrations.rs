@@ -1,7 +1,7 @@
 //! As tabelas do banco. Cada migração leva o banco de uma versão para a seguinte, e a versão fica
 //! guardada no próprio banco (PRAGMA user_version): um banco novo roda todas; um banco antigo roda só
-//! as que faltam. São as mesmas do app em Electron (src/main/migrations.ts), na mesma ordem, para os
-//! dois abrirem o mesmo banco. Nunca mude uma migração que já saiu numa versão do app: crie uma nova
+//! as que faltam. As 8 primeiras são as do app em Electron (até a 0.7.x), na mesma ordem: assim o banco
+//! de quem vem de lá abre direto. Nunca mude uma migração que já saiu numa versão do app: crie uma nova
 //! no fim da lista.
 
 use rusqlite::{Connection, Transaction};

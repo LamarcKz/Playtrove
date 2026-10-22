@@ -1,24 +1,7 @@
-/** Um modelo de controle que o app reconhece. */
-export interface ControllerModel {
-  vendorId: number
-  productId: number
-  name: string
-}
-
 /**
- * Controles que aparecem na barra do topo, com a bateria. No Electron, a interface lê cada um pela WebHID
- * (src/renderer/hooks/useControllers.ts), e o main libera o acesso só a eles (src/main/controllers.ts); no
- * Tauri, quem lê é o Rust (src-tauri/src/controllers.rs, com a mesma lista).
+ * Os controles que aparecem na barra do topo (DualSense e DualSense Edge), com a bateria. Quem acha e lê
+ * cada um é o Rust (src-tauri/src/controllers.rs); a interface recebe a lista pronta.
  */
-const SUPPORTED_CONTROLLERS: ControllerModel[] = [
-  { vendorId: 0x054c, productId: 0x0ce6, name: "DualSense" },
-  { vendorId: 0x054c, productId: 0x0df2, name: "DualSense Edge" },
-]
-
-/** O modelo do aparelho, se ele for um dos controles reconhecidos. */
-export function findControllerModel(vendorId: number, productId: number): ControllerModel | undefined {
-  return SUPPORTED_CONTROLLERS.find((model) => model.vendorId === vendorId && model.productId === productId)
-}
 
 export type ControllerConnection = "usb" | "bluetooth"
 
@@ -33,7 +16,7 @@ export interface BatteryReading {
 
 /** Um controle conectado, como aparece na barra do topo. */
 export interface ConnectedController {
-  /** Identificador só para o React (a WebHID não dá um id fixo para cada aparelho). */
+  /** Identificador só para o React. */
   key: number
   name: string
   connection: ControllerConnection

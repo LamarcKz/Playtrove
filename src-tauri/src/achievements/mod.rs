@@ -1,6 +1,5 @@
 //! Conquistas (pedidos do usuário em 2026-09-24): as do RetroAchievements e os troféus dos jogos de PS3,
-//! que o próprio RPCS3 guarda. As duas aparecem do mesmo jeito, como troféus do PS3. O mesmo do app em
-//! Electron (src/main/achievements).
+//! que o próprio RPCS3 guarda. As duas aparecem do mesmo jeito, como troféus do PS3.
 
 pub mod badges;
 pub mod client;

@@ -1,5 +1,4 @@
-//! A atividade por dia das Estatísticas, a partir das sessões de jogo. O mesmo do app em Electron
-//! (src/main/stats.ts).
+//! A atividade por dia das Estatísticas, a partir das sessões de jogo.
 
 use std::collections::HashMap;
 

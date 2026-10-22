@@ -25,7 +25,7 @@ export function MetadataStatus() {
         <div
           role="status"
           aria-label={t.metadata.progressLabel(position, progress.total)}
-          className="app-no-drag mr-2 flex h-8 items-center gap-2 rounded-md px-2 text-xs text-muted-foreground"
+          className="mr-2 flex h-8 items-center gap-2 rounded-md px-2 text-xs text-muted-foreground"
         >
           <LoaderCircle className="size-3.5 animate-spin" />
           <span className="tabular-nums">

@@ -1,6 +1,5 @@
 //! Tempo jogado registrado pelos próprios emuladores. Assim o app mostra também o que foi jogado abrindo
-//! o emulador direto, sem passar pelo botão Jogar (pedido do usuário em 2026-09-19). O mesmo do app em
-//! Electron (src/main/emulatorPlaytime.ts):
+//! o emulador direto, sem passar pelo botão Jogar (pedido do usuário em 2026-09-19):
 //! - PCSX2 e DuckStation: playtime.dat, por código do disco (ex.: SLUS-20100);
 //! - RPCS3: GuiConfigs/persistent_settings.dat, por código do jogo (ex.: BLUS30100);
 //! - PPSSPP: a seção [PlayTime] do ppsspp.ini, por código do disco (ex.: ULUS10041);

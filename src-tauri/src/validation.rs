@@ -1,5 +1,5 @@
-//! Confere o que vem da interface antes de usar (nunca confiar cegamente na tela), com os mesmos erros
-//! do app em Electron (src/main/ipc.ts). Os comandos recebem os valores crus (JSON) e passam por aqui.
+//! Confere o que vem da interface antes de usar (nunca confiar cegamente na tela). Os comandos recebem
+//! os valores crus (JSON) e passam por aqui.
 
 use serde_json::Value;
 

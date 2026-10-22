@@ -19,7 +19,8 @@
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
   <img alt="Windows 10 and 11" src="https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4?logo=windows&logoColor=white">
-  <img alt="Electron" src="https://img.shields.io/badge/Electron-47848F?logo=electron&logoColor=white">
+  <img alt="Tauri" src="https://img.shields.io/badge/Tauri-24C8D8?logo=tauri&logoColor=white">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-000000?logo=rust&logoColor=white">
   <img alt="React" src="https://img.shields.io/badge/React-20232A?logo=react&logoColor=61DAFB">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white">
 </p>
@@ -155,7 +156,7 @@ Pull requests are welcome; please run `npm test` before sending one. The code co
 
 ## Build from source
 
-You'll need [Node.js](https://nodejs.org/) 22.12 or newer and [Git](https://git-scm.com/). No Visual Studio or C++ compiler required.
+You'll need [Node.js](https://nodejs.org/) 22.12 or newer, [Git](https://git-scm.com/) and [Rust](https://www.rust-lang.org/tools/install) (stable), which on Windows also asks for the Visual Studio Build Tools with the C++ workload. The first `npm run dev` compiles the Rust side, which takes a few minutes; after that, only what changed.
 
 ```bash
 git clone https://github.com/LamarcKz/Playtrove.git
@@ -168,13 +169,12 @@ npm run dev
 
 | Command | What it does |
 |---|---|
-| `npm run dev` | Opens the app in development mode, updating on every change. It uses a copy of your installed library (`%APPDATA%\Playtrove Dev`), so code in progress never touches your real games |
+| `npm run dev` | Opens the app in development mode: the interface updates on every change, and the app restarts when the Rust code changes. It uses a copy of your installed library (`%APPDATA%\Playtrove Dev`), so code in progress never touches your real games |
 | `npm run dev:nova-copia` | Throws that copy away (with the dev app closed); the next `npm run dev` copies your library again |
-| `npm run build` | Checks the types and builds the app into `out/` |
-| `npm run preview` | Opens the built app |
+| `npm run build` | Checks the types and builds the interface into `out/web` |
 | `npm run typecheck` | Only checks the TypeScript types |
-| `npm test` | Runs all the automated tests: the logic ones and the ones that open the app and click around like a person |
-| `npm run dist` | Builds the installer and the portable version into `dist/` |
+| `npm test` | Runs all the automated tests: the interface logic, the Rust side and the ones that open the app and click around like a person |
+| `npm run dist` | Builds the installer, the portable version and the update files into `dist/` (signing the updates needs the maintainers' private key) |
 
 Want to understand the code? The guide to every folder and file, and where to build each new feature, is in [ESTRUTURA.md](ESTRUTURA.md) (in Portuguese).
 
@@ -189,11 +189,11 @@ Want to understand the code? The guide to every folder and file, and where to bu
 
 ## Built with
 
-- [Electron](https://www.electronjs.org/) with [electron-vite](https://electron-vite.org/) and [electron-builder](https://www.electron.build/)
+- [Tauri](https://tauri.app/) and [Rust](https://www.rust-lang.org/), with the interface built by [Vite](https://vite.dev/)
 - [React](https://react.dev/) and [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/) and [Lucide](https://lucide.dev/) icons
-- [SQLite](https://sqlite.org/) with [better-sqlite3](https://github.com/WiseLibs/better-sqlite3)
-- Tests with [Vitest](https://vitest.dev/) and [Playwright](https://playwright.dev/)
+- [SQLite](https://sqlite.org/) with [rusqlite](https://github.com/rusqlite/rusqlite)
+- Tests with [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/) and Rust's own (`cargo test`)
 
 ## Credits
 

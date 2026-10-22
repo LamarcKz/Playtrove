@@ -1,5 +1,4 @@
-//! As pastas de ROMs (tabela rom_folders) e a varredura que coloca os jogos delas na biblioteca. O mesmo
-//! do app em Electron (src/main/romScanner.ts).
+//! As pastas de ROMs (tabela rom_folders) e a varredura que coloca os jogos delas na biblioteca.
 
 use std::path::Path;
 use std::sync::LazyLock;

@@ -1,5 +1,5 @@
 //! O que o app sabe de cada emulador, a configuração (tabela emulators), a detecção automática, os
-//! cores do RetroArch e o comando para abrir um jogo. O mesmo do app em Electron (src/main/emulators.ts).
+//! cores do RetroArch e o comando para abrir um jogo.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;

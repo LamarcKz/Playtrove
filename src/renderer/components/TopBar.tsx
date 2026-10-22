@@ -15,8 +15,8 @@ interface TopBarProps {
 /**
  * Barra única do topo, no estilo do Playnite: substitui a barra do Windows e junta o logo,
  * as ferramentas da página, o controle conectado e os botões da janela. Arrastar pela área vazia
- * move a janela (no Electron, pela classe app-drag; no Tauri, pelo data-tauri-drag-region, que vale só
- * no próprio elemento, por isso ele também está no logo e no meio da barra).
+ * move a janela (pelo data-tauri-drag-region, que vale só no próprio elemento, por isso ele também
+ * está no logo e no meio da barra).
  * Tem a mesma cor do menu lateral, sem linha entre os dois.
  */
 export function TopBar({ children }: TopBarProps) {
@@ -25,10 +25,7 @@ export function TopBar({ children }: TopBarProps) {
   const isMaximized = useIsMaximized()
 
   return (
-    <header
-      data-tauri-drag-region
-      className="app-drag flex h-12 shrink-0 items-center bg-sidebar text-sidebar-foreground select-none"
-    >
+    <header data-tauri-drag-region className="flex h-12 shrink-0 items-center bg-sidebar text-sidebar-foreground select-none">
       {/* Mesma largura do menu lateral, para o logo ficar alinhado com os ícones de baixo. */}
       <div data-tauri-drag-region className="relative flex w-16 shrink-0 justify-center">
         <AppLogo />
@@ -52,7 +49,7 @@ export function TopBar({ children }: TopBarProps) {
       {/* Controle conectado (DualSense): conexão e bateria. Some quando não há controle. */}
       <ControllerIndicator />
 
-      <div className="app-no-drag flex h-full">
+      <div className="flex h-full">
         <WindowButton label={t.topBar.minimize} onClick={() => minimize()}>
           <Minus />
         </WindowButton>

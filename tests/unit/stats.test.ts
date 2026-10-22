@@ -17,10 +17,7 @@ import {
   summarize,
   topPlayed,
 } from "@/lib/stats"
-import { addEmulatedGame, listGames, recordPlaySession } from "../../src/main/library"
-import { seedSampleGames } from "../../src/main/sampleGames"
-import { getDailyPlaytime } from "../../src/main/stats"
-import { daysAgo, makeGame, memoryDatabase } from "./helpers"
+import { daysAgo, makeGame } from "./helpers"
 
 const games = [
   makeGame({ id: 1, title: "Mar de Estrelas", statusId: 1, favorite: true, playtimeMinutes: 12040, lastPlayedAt: daysAgo(45), platform: "PlayStation 2", library: "PCSX2", addedAt: daysAgo(300) }),
@@ -119,41 +116,5 @@ describe("gráfico de atividade", () => {
     expect([september.label, september.axisLabel]).toEqual(["setembro de 2026", "set"])
     const [inEnglish] = monthColumns([{ month: "2026-09", value: 3 }], "en-US")
     expect([inEnglish.label, inEnglish.axisLabel]).toEqual(["September 2026", "Sep"])
-  })
-})
-
-describe("tempo jogado por dia (sessões no banco)", () => {
-  const at = (day: number, hour: number) => new Date(2026, 8, day, hour, 0).toISOString()
-
-  it("soma as sessões de cada dia (no dia em que terminaram) e completa os dias sem jogo", () => {
-    const db = memoryDatabase()
-    const add = (title: string) =>
-      addEmulatedGame(db, { title, romPath: `D:\\${title}.iso`, platform: "PS2", library: "PCSX2", emulatorId: "pcsx2", core: null }) as number
-    const salto = add("Salto Estelar")
-    const gt4 = add("Pista Real 4")
-    recordPlaySession(db, salto, 30 * 60, at(19, 21))
-    recordPlaySession(db, gt4, 15 * 60, at(19, 23))
-    recordPlaySession(db, salto, 60 * 60, at(18, 1)) // começou no dia 17, conta no dia 18
-    recordPlaySession(db, salto, 2, at(19, 22)) // curta demais (menos de 3 s): não conta
-    recordPlaySession(db, salto, 40 * 60, at(10, 12)) // fora do período
-
-    const days = getDailyPlaytime(db, 3, new Date(2026, 8, 19, 23, 30))
-
-    expect(days).toEqual([
-      { date: "2026-09-17", minutes: 0 },
-      { date: "2026-09-18", minutes: 60 },
-      { date: "2026-09-19", minutes: 45 },
-    ])
-    expect(db.prepare("SELECT COUNT(*) FROM play_sessions").pluck().get()).toBe(4)
-    expect(listGames(db).find((game) => game.id === salto)?.playtimeMinutes).toBe(130)
-  })
-
-  it("jogos de exemplo: uma sessão para cada jogo jogado nos últimos 30 dias", () => {
-    const db = memoryDatabase()
-    seedSampleGames(db)
-    const days = getDailyPlaytime(db, 30)
-    expect(days).toHaveLength(30)
-    expect(days.filter((day) => day.minutes > 0)).toHaveLength(5)
-    expect(days.reduce((sum, day) => sum + day.minutes, 0)).toBe(405)
   })
 })

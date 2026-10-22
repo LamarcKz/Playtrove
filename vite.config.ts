@@ -3,8 +3,8 @@ import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
 
-// A interface (React) para a versão em Tauri: a mesma do Electron (src/renderer), servida pelo Vite no
-// "npm run dev:tauri" e gerada em out/web no build. O Tauri abre o endereço fixo 1420 (tauri.conf.json).
+// A interface (React, em src/renderer): servida pelo Vite no "npm run dev" e gerada em out/web no build,
+// que vai dentro do app. O Tauri abre o endereço fixo 1420 (tauri.conf.json).
 export default defineConfig({
   root: resolve("src/renderer"),
   base: "./",

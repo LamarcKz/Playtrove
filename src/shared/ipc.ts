@@ -1,6 +1,7 @@
 /**
- * Contrato da comunicação entre o processo principal (main) e a interface (renderer).
- * Os dois lados importam daqui, então os nomes dos canais nunca ficam diferentes.
+ * Contrato entre a interface (React) e a parte de trás do app (o Rust, em src-tauri): as funções que a
+ * interface chama (`window.api`, que a ponte lib/tauriApi.ts liga aos comandos do Rust) e os avisos que
+ * o Rust manda, com os mesmos nomes dos dois lados.
  */
 import type { AchievementsConfig, AchievementsOverview, GameAchievements, UnlockedAchievement } from "./achievements"
 import type { ConnectedController } from "./controllers"
@@ -21,115 +22,40 @@ import type {
   UpdateStatus,
 } from "./types"
 
-/** Nomes dos canais IPC. */
-export const IPC_CHANNELS = {
-  /** Pergunta a versão do app. Renderer → main, com resposta (invoke/handle). */
-  appVersion: "app:version",
-  /** Abre no navegador um dos sites de EXTERNAL_LINKS (send/on). */
-  appOpenLink: "app:open-link",
-  /** Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (send/on). */
-  appReportBug: "app:report-bug",
-  /** O idioma do app: perguntar e trocar (invoke/handle). */
-  appGetLanguage: "app:get-language",
-  appSetLanguage: "app:set-language",
-  /** Botões da barra do topo. Renderer → main, sem resposta (send/on). */
-  windowControls: "window:controls",
-  /**
-   * Estado da janela (maximizada ou não). Funciona nos dois sentidos: o renderer pergunta
-   * o estado atual (invoke/handle) e o main avisa sempre que ele muda (webContents.send/on).
-   */
+/** Os avisos do Rust para a interface (o `emit` do Rust e o `listen` da ponte). */
+export const EVENTS = {
+  /** A janela maximizou ou restaurou. */
   windowState: "window:state",
-  /** Pede a biblioteca inteira: jogos, status e regras (invoke/handle). */
-  libraryGet: "library:get",
-  /** Main → renderer: algo mudou na biblioteca e a interface deve pedir os dados de novo. */
+  /** Algo mudou na biblioteca: a interface pede os dados de novo. */
   libraryChanged: "library:changed",
-  /** Muda o status de um jogo (invoke/handle). */
-  gamesSetStatus: "games:set-status",
-  /** Cria, renomeia, reordena e apaga status, e troca as regras automáticas (invoke/handle). */
-  statusesCreate: "statuses:create",
-  statusesRename: "statuses:rename",
-  statusesReorder: "statuses:reorder",
-  statusesDelete: "statuses:delete",
-  statusesSetRules: "statuses:set-rules",
-  /** Emuladores: listar (e detectar sozinho na primeira vez), procurar de novo, escolher o executável e os cores do RetroArch. */
-  emulatorsList: "emulators:list",
-  emulatorsDetect: "emulators:detect",
-  emulatorsPickPath: "emulators:pick-path",
-  emulatorsCores: "emulators:cores",
-  /** Pastas de ROMs: listar, escolher uma pasta (janela do Windows), adicionar, tirar e procurar jogos. */
-  romFoldersList: "rom-folders:list",
-  romFoldersPick: "rom-folders:pick",
-  romFoldersAdd: "rom-folders:add",
-  romFoldersRemove: "rom-folders:remove",
-  romFoldersScan: "rom-folders:scan",
-  /** Abre um jogo no emulador (invoke/handle). */
-  gamesPlay: "games:play",
-  /** Jogos abertos agora: o renderer pergunta (invoke/handle) e o main avisa quando muda (send/on). */
+  /** Os jogos abertos agora (um abriu ou fechou). */
   gamesRunning: "games:running",
-  /** Marca ou desmarca um jogo como favorito (invoke/handle). */
-  gamesSetFavorite: "games:set-favorite",
-  /** Mostra a ROM do jogo no Explorador de Arquivos (invoke/handle). */
-  gamesShowRom: "games:show-rom",
-  /** Salva a avaliação do usuário: nota, dificuldade e análise (invoke/handle). */
-  gamesSetEvaluation: "games:set-evaluation",
-  /** Metadados: o que está configurado, salvar as chaves (conferindo antes) e baixar sozinho para jogos novos. */
-  metadataGetConfig: "metadata:get-config",
-  metadataSetIgdb: "metadata:set-igdb",
-  metadataSetSteamGridDb: "metadata:set-steamgriddb",
-  metadataSetAutoDownload: "metadata:set-auto-download",
-  /** Coloca jogos na fila de download de metadados (invoke/handle). */
-  metadataDownload: "metadata:download",
-  /** Andamento dos downloads: o renderer pergunta (invoke/handle) e o main avisa a cada passo (send/on). */
+  /** O andamento dos downloads de metadados. */
   metadataProgress: "metadata:progress",
-  /** Tempo jogado por dia, nos últimos dias (invoke/handle). */
-  statsDailyPlaytime: "stats:daily-playtime",
-  /**
-   * Conquistas do RetroAchievements: a conta (sem a chave), salvar a conta (conferindo antes),
-   * atualizar agora, as conquistas de um jogo e tudo o que a aba mostra (invoke/handle).
-   */
-  achievementsGetConfig: "achievements:get-config",
-  achievementsSetAccount: "achievements:set-account",
-  achievementsSync: "achievements:sync",
-  achievementsGame: "achievements:game",
-  achievementsOverview: "achievements:overview",
-  /** Main → renderer: começou ou terminou de atualizar as conquistas. */
+  /** Começou ou terminou a atualização das conquistas. */
   achievementsStatus: "achievements:status",
-  /** Main → renderer: conquistas novas desbloqueadas (para o aviso). */
+  /** Conquistas novas desbloqueadas (para o aviso). */
   achievementsUnlocked: "achievements:unlocked",
-  /**
-   * Atualização do app: a situação (o renderer pergunta com invoke/handle e o main avisa quando muda,
-   * com send/on), procurar agora, instalar a versão encontrada e ligar ou desligar a procura ao abrir.
-   */
+  /** A situação da atualização do app mudou. */
   updatesStatus: "updates:status",
-  updatesCheck: "updates:check",
-  updatesInstall: "updates:install",
-  updatesSetAutoCheck: "updates:set-auto-check",
-  /** Só no Tauri: os controles conectados (o renderer pergunta e o Rust avisa quando mudam). */
+  /** Os controles conectados: um conectou, desconectou ou a bateria mudou. */
   controllersChanged: "controllers:changed",
 } as const
 
 /**
- * Sites que a interface pode abrir no navegador (as páginas para criar as chaves de metadados e a de
- * download das versões). A interface manda só o nome; o endereço fica aqui, e o main não abre nenhum outro.
+ * Sites que a interface pode abrir no navegador (as páginas para criar as chaves e a de download das
+ * versões). A interface manda só o nome; os endereços ficam no Rust (src-tauri/src/links.rs), que não
+ * abre nenhum outro.
  */
-export const EXTERNAL_LINKS = {
-  twitchConsole: "https://dev.twitch.tv/console/apps",
-  steamGridDbApi: "https://www.steamgriddb.com/profile/preferences/api",
-  retroAchievementsSettings: "https://retroachievements.org/settings",
-  releases: "https://github.com/LamarcKz/Playtrove/releases/latest",
-} as const
-export type ExternalLink = keyof typeof EXTERNAL_LINKS
+export const EXTERNAL_LINKS = ["twitchConsole", "steamGridDbApi", "retroAchievementsSettings", "releases"] as const
+export type ExternalLink = (typeof EXTERNAL_LINKS)[number]
 
-/** Ações aceitas pelo canal "window:controls". */
-export const WINDOW_CONTROL_ACTIONS = ["minimize", "toggle-maximize", "close"] as const
-export type WindowControlAction = (typeof WINDOW_CONTROL_ACTIONS)[number]
-
-/** O que o canal "window:state" informa sobre a janela. */
+/** O que o aviso "window:state" informa sobre a janela. */
 export interface WindowState {
   isMaximized: boolean
 }
 
-/** Funções que o preload expõe para o React em `window.api`. */
+/** As funções que a interface chama em `window.api` (cada uma é um comando do Rust, pela ponte lib/tauriApi.ts). */
 export interface AppApi {
   app: {
     getVersion: () => Promise<string>
@@ -232,11 +158,8 @@ export interface AppApi {
     /** Chama `callback` sempre que a situação muda. Devolve uma função para parar de ouvir. */
     onStatus: (callback: (status: UpdateStatus) => void) => () => void
   }
-  /**
-   * Só no Tauri, onde o Rust lê os controles (no Electron, a interface lê direto pela WebHID): os
-   * conectados agora e o aviso de quando mudam (um controle conectou, desconectou ou a bateria mudou).
-   */
-  controllers?: {
+  /** Os controles conectados (DualSense), que o Rust lê, e o aviso de quando mudam. */
+  controllers: {
     list: () => Promise<ConnectedController[]>
     /** Chama `callback` com a lista nova. Devolve uma função para parar de ouvir. */
     onChange: (callback: (controllers: ConnectedController[]) => void) => () => void

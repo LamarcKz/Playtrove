@@ -1,5 +1,5 @@
 //! A janela principal: sem a barra padrão do Windows (a barra do topo é a da interface), aberta já
-//! maximizada e com o idioma e a marca DEV no endereço, como no app em Electron (src/main/window.ts).
+//! maximizada e com o idioma e a marca DEV no endereço.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -41,8 +41,7 @@ fn dev_mark() -> Option<&'static str> {
 /// aparecer no idioma certo.
 ///
 /// O navegador da janela (WebView2) guarda o que precisa numa pasta dentro da pasta de dados desta vez
-/// (`webview_folder`), como o Electron: o app de verdade, o modo de desenvolvimento e os testes ficam
-/// cada um com a sua. Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
+/// (`webview_folder`): o app de verdade, o modo de desenvolvimento e os testes ficam cada um com a sua. Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
 pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: PathBuf) -> tauri::Result<WebviewWindow> {
     let mut query = format!("lang={}", language.id());
     if let Some(mark) = dev_mark() {

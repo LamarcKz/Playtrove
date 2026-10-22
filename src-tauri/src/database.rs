@@ -1,5 +1,4 @@
 //! O arquivo do banco SQLite (a biblioteca): abrir, conferir e, se ele estiver danificado, consertar.
-//! O mesmo que o app em Electron faz (src/main/databaseFile.ts e repairNotice.ts).
 
 use std::error::Error;
 use std::fs;

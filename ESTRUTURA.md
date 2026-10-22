@@ -4,56 +4,64 @@ Guia de onde fica cada coisa no Playtrove e de qual arquivo abrir para criar cad
 
 Para trabalhar no projeto, Codex e Claude Code usam o mesmo guia de regras, decisões e estado atual: `CLAUDE.md`. O Codex começa pelo `AGENTS.md`, que orienta a leitura integral desse guia e a consulta a este mapa, sem manter uma segunda cópia das regras.
 
-## A ideia geral: 3 partes que conversam
+## A ideia geral: 2 partes que conversam
 
-Um app Electron roda em partes separadas, que trocam mensagens entre si (isso se chama **IPC**):
+O app é feito com o **Tauri**: uma janela do Windows com a interface dentro (o WebView2, o mesmo motor do Edge) e a parte de trás em **Rust**. As duas partes trocam mensagens:
 
 ```text
- src/renderer                     src/preload                  src/main
+ src/renderer (React)              lib/tauriApi.ts             src-tauri (Rust)
 ┌───────────────────────┐        ┌───────────────┐        ┌──────────────────────────┐
-│ INTERFACE (React)     │ window │ PONTE         │  IPC   │ PROCESSO PRINCIPAL (Node)│
-│ telas, botões, grid,  │ ─.api─►│ libera só     │ ──────►│ janela, banco SQLite,    │
-│ lista de jogos        │ ◄───── │ algumas       │ ◄──────│ arquivos, abrir jogos    │
-│                       │        │ funções       │        │                          │
+│ INTERFACE             │ window │ PONTE         │ invoke │ PARTE DE TRÁS            │
+│ telas, botões, grid,  │ ─.api─►│ cada função   │ ──────►│ janela, banco SQLite,    │
+│ lista de jogos        │ ◄───── │ vira um       │ ◄──────│ arquivos, abrir jogos,   │
+│                       │ avisos │ comando       │  emit  │ internet, controle       │
 └───────────────────────┘        └───────────────┘        └──────────────────────────┘
 ```
 
-- **main** (`src/main`): o "motor" do app, roda no Node. Cria a janela e é o único que pode mexer no banco, no disco e no Windows.
-- **renderer** (`src/renderer`): a interface em React. É uma página web dentro da janela e, por segurança, **não** tem acesso ao Node.
-- **preload** (`src/preload`): a ponte segura. Entrega ao React só as funções liberadas, em `window.api`.
-- **shared** (`src/shared`): código usado pelos dois lados, como os nomes dos canais IPC e o tipo `Game`.
+- **Rust** (`src-tauri`): o "motor" do app. Cria a janela e é o único que mexe no banco, no disco, na internet e no Windows. Cada coisa que a interface pede é um **comando** (`src-tauri/src/commands.rs`).
+- **interface** (`src/renderer`): o React. É uma página web dentro da janela e, por segurança, só fala com o Rust pelos comandos.
+- **ponte** (`src/renderer/lib/tauriApi.ts`): monta o `window.api`, em que cada função chama o comando do Rust de mesmo nome (em snake_case: `games.setStatus` → `games_set_status`) e cada `on...` ouve um aviso do Rust.
+- **shared** (`src/shared`): os tipos e textos que a interface usa, no mesmo formato do que o Rust manda (o `Game`, os dicionários...). Os textos que o Rust mostra saem dos mesmos dicionários (`npm run tauri:mensagens` gera o `src-tauri/messages.json`).
 
-Uma exceção: o controle (DualSense) é lido direto pela interface, pela **WebHID** (o acesso a aparelhos USB e Bluetooth que o próprio navegador oferece). O main só libera esse acesso, e apenas para os controles reconhecidos (`src/main/controllers.ts`). Na versão em Tauri, quem lê é o Rust (`src-tauri/src/controllers.rs`, pelo `hidapi`), e a interface só ouve o aviso `controllers:changed`.
+Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 
-Os canais IPC de hoje:
-
-| Canal | Quem usa | O que faz |
+| Comando | Quem usa | O que faz |
 |---|---|---|
-| `app:version` | `SettingsPage.tsx` (seção "Sobre") | O main devolve a versão do `package.json` |
-| `window:controls` | `TopBar.tsx` (botões da janela) | O main minimiza, maximiza/restaura ou fecha a janela |
-| `window:state` | `TopBar.tsx` (botão maximizar) | O React pergunta se a janela está maximizada, e o main avisa sempre que isso muda (inclusive por duplo clique na barra ou Win+↑). É o exemplo de mensagem **do main para o React** |
-| `library:get` | `hooks/useLibrary.ts` | O React pede a biblioteca inteira: jogos, status e regras |
-| `library:changed` | `hooks/useLibrary.ts` | O main avisa que algo mudou na biblioteca, e o React pede os dados de novo |
-| `games:set-status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
-| `statuses:create`, `statuses:rename`, `statuses:reorder`, `statuses:delete` e `statuses:set-rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
-| `emulators:list`, `emulators:detect`, `emulators:pick-path` e `emulators:cores` | `hooks/useEmulators.ts` (aba Emuladores) | Os emuladores e onde está cada um (na primeira vez, o main procura sozinho), procurar de novo, escolher o executável numa janela do Windows e os cores do RetroArch |
-| `rom-folders:list`, `rom-folders:pick`, `rom-folders:add`, `rom-folders:remove` e `rom-folders:scan` | `hooks/useEmulators.ts` e `RomFolderList.tsx` | As pastas de ROMs: listar, escolher uma pasta numa janela do Windows, adicionar, tirar e procurar jogos nelas |
-| `games:play` | `PlayButton.tsx` | Abre o jogo no emulador. Responde quando o emulador abriu, ou com a mensagem do problema |
-| `games:running` | `hooks/useRunningGames.ts` | Os jogos abertos agora. O main também avisa por esse canal quando um jogo abre ou fecha |
-| `games:set-favorite` e `games:show-rom` | `GameActionsMenu.tsx` (menu "Mais") | Marcam ou desmarcam o favorito e mostram a ROM no Explorador de Arquivos |
-| `games:set-evaluation` | `RatingDialog.tsx` e `ReviewDialog.tsx` (menu "Mais") | Muda só as partes enviadas da avaliação: a nota e a dificuldade, ou a análise (o main confere os valores: de 1 a 10, ou vazio) |
-| `metadata:get-config`, `metadata:set-igdb`, `metadata:set-steamgriddb` e `metadata:set-auto-download` | `MetadataSettings.tsx` (Configurações → Metadados) | O que está configurado (sem as chaves), salvar as chaves (o main confere antes, com um pedido de teste) e ligar ou desligar o download sozinho para jogos novos |
-| `metadata:download` | `MetadataSettings.tsx` e `GameActionsMenu.tsx` | Coloca jogos na fila de download de metadados (sem ids, os que ainda não têm) |
-| `metadata:progress` | `hooks/useMetadataProgress.ts` | O andamento da fila: o React pergunta, e o main avisa a cada passo |
-| `stats:daily-playtime` | `pages/StatsPage.tsx` | O tempo jogado em cada um dos últimos 30 dias (das sessões guardadas no banco) |
-| `achievements:get-config` e `achievements:set-account` | `hooks/useAchievements.ts` e `AchievementsSettings.tsx` (Configurações → Conquistas) | A conta do RetroAchievements (o nome e a situação da atualização; a chave nunca volta) e salvar ou tirar a conta (o main confere no site antes de salvar) |
-| `achievements:sync` | Botões "Atualizar" (aba Conquistas e Configurações) | Busca agora as conquistas de todos os jogos |
-| `achievements:game` e `achievements:overview` | `hooks/useAchievements.ts` | As conquistas de um jogo (o cartão dos Detalhes e a janela "Ver todas") e tudo o que a aba Conquistas mostra |
-| `achievements:status` e `achievements:unlocked` | `hooks/useAchievements.ts` e `AchievementNotifier.tsx` | Do main para o React: começou ou terminou de atualizar, e as conquistas novas (para o aviso no canto) |
-| `app:open-link` | `ServiceCard.tsx` (Configurações → Metadados e Conquistas) | Abre no navegador uma das páginas de `EXTERNAL_LINKS` (onde criar as chaves e a página de download das versões). O React manda só o nome; o main não abre nenhum outro endereço |
-| `updates:status`, `updates:check`, `updates:install` e `updates:set-auto-check` | `hooks/useUpdates.ts`, `UpdateNotice.tsx` e `UpdateSettings.tsx` (Configurações → Sobre) | A atualização do app: a situação (o main também avisa quando ela muda), procurar agora, instalar a versão encontrada (baixa, fecha, instala e abre de novo; na portátil, abre a página de download) e ligar ou desligar a procura ao abrir |
-| `app:report-bug` | `SettingsPage.tsx` (Configurações → Sobre) | Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (`bugReport.ts`) |
-| `app:get-language` e `app:set-language` | `I18nProvider.tsx` e `SettingsPage.tsx` (Configurações → Geral) | O idioma do app e a troca dele (o main guarda a escolha e avisa que a biblioteca mudou, porque o nome dos status padrão muda junto) |
+| `app_version` | `SettingsPage.tsx` (seção "Sobre") | A versão do app (a do `package.json`) |
+| `app_get_language` e `app_set_language` | `I18nProvider.tsx` e `SettingsPage.tsx` (Configurações → Geral) | O idioma do app e a troca dele (o Rust guarda a escolha e avisa que a biblioteca mudou, porque o nome dos status padrão muda junto) |
+| `app_open_link` | `ServiceCard.tsx` (Configurações → Metadados e Conquistas) | Abre no navegador uma das páginas de `EXTERNAL_LINKS` (onde criar as chaves e a página de download das versões). A interface manda só o nome; o Rust não abre nenhum outro endereço (`links.rs`) |
+| `app_report_bug` | `SettingsPage.tsx` (Configurações → Sobre) | Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (`links.rs`) |
+| `window_minimize`, `window_toggle_maximize`, `window_close` e `window_get_state` | `TopBar.tsx` (botões da janela) | Minimizar, maximizar/restaurar e fechar a janela, e perguntar se ela está maximizada |
+| `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
+| `games_set_status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
+| `statuses_create`, `statuses_rename`, `statuses_reorder`, `statuses_remove` e `statuses_set_rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
+| `emulators_list`, `emulators_detect`, `emulators_pick_path` e `emulators_cores` | `hooks/useEmulators.ts` (aba Emuladores) | Os emuladores e onde está cada um (na primeira vez, o Rust procura sozinho), procurar de novo, escolher o executável numa janela do Windows e os cores do RetroArch |
+| `rom_folders_list`, `rom_folders_pick`, `rom_folders_add`, `rom_folders_remove` e `rom_folders_scan` | `hooks/useEmulators.ts` e `RomFolderList.tsx` | As pastas de ROMs: listar, escolher uma pasta numa janela do Windows, adicionar, tirar e procurar jogos nelas |
+| `games_play` e `games_get_running` | `PlayButton.tsx` e `hooks/useRunningGames.ts` | Abre o jogo no emulador (responde quando ele abriu, ou com a mensagem do problema) e os jogos abertos agora |
+| `games_set_favorite` e `games_show_rom` | `GameActionsMenu.tsx` (menu "Mais") | Marcam ou desmarcam o favorito e mostram a ROM no Explorador de Arquivos |
+| `games_set_evaluation` | `RatingDialog.tsx` e `ReviewDialog.tsx` (menu "Mais") | Muda só as partes enviadas da avaliação: a nota e a dificuldade, ou a análise (o Rust confere os valores: de 1 a 10, ou vazio) |
+| `metadata_get_config`, `metadata_set_igdb`, `metadata_set_steam_grid_db` e `metadata_set_auto_download` | `MetadataSettings.tsx` (Configurações → Metadados) | O que está configurado (sem as chaves), salvar as chaves (o Rust confere antes, com um pedido de teste) e ligar ou desligar o download sozinho para jogos novos |
+| `metadata_download` e `metadata_get_progress` | `MetadataSettings.tsx`, `GameActionsMenu.tsx` e `hooks/useMetadataProgress.ts` | Coloca jogos na fila de download de metadados (sem ids, os que ainda não têm) e o andamento da fila |
+| `stats_daily_playtime` | `pages/StatsPage.tsx` | O tempo jogado em cada um dos últimos 30 dias (das sessões guardadas no banco) |
+| `achievements_get_config` e `achievements_set_account` | `hooks/useAchievements.ts` e `AchievementsSettings.tsx` (Configurações → Conquistas) | A conta do RetroAchievements (o nome e a situação da atualização; a chave nunca volta) e salvar ou tirar a conta (o Rust confere no site antes de salvar) |
+| `achievements_sync` | Botões "Atualizar" (aba Conquistas e Configurações) | Busca agora as conquistas de todos os jogos |
+| `achievements_game` e `achievements_overview` | `hooks/useAchievements.ts` | As conquistas de um jogo (o cartão dos Detalhes e a janela "Ver todas") e tudo o que a aba Conquistas mostra |
+| `updates_get_status`, `updates_check`, `updates_install` e `updates_set_auto_check` | `hooks/useUpdates.ts`, `UpdateNotice.tsx` e `UpdateSettings.tsx` (Configurações → Sobre) | A atualização do app: a situação, procurar agora, instalar a versão encontrada (baixa, fecha, instala e abre de novo; na portátil, abre a página de download) e ligar ou desligar a procura ao abrir |
+| `controllers_list` | `hooks/useControllers.ts` | Os controles conectados (DualSense), com a bateria |
+
+E os avisos do Rust para a interface (`EVENTS`, em `src/shared/ipc.ts`):
+
+| Aviso | Quem ouve | Quando chega |
+|---|---|---|
+| `window:state` | `TopBar.tsx` (botão maximizar) | A janela maximizou ou restaurou (pelo botão, por duplo clique na barra ou pelo Win+↑) |
+| `library:changed` | `hooks/useLibrary.ts` | Algo mudou na biblioteca: a interface pede os dados de novo |
+| `games:running` | `hooks/useRunningGames.ts` | Um jogo abriu ou fechou |
+| `metadata:progress` | `hooks/useMetadataProgress.ts` | A cada passo da fila de metadados |
+| `achievements:status` e `achievements:unlocked` | `hooks/useAchievements.ts` e `AchievementNotifier.tsx` | Começou ou terminou de atualizar as conquistas, e as conquistas novas (para o aviso no canto) |
+| `updates:status` | `hooks/useUpdates.ts` | A situação da atualização do app mudou |
+| `controllers:changed` | `hooks/useControllers.ts` | Um controle conectou ou desconectou, ou a bateria mudou |
+
+Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri/src/test_hooks.rs`), que fora deles não fazem nada.
 
 ## Como a tela está dividida
 
@@ -89,144 +97,80 @@ Os canais IPC de hoje:
 
 | Arquivo | O que faz |
 |---|---|
-| `package.json` | Nome, versão (a que aparece em Configurações), dependências e comandos (`npm run ...`) |
-| `electron.vite.config.ts` | Configuração do build (electron-vite) das 3 partes e dos atalhos de import `@/` e `@shared/` |
-| `vite.config.ts` | A interface na versão em Tauri (migração em andamento): a mesma de `src/renderer`, servida pelo Vite no endereço fixo 1420 (`npm run web:dev`, chamado pelo `npm run dev:tauri`) e gerada em `out/web` (`npm run web:build`) |
-| `electron-builder.config.mjs` | Como o app vira o instalador e a versão portátil (electron-builder): o que vai no pacote (o build e as dependências do main, com só o binário do Windows do `better-sqlite3`), o ícone, o instalador de um clique e de onde vêm as versões novas (as releases do GitHub) |
-| `tsconfig.json` | Junta as duas configurações do TypeScript abaixo |
-| `tsconfig.node.json` | TypeScript do lado Node: `src/main`, `src/preload` e `src/shared` |
-| `tsconfig.web.json` | TypeScript do lado da interface: `src/renderer` e `src/shared` |
+| `package.json` | Nome, versão (a que aparece em Configurações e no instalador), dependências e comandos (`npm run ...`) |
+| `vite.config.ts` | A interface: servida pelo Vite no endereço fixo 1420 no `npm run dev` (`npm run web:dev`, que o Tauri chama) e gerada em `out/web` (`npm run web:build`), que vai dentro do app. Também os atalhos de import `@/` e `@shared/` |
+| `tsconfig.json` | Junta as configurações do TypeScript abaixo |
+| `tsconfig.node.json` | TypeScript do `vite.config.ts` |
+| `tsconfig.web.json` | TypeScript da interface: `src/renderer` e `src/shared` |
+| `tsconfig.test.json` | TypeScript dos testes e dos scripts |
 | `components.json` | Configuração do shadcn/ui, usada pelo comando `npx shadcn add` |
-| `.gitignore` | O que o Git deve ignorar (`node_modules`, `out`, `dist`...) |
+| `.gitignore` | O que o Git deve ignorar (`node_modules`, `out`, `dist`, o que o Rust compila em `src-tauri/target`...) |
 | `.gitattributes` | Faz o Git guardar os arquivos de texto sempre com o mesmo tipo de quebra de linha (LF) |
 | `.githooks/` | Travas do Git: impedem commit e envio direto na `main` (ver "Histórico e versões") |
 | `.claude/settings.json` | Configuração do Claude Code para o projeto: os comandos liberados sem perguntar (leitura, conferência de tipos, build e testes rápidos) e os bloqueados pelo guia (ver "Convenções de código" no `CLAUDE.md`). A pasta `.claude/worktrees/` e o `settings.local.json` são só deste computador e ficam fora do Git |
 | `scripts/next-version.mjs` | O comando `npm run versao`: diz qual deve ser a próxima versão, pelos commits desde a última, e monta o rascunho das notas |
 | `scripts/backend-messages.mjs` | O comando `npm run tauri:mensagens`: gera o `src-tauri/messages.json`, com as partes dos dicionários que o Rust usa (nomes dos status padrão, erros e janelas do Windows), nos dois idiomas. As funções viram modelos com `{0}`, `{1}`... O `tests/unit/backendMessages.test.ts` acusa quando o arquivo ficou para trás |
 | `scripts/dev-library.mjs` | O comando `npm run dev:nova-copia`: joga fora a cópia da biblioteca do `npm run dev` (`%APPDATA%\Playtrove Dev`), só com ele fechado; o próximo `npm run dev` copia de novo a do app instalado |
-| `scripts/dist-tauri.mjs` | O comando `npm run dist:tauri`: gera em `dist/tauri/` o instalador do app em Tauri (`Playtrove-Setup-X.Y.Z.exe`, assinado com a chave do projeto), a versão portátil (`Playtrove-X.Y.Z-portable.zip`, só o `Playtrove.exe` e o `portable.txt`), o `latest.json` (a atualização do app em Tauri, com a assinatura) e o `latest.yml` (o que o app em Electron lê: ele aponta para o instalador novo, e é assim que quem tem a 0.7.x passa para o Tauri) |
-| `scripts/dist.mjs` | O comando `npm run dist`: gera em `dist/` o instalador (`Playtrove-Setup-X.Y.Z.exe`, com o `latest.yml` e o `.blockmap` que a atualização automática lê) e a versão portátil (`Playtrove-X.Y.Z-portable.zip`, com o `portable.txt` ao lado do .exe) |
-| `build/` | Arquivos do instalador: o ícone (`icon.ico`, com todos os tamanhos do Windows) e o `portable.txt` que vai no .zip da versão portátil |
-| `tests/unit/` | Testes rápidos da lógica (Vitest), sem abrir o app: filtros, datas, bateria do controle, banco de dados, emuladores, pastas de ROMs, abrir jogos e contar o tempo (com um emulador de mentira), maximizar a janela (`emulatorWindow.test.ts`, com uma janela de teste invisível no lugar do emulador), os idiomas (`i18n.test.ts`: os dois dicionários completos e nenhum texto da tela fora deles) e `npm run versao` |
-| `tests/fakeDiscs.ts` | Discos de mentira para os testes: ISOs, a versão "crua" de CD (os .bin de PS1), o PARAM.SFO dos jogos de PS3 e PSP, o EBOOT.PBP, o começo dos discos de GameCube e Wii (e os formatos do Dolphin) e os jogos de 3DS |
-| `tests/app/` | Testes do app de verdade (Playwright): abrem a janela e clicam como uma pessoa. `helpers.ts` abre o app com uma pasta de dados temporária, cria pastas de arquivos de mentira (`createFiles()`) e simula a janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB e um SteamGridDB de mentira (com imagens geradas na hora), para os testes de metadados não usarem a internet |
+| `scripts/dist.mjs` | O comando `npm run dist`: gera em `dist/` o instalador (`Playtrove-Setup-X.Y.Z.exe`, assinado com a chave do projeto), a versão portátil (`Playtrove-X.Y.Z-portable.zip`, só o `Playtrove.exe` e o `portable.txt`), o `latest.json` (o que o app lê para se atualizar, com a assinatura) e o `latest.yml` (o que o app em Electron, até a 0.7.x, lê: ele aponta para o instalador novo, e é assim que quem tem a 0.7.x passa para o app em Tauri) |
+| `scripts/build-test-app.mjs` | Compila o app dos testes (o build de desenvolvimento do Tauri, com a interface embutida) em `src-tauri/target/testes`. O `npm run test:app` roda ele antes do Playwright |
+| `build/` | O ícone (`icon.ico`, com todos os tamanhos do Windows: o .exe, o instalador e a janela) e o `portable.txt` que vai no .zip da versão portátil |
+| `tests/unit/` | Testes rápidos da lógica da interface (Vitest), sem abrir o app: filtros, datas, estrelas e pimentas, as contas das Estatísticas, a sugestão das pastas de ROMs, os idiomas (`i18n.test.ts`: os dois dicionários completos e nenhum texto da tela fora deles), o `messages.json` do Rust em dia e o `npm run versao`. A lógica da parte de trás tem os testes dela no próprio Rust |
+| `tests/fakeDiscs.ts`, `fakeTrophies.ts` e `fakePng.ts` | Arquivos de mentira para os testes do app: discos (ISOs, os .bin de PS1, o PARAM.SFO, o EBOOT.PBP, os de GameCube, Wii e 3DS), os troféus do RPCS3 e imagens PNG |
+| `tests/app/` | Testes do app de verdade (Playwright): abrem a janela (a versão DEV) e clicam como uma pessoa. `helpers.ts` abre o app dos testes com uma pasta de dados temporária e liga o Playwright na janela pela depuração do WebView2, cria pastas de arquivos de mentira (`createFiles()`) e combina a resposta da janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB, um SteamGridDB e um RetroAchievements de mentira (com imagens geradas na hora), para os testes não usarem a internet |
 | `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
-| `tests/app/covers.spec.ts` | Confere as capas no Electron pelas dimensões e pelo DOM (sem capturas): proporção original, limites de tamanho na Grade, nos Detalhes e no painel lateral, alinhamento dos cartões e desenho padrão durante carregamento, sem imagem ou em erro |
-| `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste |
-| `tsconfig.test.json` | TypeScript dos testes e dos scripts |
+| `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): proporção original, limites de tamanho na Grade, nos Detalhes e no painel lateral, alinhamento dos cartões e desenho padrão durante carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
+| `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste da interface |
 | `README.md` e `README.pt-BR.md` | Página de apresentação do projeto no GitHub, em inglês (a que o GitHub mostra) e em português: logo, sobre, recursos, capturas de tela, download, privacidade, bugs, como compilar e roadmap |
 | `LICENSE` | A licença do código (MIT) |
 | `SECURITY.md` | Como avisar de um problema de segurança (em particular, pelo GitHub) |
-| `.github/workflows/tests.yml` | O robô dos testes (GitHub Actions): a cada envio para a `main` ou a `desenvolvimento` e a cada Pull Request, roda o `npm test` num Windows limpo do GitHub e marca o commit com ✓ ou ✗ |
+| `.github/workflows/tests.yml` | O robô dos testes (GitHub Actions): a cada envio para a `main` ou a `desenvolvimento` e a cada Pull Request, prepara o Rust e roda o `npm test` num Windows limpo do GitHub, e marca o commit com ✓ ou ✗ |
 | `.github/workflows/website.yml` | Pede ao repositório separado `LamarcKz/Playtrove-site` uma publicação após lançar uma estável ou editar, remover ou despublicar uma release (inclusive converter uma estável em pré-lançamento), ou por execução manual. Publicações iniciais de pré-lançamentos são ignoradas; o site seleciona só releases publicadas e estáveis. Usa um GitHub App limitado a Actions no site; não compila o app nem altera sua versão |
 | `.github/ISSUE_TEMPLATE/` | Os formulários das Issues no GitHub: bug (`bug_report.yml`, com os campos `version` e `windows` que o botão "Reportar um problema" preenche) e ideia (`feature_request.yml`) |
 | `docs/logo.svg` | Logo do projeto (o mesmo baú do ícone do app), usado no README |
 | `docs/screenshots/` | Capturas de tela do app usadas nos READMEs: `en/` e `pt-BR/`, com os mesmos nomes de arquivo |
 | `AGENTS.md` | Ponto de entrada do Codex: orienta a leitura integral do guia compartilhado e a consulta a este mapa |
 | `CLAUDE.md` | Guia compartilhado do Codex e do Claude Code: regras de trabalho, decisões e estado atual do projeto |
-| `out/` | Gerada automaticamente pelo build. Não edite |
-| `dist/` | Gerada pelo `npm run dist`: o instalador, a versão portátil e a pasta `win-unpacked` (o app pronto, sem instalar). Não edite |
+| `out/` | Gerada pelo build da interface (`out/web`). Não edite |
+| `dist/` | Gerada pelo `npm run dist`: o instalador, a versão portátil, o `latest.json` e o `latest.yml`. Não edite |
 
-### `src/main`: processo principal
-
-| Arquivo | O que faz |
-|---|---|
-| `index.ts` | Ponto de partida: abre o banco, escolhe o idioma (o salvo ou o do Windows), registra os canais IPC e o protocolo das imagens, libera a leitura dos controles e cria a janela. Ao sair, registra o tempo dos jogos que ainda estão abertos e fecha o banco. Nos testes, usa outra pasta de dados e coloca os jogos de exemplo |
-| `window.ts` | Cria a janela sem a barra do Windows (frameless), com as opções de segurança, e carrega a interface, com o idioma no endereço (`?lang=en`). A janela abre maximizada. `isAppOrigin()` confere se um pedido veio da própria interface |
-| `i18n.ts` | O idioma do processo principal: `t()` dá os textos no idioma do app (os erros que vão para a tela, as janelas do Windows e o aviso do conserto do banco); `loadLanguage()` escolhe na abertura e `saveLanguage()` guarda a troca (tabela `settings`, chave `language`) |
-| `controllers.ts` | Libera a interface para ler os controles reconhecidos pela WebHID, sem janela de escolha. Qualquer outro aparelho continua bloqueado |
-| `ipc.ts` | Responde aos canais IPC (e confere tudo o que chega da interface). `notifyLibraryChanged()` avisa a interface que a biblioteca mudou |
-| `database.ts` | Conexão com o SQLite: `openDatabase()`, `getDatabase()` e `closeDatabase()` |
-| `databaseFile.ts` | Abre o arquivo do banco: confere se está íntegro, conserta se não estiver (guardando o arquivo danificado ao lado) e aplica as migrações |
-| `repairNotice.ts` | O texto do aviso mostrado quando o banco precisou ser consertado (no idioma do app) |
-| `migrations.ts` | Cria e atualiza as tabelas do banco, versão por versão (`MIGRATIONS`: 1 = status, jogos, emuladores, pastas e configurações; 2 = sessões de jogo; 3 = tempo e código do disco dos emuladores; 4 = reler os registros dos emuladores; 5 = a avaliação do usuário: nota, dificuldade e análise; 6 = as conquistas do RetroAchievements; 7 = os troféus do PS3, do RPCS3; 8 = os idiomas: a marca `preset` dos status padrão e os gêneros como o IGDB escreve), e os status com que a biblioteca começa (`DEFAULT_STATUSES`) |
-| `library.ts` | Consultas da biblioteca: jogos, status (criar, renomear, reordenar e apagar; os padrão com o nome no idioma do app) e as regras automáticas. Também coloca os jogos de emulador na biblioteca (`addEmulatedGame()`) e registra cada vez que um jogo foi jogado (`recordPlaySession()`). Grava os metadados (`saveGameMetadata()`, sem apagar o que não foi encontrado) e o favorito |
-| `settings.ts` | Lê e grava as configurações do app (tabela `settings`) |
-| `secrets.ts` | Guarda e lê as chaves das APIs na tabela `settings`, criptografadas pelo Windows (`safeStorage`): só a conta do Windows que salvou consegue ler |
-| `emulators.ts` | O que o app sabe de cada emulador (`EMULATOR_PRESETS`: executável, lugares comuns, extensões de ROM, argumentos e se abre maximizado, `maximize`), onde cada um está (tabela `emulators`), a procura automática (`detectEmulators()`), os cores do RetroArch e o comando para abrir uma ROM (`buildLaunchCommand()`) |
-| `systemSources.ts` | O que vem do Windows: os atalhos do menu Iniciar e da Área de Trabalho (para a procura automática dos emuladores) e os idiomas preferidos (`systemLanguages()`) |
-| `romScanner.ts` | As pastas de ROMs (tabela `rom_folders`) e a varredura: acha as ROMs (`findRoms()`), tira o nome do jogo do nome do arquivo (`titleFromFileName()`) e coloca os novos na biblioteca (`scanRomFolders()`) |
-| `launcher.ts` | Abre um jogo no emulador (`launchGame()`), guarda os jogos abertos e registra o tempo jogado quando o emulador fecha (ou quando o app fecha) |
-| `emulatorWindow.ts` | Maximiza a janela de um emulador quando ela aparecer (`maximizeWindow()`, hoje só no RetroArch): um PowerShell escondido procura a janela do processo a cada 200 ms, por até 10 s, e chama o `ShowWindow` do Windows. Janela sem o botão de maximizar (tela cheia) fica como está |
-| `discs.ts` | Lê o disco de um jogo sem carregar o arquivo inteiro: o código (ex.: SLUS-20100, do SYSTEM.CNF ou do PARAM.SFO; nos de GameCube e Wii, o do começo do disco; nos de 3DS, o id do programa), o nome dos jogos de PS3 e o conjunto de troféus deles (`readPs3TrophySets()`, da pasta PS3_GAME/TROPDIR) |
-| `emulatorPlaytime.ts` | O tempo que cada emulador registrou por conta própria (PCSX2, DuckStation, RPCS3, PPSSPP, Dolphin, Azahar e RetroArch) e a junção disso com a biblioteca |
-| `playtimeSync.ts` | Quando ler esses registros: ao abrir o app, a cada minuto, ao fechar um jogo e depois de cada varredura |
-| `imageFiles.ts` | As imagens dos jogos no disco: o endereço que a interface usa (`imageUrl()`), a extensão pelo tipo da imagem e `saveGameImage()` (troca a imagem antiga do mesmo tipo) |
-| `imageProtocol.ts` | O protocolo `playtrove-img://`, que entrega as imagens para a interface, só de dentro da pasta de imagens |
-| `metadata/http.ts` | Os endereços dos serviços (e os de teste), o tipo `Fetch` e o `MetadataStopError` (erro que para a leva inteira) |
-| `metadata/igdb.ts` | IGDB: token da Twitch, busca por nome (na plataforma do jogo; os gêneros ficam como o IGDB escreve) e os ids das plataformas |
-| `metadata/steamGridDb.ts` | SteamGridDB: busca por nome e a capa e o fundo mais votados |
-| `metadata/libretro.ts` | libretro-thumbnails: o endereço da capa oficial pelo console e pelo nome exato da ROM (sem chave) |
-| `metadata/matching.ts` | Escolhe o resultado certo da busca: o nome de busca a partir do nome da ROM e a nota de parecido de cada resultado |
-| `metadata/download.ts` | `downloadGameMetadata()`: junta os dois serviços para um jogo, baixa as imagens e grava no banco |
-| `metadata/queue.ts` | A fila de downloads: um jogo de cada vez, avisando o andamento |
-| `metadata/credentials.ts` | As chaves do IGDB e do SteamGridDB (guardadas pelo `secrets.ts`) |
-| `achievements/client.ts` | A API do RetroAchievements: conferir a conta, os consoles, o catálogo de um console, o progresso do usuário num jogo e os jogos das conquistas recentes (e os endereços de teste) |
-| `achievements/matching.ts` | Acha o console e o jogo do RetroAchievements para um jogo da biblioteca (os números da série têm que bater; hacks e "subsets" ficam de fora) |
-| `achievements/badges.ts` | As insígnias no disco (`images/achievements/`), o endereço delas para a interface e o download das que faltam |
-| `achievements/store.ts` | O banco das conquistas do RetroAchievements: a conta, o catálogo guardado, o progresso de cada jogo e a parte delas na aba |
-| `achievements/sync.ts` | Uma rodada de atualização: acha os jogos novos no catálogo, escolhe quais atualizar, grava e baixa as insígnias. Devolve as conquistas novas |
-| `achievements/service.ts` | Quando atualizar (ao salvar a conta, a cada 5 minutos, depois de fechar um jogo e no botão "Atualizar"), uma rodada de cada vez, avisando a interface. Os troféus do RPCS3 são relidos a cada minuto e logo depois de fechar um jogo |
-| `achievements/trophyFiles.ts` | Os arquivos de troféus do RPCS3: onde fica a pasta (usuário ativo e `vfs.yml`), a lista de troféus (`TROPCONF.SFM`) e o que foi pego (`TROPUSR.DAT`, com a data no relógio do PS3) |
-| `achievements/trophyStore.ts` | O banco dos troféus: guardar um conjunto (e dizer quais são novos), ligar os jogos de PS3 aos conjuntos (pelo disco ou pelo nome) e o que as telas mostram |
-| `achievements/trophySync.ts` | Uma leitura dos troféus: só os conjuntos que mudaram, as imagens e a ligação com os jogos |
-| `achievements/trophyIcons.ts` | As imagens dos troféus: copiadas diminuídas para `images/trophies/` e o endereço delas para a interface |
-| `achievements/grades.ts` | `countGrades()`: quantos troféus de cada tipo o jogo tem e quantos foram pegos (no RetroAchievements, com a platina de quem pegou todas) |
-| `achievements/views.ts` | Junta as conquistas do RetroAchievements e os troféus do PS3 para as telas: o progresso de cada jogo, as de um jogo e o resumo da aba (`getOverview()`) |
-| `sampleGames.ts` | Os 12 jogos de exemplo (e uma sessão para os jogados nos últimos 30 dias), que entram só nos testes automáticos |
-| `bugReport.ts` | O endereço do formulário de bug no GitHub, com a versão do app (e se é a portátil) e a do Windows já preenchidas |
-| `dataFolder.ts` | Onde ficam os dados (`locateData()`): o nome do banco (`playtrove.db`) e a mudança da pasta da época do Bibliotecaofgames para a do Playtrove, na primeira vez. O banco e a chave que tranca as senhas (`Local State`) vão juntos; se a pasta antiga estiver em uso, ela é usada desta vez. Também acha a pasta da versão portátil (`portableDataFolder()`: `data`, ao lado do .exe, quando o `portable.txt` está lá) |
-| `updateService.ts` | A atualização do app (`createUpdateService()`): procurar versão nova (ao abrir, se a opção estiver ligada, ou quando o usuário pede), baixar avisando o andamento e instalar; na portátil, só abrir a página de download. Não usa o Electron: os testes passam um atualizador de mentira |
-| `updates.ts` | Quem procura as versões de verdade: o `electron-updater`, lendo as releases do GitHub (`LamarcKz/Playtrove`). No `npm run dev`, ninguém; nos testes, um de mentira (`PLAYTROVE_FAKE_UPDATE`). Também diz se o app é a versão portátil (`isPortable`) |
-| `devLibrary.ts` | A biblioteca do `npm run dev` (`devLibrary()`): uma cópia da de verdade em `%APPDATA%\Playtrove Dev`, feita na primeira vez (o banco pelo `VACUUM INTO`, as imagens e a chave das senhas). A de verdade só é lida |
-| `testMode.ts` | O que os testes automáticos pedem pelas variáveis `PLAYTROVE_*` (pasta de dados temporária, jogos de exemplo, idioma do Windows, servidor de mentira...). O app instalado ignora todas |
-| `stats.ts` | `getDailyPlaytime()`: o tempo jogado em cada um dos últimos dias, somando as sessões (cada uma conta no dia em que terminou) |
-
-### `src/preload`: a ponte
+### `src/shared`: os tipos e os textos
 
 | Arquivo | O que faz |
 |---|---|
-| `index.ts` | Monta o `window.api` com as funções que o React pode usar |
-| `index.d.ts` | Avisa o TypeScript do React que `window.api` existe (para ter autocompletar) |
-
-### `src/shared`: usado pelos dois lados
-
-| Arquivo | O que faz |
-|---|---|
-| `ipc.ts` | Nomes dos canais (`IPC_CHANNELS`), ações da janela, as páginas que o app pode abrir no navegador (`EXTERNAL_LINKS`) e o formato do `window.api` (`AppApi`) |
-| `i18n/index.ts` | Os idiomas (`Language`, `LANGUAGES` com o nome de cada um na própria língua), `messagesFor()` (os textos de um idioma), `languageFromSystem()` (o idioma pelo do Windows), os status padrão (`StatusPreset`) e `genreLabel()` (um gênero do IGDB no idioma do app) |
-| `i18n/ptBR.ts` | **Todos os textos do app em português**: o dicionário base, que define o formato (`Messages`). As funções montam os textos com números e nomes, com o plural certo |
+| `ipc.ts` | O contrato com o Rust: os avisos (`EVENTS`), os nomes das páginas que o app pode abrir no navegador (`EXTERNAL_LINKS`, com os endereços em `src-tauri/src/links.rs`) e o formato do `window.api` (`AppApi`) |
+| `i18n/index.ts` | Os idiomas (`Language`, `LANGUAGES` com o nome de cada um na própria língua), `messagesFor()` (os textos de um idioma) e `genreLabel()` (um gênero do IGDB no idioma do app) |
+| `i18n/ptBR.ts` | **Todos os textos do app em português**: o dicionário base, que define o formato (`Messages`). As funções montam os textos com números e nomes, com o plural certo. As partes que o Rust mostra (`statusPresets`, `errors`, `dialogs` e `repair`) vão para o `src-tauri/messages.json` pelo `npm run tauri:mensagens` |
 | `i18n/en.ts` | Os mesmos textos em inglês (o TypeScript acusa se faltar alguma chave) |
-| `achievements.ts` | As conquistas: a raridade no estilo da PlayStation (`RARITIES` e `rarityOf()`: comum a partir de 50% dos jogadores, rara a partir de 15%, muito rara a partir de 5% e ultrarrara abaixo disso), os tipos de troféu do PS3 (`TROPHY_GRADES`: platina, ouro, prata e bronze; os nomes ficam nos dicionários), o tipo das conquistas do RetroAchievements pelos pontos (`gradeForPoints()`) e o que o main manda para a tela (o progresso de um jogo, as conquistas dele, o resumo da aba e a situação da conta) |
-| `evaluation.ts` | A avaliação do usuário: a nota e a dificuldade vão de 1 a 10, em meios ícones (`SCORE_MAX`, `isScore()` e `formatScore()`: 9 → "4,5", ou "4.5" em inglês), o tamanho máximo da análise e o formato que a janela salva (`GameEvaluation`) |
-| `types.ts` | Tipos de dados: `DailyPlaytime` (o tempo de um dia, para as Estatísticas), `Game` (o jogo), `Status` (um status), `StatusRules` (as regras automáticas), `LibrarySnapshot` (tudo junto, como a interface recebe) os da aba Emuladores (`EmulatorInfo`, `RetroArchCore`, `RomFolder` e `ScanResult`) e os dos metadados (`MetadataConfig` e `MetadataProgress`) |
+| `achievements.ts` | O que o Rust manda das conquistas: a raridade, os tipos de troféu do PS3 (`TROPHY_GRADES`: platina, ouro, prata e bronze; os nomes ficam nos dicionários), o progresso de um jogo, as conquistas dele, o resumo da aba e a situação da conta |
+| `evaluation.ts` | A avaliação do usuário: `formatScore()` (9 → "4,5", ou "4.5" em inglês), o tamanho máximo da análise e o formato que a janela salva (`GameEvaluation`) |
+| `types.ts` | Tipos de dados: `DailyPlaytime` (o tempo de um dia, para as Estatísticas), `Game` (o jogo), `Status` (um status), `StatusRules` (as regras automáticas), `LibrarySnapshot` (tudo junto, como a interface recebe), os da aba Emuladores (`EmulatorInfo`, `RetroArchCore`, `RomFolder` e `ScanResult`), os dos metadados (`MetadataConfig` e `MetadataProgress`) e o da atualização (`UpdateStatus`) |
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
-| `controllers.ts` | Os controles reconhecidos (`SUPPORTED_CONTROLLERS`: DualSense e DualSense Edge), usados pelo main para liberar o acesso e pela interface para mostrar o nome, e os tipos do controle conectado e da bateria (`ConnectedController`), os mesmos que o Rust manda |
+| `controllers.ts` | O controle conectado e a bateria (`ConnectedController`), como o Rust manda |
 
 ### `src/renderer`: interface React
 
 | Arquivo | O que faz |
 |---|---|
-| `index.html` | HTML da janela. Tem a classe `dark` (tema escuro padrão) e a regra de segurança (CSP), que só aceita imagens do app e do protocolo `playtrove-img:` |
-| `main.tsx` | Liga o React na página e carrega o CSS |
+| `index.html` | HTML da janela. Tem a classe `dark` (tema escuro padrão) e a regra de segurança (CSP), que só aceita imagens do app e do protocolo das imagens do Rust (`http://playtrove-img.localhost`) |
+| `main.tsx` | Liga a ponte com o Rust (`window.api`), o React na página e o CSS |
+| `api.d.ts` | Avisa o TypeScript que `window.api` existe e qual é o formato dele (`AppApi`) |
 | `App.tsx` | Layout: barra do topo + menu lateral + página atual. Guarda a página aberta, o texto da busca, o modo da Biblioteca e a biblioteca (assim nada disso se perde ao trocar de aba). Liga o idioma (`I18nProvider`) e os avisos rápidos (`ToastProvider`) |
 | `styles/globals.css` | Tailwind e **todas as cores do app** (variáveis CSS dos temas escuro e claro) |
 | `hooks/useI18n.ts` | `useI18n()`: o idioma, os textos dele (`t`, ex.: `t.pages.library`) e `setLanguage()` para trocar |
 | `hooks/useLibrary.ts` | A biblioteca que está no banco (jogos, status e regras). Recarrega sozinha quando algo muda. `setGameStatus()` muda o status de um jogo |
 | `hooks/useStatuses.ts` | Os status para qualquer componente: `useStatuses()` (a lista) e `useStatusName()` (o nome pelo id) |
-| `hooks/useControllers.ts` | Acompanha os controles conectados: aparecem e somem sozinhos, e a bateria é lida de novo a cada 5 segundos. No Tauri, só ouve o Rust (`window.api.controllers`); no Electron, lê pela WebHID |
+| `hooks/useControllers.ts` | Acompanha os controles conectados: aparecem e somem sozinhos, e a bateria é lida de novo a cada 5 segundos. Quem lê é o Rust; a interface só ouve (`window.api.controllers`) |
 | `hooks/useEmulators.ts` | Os dados da aba Emuladores (emuladores, cores do RetroArch e pastas de ROMs) e as ações de cada um |
-| `hooks/useRunningGames.ts` | Os jogos abertos agora (o main avisa quando um abre ou fecha) |
+| `hooks/useRunningGames.ts` | Os jogos abertos agora (o Rust avisa quando um abre ou fecha) |
 | `hooks/useToast.ts` | `useToast()`: mostra um aviso rápido no canto da tela (ex.: "3 jogos novos na biblioteca") |
 | `hooks/useMetadataProgress.ts` | O andamento do download de metadados, com um aviso de quando a leva termina |
-| `hooks/useAchievements.ts` | A conta do RetroAchievements e a situação da atualização (acompanha os avisos do main), as conquistas de um jogo e o resumo da aba Conquistas |
-| `lib/dualsense.ts` | Como ler o DualSense: `getConnection()` descobre se ele está no USB ou no Bluetooth, `parseBattery()` tira a bateria dos dados do controle e `readBattery()` abre o controle por um instante para fazer a leitura |
+| `hooks/useAchievements.ts` | A conta do RetroAchievements e a situação da atualização (acompanha os avisos do Rust), as conquistas de um jogo e o resumo da aba Conquistas |
 | `lib/utils.ts` | `cn()`: junta classes do Tailwind sem conflito |
 | `lib/devBuild.ts` | `devMark`: a janela roda o código em desenvolvimento, no `npm run dev` (`?dev=library`, com a cópia da biblioteca) ou nos testes automáticos (`?dev=tests`). A barra do topo mostra a marca DEV |
 | `lib/format.ts` | Textos no idioma do app: `formatPlaytime()` ("12 h 30 min" ou "12h 30m"), `formatLastPlayed()` ("Hoje", "Há 5 dias", "12/08/2026"), `formatReleaseDate()` ("14/10/2003" ou "10/14/2003"), `formatDateTime()`, `formatTime()`, `listTitles()` (os primeiros nomes e "e mais 2", nos avisos) e `shortCoreName()` (o nome curto de um core do RetroArch, como "mGBA") |
 | `lib/filters.ts` | A busca e os filtros: `LibraryFilters` (o que pode ser filtrado), `filterGames()` (quem passa), as faixas de tempo jogado, as de nota e dificuldade (`SCORE_RANGES`) e o período de "Recentes" (`RECENT_DAYS`, 30 dias) |
 | `lib/errors.ts` | `errorMessage()`: a mensagem de um erro para mostrar ao usuário |
-| `lib/tauriApi.ts` | A ponte da versão em Tauri: `isTauri()` e `createTauriApi()`, o mesmo `window.api` do preload do Electron, com cada função chamando o comando do Rust de mesmo nome (em snake_case) e os avisos pelos mesmos nomes dos canais. O `main.tsx` liga a ponte quando a interface roda no Tauri |
+| `lib/tauriApi.ts` | A ponte com o Rust (`createTauriApi()`): o `window.api`, com cada função chamando o comando do Rust de mesmo nome (em snake_case) e cada `on...` ouvindo um aviso de `EVENTS` |
 | `lib/metadata.ts` | `describeMetadataResult()`: o aviso que resume uma leva de downloads de metadados |
 | `lib/score.ts` | As contas das estrelas e das pimentas: quanto de cada ícone fica pintado, a nota escolhida pelo clique ou pelo teclado e o texto para leitores de tela ("4,5 de 5 estrelas") |
 | `lib/stats.ts` | As contas das Estatísticas: o resumo, os mais jogados, os grupos por plataforma e biblioteca, os jogos por status, o eixo do gráfico de atividade e as colunas dos gráficos por dia e por mês (`dayColumns()` e `monthColumns()`) |
@@ -249,7 +193,7 @@ Os canais IPC de hoje:
 
 | Arquivo | O que faz |
 |---|---|
-| `TopBar.tsx` | Barra única do topo, no estilo do Playnite: logo, ferramentas da página, o andamento dos metadados, o controle e os botões minimizar, maximizar/restaurar e fechar. O ícone do meio acompanha o estado da janela (canal `window:state`) |
+| `TopBar.tsx` | Barra única do topo, no estilo do Playnite: logo, ferramentas da página, o andamento dos metadados, o controle e os botões minimizar, maximizar/restaurar e fechar. O ícone do meio acompanha o estado da janela (aviso `window:state`). Arrastar pela barra move a janela (`data-tauri-drag-region`) |
 | `AppLogo.tsx` | Logo do app (controle num quadrado azul), usado na barra do topo e em Configurações |
 | `ControllerIndicator.tsx` | Controle conectado na barra do topo: ícone, USB ou Bluetooth, bateria (verde carregando, vermelha quando fraca) e o texto completo no tooltip |
 | `MetadataStatus.tsx` | "Metadados 3/7" na barra do topo enquanto os metadados são baixados (o jogo da vez no tooltip) e o aviso com o resumo no fim |
@@ -260,12 +204,12 @@ Os canais IPC de hoje:
 | `FilterSelect.tsx` | Um seletor de filtro, como os do Playnite: o campo mostra as opções marcadas (ou "Todos") e abre a lista com caixinhas e a quantidade de jogos de cada opção |
 | `SearchBar.tsx` | Campo de busca (só guarda o texto) |
 | `EmptyState.tsx` | Aviso de "nada aqui ainda", usado nas páginas vazias, com um botão opcional |
-| `I18nProvider.tsx` | O idioma para toda a interface (`useI18n()`): começa com o que veio no endereço da janela, confere com o main e troca na hora |
+| `I18nProvider.tsx` | O idioma para toda a interface (`useI18n()`): começa com o que veio no endereço da janela, confere com o Rust e troca na hora |
 | `RichText.tsx` | Um texto do dicionário com partes em negrito (`**assim**`), usado nos passos a passo das chaves |
 | `ToastProvider.tsx` | Os avisos rápidos (`useToast()`): aparecem no canto de baixo, à direita, no máximo 3 de cada vez, e somem sozinhos. O `pinned` fica no alto da pilha enquanto quiser (o aviso de versão nova) |
 | `UpdateNotice.tsx` | O aviso de versão nova, no canto dos avisos: "Atualizar" (ou "Baixar", na portátil) e "Agora não"; depois do clique, o andamento do download |
 | `UpdateSettings.tsx` | Configurações → Sobre: a situação da atualização, "Procurar atualizações" (ou "Atualizar", com versão nova) e a opção de procurar ao abrir o app |
-| `AchievementNotifier.tsx` | Ouve o main e mostra o aviso "Conquista desbloqueada" ou "Troféu desbloqueado" (4 ou mais de uma vez viram um aviso só) |
+| `AchievementNotifier.tsx` | Ouve o Rust e mostra o aviso "Conquista desbloqueada" ou "Troféu desbloqueado" (4 ou mais de uma vez viram um aviso só) |
 | `ServiceCard.tsx` | O cartão de um serviço com chave (IGDB, SteamGridDB e RetroAchievements): configurado ou não, os campos, o passo a passo e o botão que abre o site |
 | `MetadataSettings.tsx` | Configurações → Metadados: as chaves do IGDB e do SteamGridDB (com o passo a passo para criar cada uma e o botão que abre o site), baixar sozinho para os jogos novos e o botão "Baixar metadados" |
 | `AchievementsSettings.tsx` | Configurações → Conquistas: a conta do RetroAchievements (usuário e Web API Key) e a situação da atualização, com "Atualizar agora" |
@@ -342,9 +286,9 @@ Os canais IPC de hoje:
 
 **`ui/`**: componentes do shadcn/ui (`button`, `input`, `textarea`, `separator`, `tooltip`, `toggle`, `toggle-group`, `checkbox`, `select`, `dropdown-menu` e `dialog`), criados pelo `npx shadcn add`. O `dropdown-menu` é a lista que abre nos seletores de filtro.
 
-### `src-tauri`: a versão em Rust (migração em andamento)
+### `src-tauri`: a parte de trás, em Rust
 
-A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (escolha do usuário em 2026-10-21). A interface é a mesma de `src/renderer`; no lugar do preload, ela usa a ponte `lib/tauriApi.ts`. Cada módulo corresponde a um arquivo de `src/main`, com o nome em snake_case. O que ainda não foi migrado (ver "Estado atual" no `CLAUDE.md`) não tem comando: a parte da tela que depende dele não funciona no Tauri por enquanto.
+O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não é tela (até a 0.7.x, isso era o processo principal do Electron; a passagem foi em 2026-10-21, escolha do usuário). Um módulo por assunto; os testes de cada um ficam no fim do próprio arquivo (`#[cfg(test)]`), com bancos em memória e pastas temporárias.
 
 | Arquivo | O que faz |
 |---|---|
@@ -355,8 +299,8 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `messages.json` | Os textos que o Rust mostra, gerados dos dicionários pelo `npm run tauri:mensagens` (não editar à mão) |
 | `rustfmt.toml` | A formatação do Rust (`cargo fmt`) |
 | `src/main.rs` | Abre o app: a pasta de dados, o banco (com o aviso, se ele foi consertado), o idioma, os jogos de exemplo dos testes, o protocolo das imagens, a janela e a lista dos comandos |
-| `src/commands.rs` | Os comandos que a interface chama (o `ipc.ts` do Electron). Recebem os valores crus (JSON), conferem pelo `validation.rs` e avisam a tela (`library:changed`) depois de gravar |
-| `src/validation.rs` | Confere o que vem da tela (ids, textos, sim ou não, a ordem e as regras dos status, a avaliação), com os mesmos erros do Electron |
+| `src/commands.rs` | Os comandos que a interface chama. Recebem os valores crus (JSON), conferem pelo `validation.rs` e avisam a tela (`library:changed`) depois de gravar |
+| `src/validation.rs` | Confere o que vem da tela (ids, textos, sim ou não, a ordem e as regras dos status, a avaliação) |
 | `src/errors.rs` | `AppError`: o erro que a tela mostra, já no idioma do app (`AppError::text`) |
 | `src/dates.rs` | `iso()`: as datas no formato do banco (o `toISOString()` do JavaScript) |
 | `src/sample_games.rs` | Os 12 jogos de exemplo dos testes (`PLAYTROVE_SAMPLE_GAMES=1`) |
@@ -365,7 +309,7 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `src/rom_scanner.rs` | As pastas de ROMs (tabela `rom_folders`) e a varredura: o nome limpo do jogo (`title_from_file_name`), as ISOs e pastas de PS3 e o .cue no lugar dos .bin |
 | `src/discs.rs` | O código do jogo no disco (PS1, PS2, PS3, PSP, GameCube, Wii e 3DS) e o nome dos jogos de PS3, lendo só alguns bytes. Os discos de mentira dos testes ficam no módulo `fake_discs` |
 | `src/launcher.rs` | O Jogar: abre o emulador separado do app, guarda os jogos abertos e, quando ele fecha, devolve o tempo jogado. Ao fechar o app, `finish_all` registra o tempo até ali |
-| `src/emulator_window.rs` | Maximiza a janela do RetroArch quando ela aparecer, pelas funções do Windows (sem o PowerShell do Electron) |
+| `src/emulator_window.rs` | Maximiza a janela do RetroArch quando ela aparecer, pelas funções do Windows |
 | `src/emulator_playtime.rs` | Lê o tempo que os emuladores registram (PCSX2, DuckStation, RPCS3, PPSSPP, Dolphin, Azahar e RetroArch) e junta com a biblioteca, sem contar duas vezes |
 | `src/playtime_sync.rs` | Relê esses registros ao abrir, a cada minuto, depois de uma varredura e logo depois de um jogo fechar |
 | `src/stats.rs` | A atividade por dia das Estatísticas (últimos 30 dias, no horário do computador) |
@@ -377,20 +321,21 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | `src/metadata/download.rs` | O download de um jogo: a ordem das fontes de cada imagem e a gravação, sem apagar o que o jogo já tinha |
 | `src/metadata/queue.rs` | A fila: um jogo de cada vez, numa linha de execução à parte, com o andamento (`MetadataProgress`) |
 | `src/metadata/credentials.rs` | As chaves e a configuração de Configurações → Metadados (a tela nunca recebe as chaves) |
-| `src/achievements/` | As conquistas, um arquivo para cada um de `src/main/achievements` (em snake_case): os tipos que a tela recebe (`types.rs`), o RetroAchievements (`client.rs`, `matching.rs`, `store.rs`, `sync.rs` e `badges.rs`), os troféus do RPCS3 (`trophy_files.rs`, `trophy_store.rs`, `trophy_sync.rs` e `trophy_icons.rs`), o que as telas mostram (`views.rs`) e o serviço que atualiza sozinho e avisa (`service.rs`) |
+| `src/achievements/` | As conquistas: os tipos que a tela recebe (`types.rs`), o RetroAchievements (`client.rs`, `matching.rs`, `store.rs`, `sync.rs` e `badges.rs`), os troféus do RPCS3 (`trophy_files.rs`, `trophy_store.rs`, `trophy_sync.rs` e `trophy_icons.rs`), o que as telas mostram (`views.rs`) e o serviço que atualiza sozinho e avisa (`service.rs`) |
 | `src/metadata/service.rs` | A ligação com o app: a sessão do IGDB guardada entre os downloads, a fila e os avisos `metadata:progress` |
 | `src/controllers.rs` | O DualSense na barra do topo: acha os controles pelo `hidapi` a cada segundo (USB ou Bluetooth, pelo que o Windows diz do aparelho), lê a bateria a cada 5 s (abre, espera o relatório completo e fecha, pedindo a configuração no modo simples do Bluetooth) e avisa a tela (`controllers:changed`) |
-| `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, os mesmos do `ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |
-| `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma do Electron) |
-| `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta como o Electron: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
-| `src/migrations.rs` | Cria ou atualiza as tabelas, com as mesmas migrações do Electron, na mesma ordem |
+| `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, com os mesmos nomes do `src/shared/ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |
+| `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma das versões em Electron) |
+| `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
+| `src/migrations.rs` | Cria ou atualiza as tabelas. As 8 primeiras migrações são as do app em Electron (até a 0.7.x), na mesma ordem, para o banco de quem vem de lá abrir direto |
 | `src/settings.rs` | Ler e gravar na tabela `settings` |
 | `src/i18n.rs` | O idioma (o escolhido ou o do Windows) e `text()`, que busca os textos no `messages.json` |
 | `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus. Também muda o status, o favorito e a avaliação de um jogo, e cria, renomeia, reordena e apaga status e troca as regras automáticas |
-| `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (no Tauri, `http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens; o tipo de cada imagem e a gravação de uma imagem nova no lugar da antiga |
-| `src/updates.rs` | A atualização do app (o `updateService.ts` e o `updates.ts` do Electron): procurar versão nova (5 s depois de abrir, se a opção estiver ligada, ou quando o usuário pede), baixar avisando o andamento (`updates:status`) e instalar; na portátil, só abrir a página de download. Quem procura é o atualizador do Tauri, que só instala o que tiver a assinatura da chave do projeto; nos testes, um de mentira (`PLAYTROVE_FAKE_UPDATE`); no `npm run dev:tauri`, ninguém |
+| `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (`http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens e fora da linha da janela; o tipo de cada imagem e a gravação de uma imagem nova no lugar da antiga |
+| `src/updates.rs` | A atualização do app: procurar versão nova (5 s depois de abrir, se a opção estiver ligada, ou quando o usuário pede), baixar avisando o andamento (`updates:status`) e instalar; na portátil, só abrir a página de download. Quem procura é o atualizador do Tauri, que só instala o que tiver a assinatura da chave do projeto; nos testes, um de mentira (`PLAYTROVE_FAKE_UPDATE`); no `npm run dev:tauri`, ninguém |
 | `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state`. No app de verdade, abrir de novo traz para a frente a que já está aberta (`bring_to_front`, pela janela única do `main.rs`). O WebView2 guarda o que precisa em `<pasta de dados>\webview`, para o app de verdade, o desenvolvimento e os testes poderem ficar abertos juntos |
 | `src/state.rs` | O banco e o idioma enquanto o app está aberto |
+| `src/test_hooks.rs` | Só para os testes do app (`tests/app`), e só com a pasta de dados deles: no lugar da janela de "Abrir", do navegador e do Explorador, respostas combinadas e uma lista do que foi pedido; o tamanho da janela; e imagens retidas até o teste liberar (para conferir a tela enquanto carregam). Fora dos testes, os comandos `test_*` não fazem nada |
 | `src/test_mode.rs` | As variáveis `PLAYTROVE_*` dos testes, que só valem no build de desenvolvimento |
 
 ## Onde implementar cada funcionalidade futura
@@ -400,69 +345,70 @@ A parte de trás do app reescrita em Rust, com o Tauri 2 no lugar do Electron (e
 | Mudar como a busca e os filtros funcionam | `src/renderer/lib/filters.ts` → `filterGames()` |
 | Criar um filtro novo (ex.: Série, quando o `Game` tiver esse dado) | Em `src/renderer/lib/filters.ts`: o campo em `LibraryFilters`, em `EMPTY_FILTERS` e em `hasActiveFilters()`, e a regra em `filterGames()`. Depois, em `src/renderer/components/FilterPanel.tsx`, um item em `VALUE_FILTERS` (as opções e as quantidades são contadas sozinhas) |
 | Mudar o período de "Recentes" | `src/renderer/lib/filters.ts` → `RECENT_DAYS` |
-| Mudar as tabelas do banco | `src/main/migrations.ts`: uma migração nova no fim de `MIGRATIONS`. Nunca mude uma migração que já saiu numa versão |
-| Ler ou gravar algo da biblioteca | `src/main/library.ts`, mais um canal IPC (receita abaixo). Depois de gravar, chame `notifyLibraryChanged()` |
-| Mudar os status com que um banco novo começa | `src/main/migrations.ts` → `DEFAULT_STATUSES` (e o nome de cada um nos dois idiomas, em `statusPresets`, nos dicionários de `src/shared/i18n/`). Os status do usuário mudam em Configurações → Status |
-| Adicionar informações a um jogo (gênero, capa...) | O campo no tipo `Game` (`src/shared/types.ts`), a coluna na tabela `games` (migração nova) e `toGame()` em `src/main/library.ts` |
+| Mudar as tabelas do banco | `src-tauri/src/migrations.rs`: uma migração nova no fim de `MIGRATIONS`. Nunca mude uma migração que já saiu numa versão |
+| Ler ou gravar algo da biblioteca | `src-tauri/src/library.rs`, mais um comando (receita abaixo). Depois de gravar, chame `notify_library_changed()` |
+| Mudar os status com que um banco novo começa | `src-tauri/src/migrations.rs` (os status padrão) e o nome de cada um nos dois idiomas, em `statusPresets`, nos dicionários de `src/shared/i18n/` (depois, `npm run tauri:mensagens`). Os status do usuário mudam em Configurações → Status |
+| Adicionar informações a um jogo (gênero, capa...) | O campo no tipo `Game` (`src/shared/types.ts`) e no `Game` de `src-tauri/src/library.rs`, a coluna na tabela `games` (migração nova) e a leitura dela em `library.rs` |
 | Mostrar essas informações nos detalhes | `src/renderer/components/GameInfoList.tsx` → lista `fields` |
-| Suportar outro emulador | `src/main/emulators.ts` → um item novo em `EMULATOR_PRESETS` (nome do executável, lugares comuns, extensões e argumentos; o emulador precisa fechar junto com o jogo, se tiver uma opção para isso) e o id dele em `EmulatorId` (`src/shared/types.ts`). Se ele registrar o tempo jogado, ensine o app a ler em `src/main/emulatorPlaytime.ts` |
-| Mudar de onde vêm as capas | `src/main/metadata/download.ts` → a ordem das fontes em `candidates`. Uma fonte nova vira um módulo em `src/main/metadata/` |
-| Ver o que o conserto do banco faz | `src/main/databaseFile.ts` → `repairDatabase()`; o texto do aviso fica em `repairNotice.ts` |
-| Mudar os argumentos que abrem um jogo (ex.: sem tela cheia) | `src/main/emulators.ts` → `args` do emulador em `EMULATOR_PRESETS` |
-| Abrir outro emulador maximizado | `src/main/emulators.ts` → `maximize: true` no emulador em `EMULATOR_PRESETS` (quem maximiza é o `maximizeWindow()`, em `src/main/emulatorWindow.ts`) |
-| Mudar como o nome do jogo sai do nome do arquivo | `src/main/romScanner.ts` → `titleFromFileName()` |
+| Suportar outro emulador | `src-tauri/src/emulators.rs` → um item novo em `PRESETS` (nome do executável, lugares comuns, extensões e argumentos; o emulador precisa fechar junto com o jogo, se tiver uma opção para isso) e o id dele em `EmulatorId` (no Rust e em `src/shared/types.ts`). Se ele registrar o tempo jogado, ensine o app a ler em `src-tauri/src/emulator_playtime.rs` |
+| Mudar de onde vêm as capas | `src-tauri/src/metadata/download.rs` → a ordem das fontes de cada imagem. Uma fonte nova vira um módulo em `src-tauri/src/metadata/` |
+| Ver o que o conserto do banco faz | `src-tauri/src/database.rs` → o conserto e o aviso (`describe_repair`) |
+| Mudar os argumentos que abrem um jogo (ex.: sem tela cheia) | `src-tauri/src/emulators.rs` → os argumentos do emulador em `PRESETS` |
+| Abrir outro emulador maximizado | `src-tauri/src/emulators.rs` → `maximize: true` no emulador (quem maximiza é o `src-tauri/src/emulator_window.rs`) |
+| Mudar como o nome do jogo sai do nome do arquivo | `src-tauri/src/rom_scanner.rs` → `title_from_file_name()` |
 | Reconhecer outro nome de pasta de ROMs (ex.: "Dreamcast") | `src/shared/romFolders.ts` → `KNOWN_FOLDERS` |
-| Mudar o tempo mínimo que conta como jogado | `src/main/library.ts` → `MIN_SESSION_SECONDS` |
+| Mudar o tempo mínimo que conta como jogado | `src-tauri/src/library.rs` (o mínimo de segundos de uma sessão) |
 | Pôr outro bloco nas Estatísticas (ex.: por gênero) | A conta em `src/renderer/lib/stats.ts` (ex.: `groupGames()` com os gêneros) e o bloco em `src/renderer/pages/StatsPage.tsx` (`StatsCard` + `BarList`) |
-| Mudar o período do gráfico de atividade | `ACTIVITY_DAYS` em `src/main/ipc.ts` (e os textos "30 dias" nos dicionários, em `stats`) |
+| Mudar o período do gráfico de atividade | `ACTIVITY_DAYS` em `src-tauri/src/stats.rs` (e os textos "30 dias" nos dicionários, em `stats`) |
 | Mudar a cor das barras dos gráficos | `--chart-bar` em `src/renderer/styles/globals.css` (confira o contraste com o fundo dos cartões: pelo menos 3:1) |
-| Mudar as faixas de raridade das conquistas | `src/shared/achievements.ts` → `RARITIES` |
-| Mudar quantos pontos do RetroAchievements fazem prata e ouro | `src/shared/achievements.ts` → `GRADE_POINTS` (as cores dos tipos ficam em `--trophy-*` e `--platinum`, em `globals.css`) |
-| Mudar de quanto em quanto tempo as conquistas são atualizadas | `src/main/achievements/service.ts` → `INTERVAL_MS` (e as esperas `START_DELAY_MS` e `AFTER_GAME_DELAY_MS`) |
-| Achar no RetroAchievements um console que lá tem outro nome | `src/main/achievements/matching.ts` → `PLATFORM_ALIASES` |
-| Mudar de quanto em quanto tempo os troféus do RPCS3 são lidos | `src/main/achievements/service.ts` → `TROPHY_INTERVAL_MS` (e `TROPHY_DELAY_MS`) |
-| Ler os troféus de outro emulador (ex.: um de PS4) | Um módulo como `src/main/achievements/trophyFiles.ts` para os arquivos dele, guardando nas mesmas tabelas (`trophyStore.ts`) |
+| Mudar as faixas de raridade das conquistas | `src-tauri/src/achievements/types.rs` → `rarity_of()` |
+| Mudar quantos pontos do RetroAchievements fazem prata e ouro | `src-tauri/src/achievements/types.rs` → `grade_for_points()` (as cores dos tipos ficam em `--trophy-*` e `--platinum`, em `globals.css`) |
+| Mudar de quanto em quanto tempo as conquistas e os troféus do RPCS3 são lidos | `src-tauri/src/achievements/service.rs` (os intervalos e as esperas depois de abrir e de fechar um jogo) |
+| Achar no RetroAchievements um console que lá tem outro nome | `src-tauri/src/achievements/matching.rs` (os apelidos dos consoles) |
+| Ler os troféus de outro emulador (ex.: um de PS4) | Um módulo como `src-tauri/src/achievements/trophy_files.rs` para os arquivos dele, guardando nas mesmas tabelas (`trophy_store.rs`) |
 | Mostrar um aviso rápido no canto da tela | `useToast()` (`src/renderer/hooks/useToast.ts`), em qualquer componente |
-| Pôr outra ação no menu "Mais" (ex.: editar, remover da biblioteca) | `src/renderer/components/GameActionsMenu.tsx`, mais um canal IPC se a ação mexer no banco ou no disco |
-| Buscar outro dado nos metadados (ex.: nota, série) | `src/main/metadata/igdb.ts` (o campo em `FIELDS` e em `toIgdbGame()`), `saveGameMetadata()` e `toGame()` em `src/main/library.ts`, a coluna no banco (migração nova) e o campo em `Game` |
+| Pôr outra ação no menu "Mais" (ex.: editar, remover da biblioteca) | `src/renderer/components/GameActionsMenu.tsx`, mais um comando se a ação mexer no banco ou no disco |
+| Buscar outro dado nos metadados (ex.: nota, série) | `src-tauri/src/metadata/igdb.rs` (o campo pedido e a leitura dele), a gravação em `library.rs`, a coluna no banco (migração nova) e o campo em `Game` (no Rust e em `src/shared/types.ts`) |
 | Traduzir mais gêneros | `genres` nos dicionários (`src/shared/i18n/ptBR.ts` e `en.ts`), pelo nome que o IGDB usa |
-| Mudar ou criar um texto da tela | `src/shared/i18n/ptBR.ts` e `en.ts` (os dois: o TypeScript acusa se faltar no inglês). Na interface, `const { t } = useI18n()`; no main, `t()` de `src/main/i18n.ts` |
-| Criar outro idioma | Um dicionário novo em `src/shared/i18n/` (do tipo `Messages`), o id em `Language`, `LANGUAGES` e `MESSAGES` (`src/shared/i18n/index.ts`) e a regra do Windows em `languageFromSystem()` |
-| Reconhecer outro console na busca de metadados | `src/main/metadata/igdb.ts` → `IGDB_PLATFORMS` (o id da plataforma no IGDB) |
-| Mudar como o resultado certo da busca é escolhido | `src/main/metadata/matching.ts` → `matchScore()` e `searchTermFor()` |
-| Mudar o tamanho ou o tipo das imagens baixadas | `src/main/metadata/steamGridDb.ts` → `IMAGE_QUERIES`; as do IGDB, em `src/main/metadata/download.ts` (`t_cover_big`, `t_1080p`) |
+| Mudar ou criar um texto da tela | `src/shared/i18n/ptBR.ts` e `en.ts` (os dois: o TypeScript acusa se faltar no inglês). Na interface, `const { t } = useI18n()`; no Rust, `text()` de `src-tauri/src/i18n.rs`, depois do `npm run tauri:mensagens` |
+| Criar outro idioma | Um dicionário novo em `src/shared/i18n/` (do tipo `Messages`), o id em `Language`, `LANGUAGES` e `MESSAGES` (`src/shared/i18n/index.ts`), o idioma no Rust (`src-tauri/src/i18n.rs`, com a regra do Windows) e o `npm run tauri:mensagens` |
+| Reconhecer outro console na busca de metadados | `src-tauri/src/metadata/igdb.rs` (o id da plataforma no IGDB) |
+| Mudar como o resultado certo da busca é escolhido | `src-tauri/src/metadata/matching.rs` |
+| Mudar o tamanho ou o tipo das imagens baixadas | `src-tauri/src/metadata/steam_grid_db.rs` e, as do IGDB, `src-tauri/src/metadata/download.rs` |
 | Mudar onde as imagens aparecem | `GameCover.tsx` (capa), `GameIcon.tsx` (ícone), `GameBackdrop.tsx` (fundo), usados em `GameDetailsView.tsx`, `GameDetailsPanel.tsx`, `GameCard.tsx` e `GameList.tsx` |
-| Lembrar o modo de exibição e os filtros ao reabrir o app | `src/renderer/App.tsx` → estados `libraryView` e `libraryFilters` (salvar em algum lugar, ex.: no banco via IPC) |
+| Lembrar o modo de exibição e os filtros ao reabrir o app | `src/renderer/App.tsx` → estados `libraryView` e `libraryFilters` (salvar em algum lugar, ex.: na tabela `settings`, por um comando) |
 | Criar outro modo de exibição | `src/renderer/components/LibraryTools.tsx` (`LibraryView` e `VIEWS`) e `src/renderer/pages/LibraryPage.tsx` |
 | Opções em Configurações (ex.: tema claro/escuro) | `src/renderer/pages/SettingsPage.tsx`, seção "Geral". O tema é a classe `dark` do `<html>` (`src/renderer/index.html`) |
-| Mudar as cores | `src/renderer/styles/globals.css` (bloco `.dark`). Se mudar o fundo, ajuste também `BACKGROUND_COLOR` em `src/main/window.ts` |
+| Mudar as cores | `src/renderer/styles/globals.css` (bloco `.dark`). Se mudar o fundo, ajuste também `BACKGROUND_COLOR` em `src-tauri/src/window.rs` |
 | Criar uma página nova no menu | Um arquivo novo em `src/renderer/pages`; o id e o ícone em `pages/index.ts`, e o nome nos dois dicionários (`pages`); mostrar a página em `App.tsx`; e colocar no menu em `components/Sidebar.tsx` (`MAIN_NAV`) |
-| Mudar o instalador ou a versão portátil | `electron-builder.config.mjs` (o que vai no pacote, o instalador) e `scripts/dist.mjs` (as duas rodadas: o instalador e o .zip portátil); no Tauri, o `bundle` do `src-tauri/tauri.conf.json`, os ganchos de `src-tauri/windows/hooks.nsh` e o `scripts/dist-tauri.mjs` |
-| Mudar o ícone do app | `build/icon.ico` (o .exe, o instalador e a janela no `npm run dev`), `docs/logo.svg` (README) e `src/renderer/components/AppLogo.tsx` (barra do topo). Os três têm o mesmo desenho |
-| Mostrar outro modelo de controle (ex.: DualShock 4) | O modelo em `src/shared/controllers.ts` (`SUPPORTED_CONTROLLERS`) e o jeito de ler a bateria dele, como em `src/renderer/lib/dualsense.ts`; no Tauri, os mesmos dois em `src-tauri/src/controllers.rs` |
-| Importar jogos de outros lugares (Steam, GOG, pastas de jogos de PC) | Código novo no main, como o `src/main/romScanner.ts` faz com as pastas de ROMs, entregue ao React por IPC |
+| Mudar o instalador ou a versão portátil | O `bundle` do `src-tauri/tauri.conf.json`, os ganchos de `src-tauri/windows/hooks.nsh` e o `scripts/dist.mjs` |
+| Mudar o ícone do app | `build/icon.ico` (o .exe, o instalador e a janela), `docs/logo.svg` (README) e `src/renderer/components/AppLogo.tsx` (barra do topo). Os três têm o mesmo desenho |
+| Mostrar outro modelo de controle (ex.: DualShock 4) | `src-tauri/src/controllers.rs`: o modelo em `SUPPORTED_CONTROLLERS` e o jeito de ler a bateria dele |
+| Importar jogos de outros lugares (Steam, GOG, pastas de jogos de PC) | Um módulo novo no Rust, como o `src-tauri/src/rom_scanner.rs` faz com as pastas de ROMs, entregue à interface por um comando |
 | Usar outro componente do shadcn/ui | Rode `npx shadcn add nome-do-componente`: ele aparece em `src/renderer/components/ui/` |
 
-## Receita: criar um canal IPC novo
+## Receita: criar um comando novo
 
-Exemplo: um canal `games:set-favorite` para o React marcar um jogo como favorito.
+Exemplo: um comando para a interface marcar um jogo como favorito.
 
-1. **`src/shared/ipc.ts`**: adicione `gamesSetFavorite: "games:set-favorite"` em `IPC_CHANNELS` e a função no `AppApi` (ex.: `games: { setFavorite: (gameId: number, favorite: boolean) => Promise<void> }`).
-2. **`src/main/ipc.ts`**: responda com `ipcMain.handle(...)` quando houver resposta, ou `ipcMain.on(...)` quando não houver. Confira tudo o que vier da interface antes de usar (`toId()`, `toText()`). Se mudou a biblioteca, chame `notifyLibraryChanged()`.
-3. **`src/preload/index.ts`**: adicione a função no objeto `api`, chamando `ipcRenderer.invoke(...)` (com resposta) ou `ipcRenderer.send(...)` (sem resposta).
-4. **No React**: chame `window.api.games.setFavorite(id, true)`.
+1. **Rust (`src-tauri/src/commands.rs`)**: a função com `#[tauri::command]`, com o nome em snake_case (`games_set_favorite`). Os valores chegam crus (`serde_json::Value`): confira tudo antes de usar, pelas funções de `validation.rs` (`to_id()`, `to_bool()`...), e devolva o erro como `AppError` (a mensagem no idioma do app). Se mudou a biblioteca, chame `notify_library_changed()`. Um comando que espera a internet ou o disco por muito tempo leva `#[tauri::command(async)]`, para não travar a janela.
+2. **`src-tauri/src/main.rs`**: o comando na lista do `generate_handler!`.
+3. **`src/shared/ipc.ts`**: a função no `AppApi` (ex.: `games: { setFavorite: (gameId: number, favorite: boolean) => Promise<void> }`).
+4. **`src/renderer/lib/tauriApi.ts`**: a função chamando o comando (`invoke("games_set_favorite", { gameId, favorite })`; os nomes dos valores em camelCase, como o Rust recebe).
+5. **Na interface**: chame `window.api.games.setFavorite(id, true)`.
 
-**No sentido contrário** (o main avisando o React de algo, como "a janela maximizou"), copie o modelo do canal `window:state`:
+**No sentido contrário** (o Rust avisando a interface de algo, como "a janela maximizou"), copie o modelo do aviso `window:state`:
 
-- **main** (`src/main/ipc.ts`, `sendWindowStateChanges`): `win.webContents.send(canal, dados)` quando o evento acontece.
-- **preload** (`src/preload/index.ts`, `onStateChange`): `ipcRenderer.on(canal, ...)` repassando só os dados, e devolvendo uma função que para de ouvir.
-- **React** (`src/renderer/components/TopBar.tsx`, `useIsMaximized`): começa a ouvir dentro de um `useEffect` e para de ouvir na limpeza dele.
+- **Rust** (`src-tauri/src/window.rs`): `app.emit("window:state", dados)` quando o evento acontece.
+- **`src/shared/ipc.ts`**: o nome em `EVENTS`.
+- **ponte** (`src/renderer/lib/tauriApi.ts`, `onStateChange`): `subscribe(EVENTS.windowState, callback)`, que devolve uma função para parar de ouvir.
+- **interface** (`src/renderer/components/TopBar.tsx`, `useIsMaximized`): começa a ouvir dentro de um `useEffect` e para de ouvir na limpeza dele.
 
-O `library:changed` segue o mesmo modelo, sem dados: o main só avisa, e o `useLibrary` pede a biblioteca de novo.
+O `library:changed` segue o mesmo modelo, sem dados: o Rust só avisa, e o `useLibrary` pede a biblioteca de novo.
 
-Duas regras de segurança:
+Duas regras:
 
-- Nunca exponha o `ipcRenderer` inteiro nem módulos do Node no preload. Libere só funções específicas.
+- O Rust nunca confia no que vem da tela: tudo passa pelo `validation.rs`, e nada fora das pastas do app é lido ou aberto a pedido da interface (as imagens só da pasta de imagens; os sites só os de `EXTERNAL_LINKS`).
 - Não passe o evento de clique do React para funções do `window.api`. Use `onClick={() => window.api.algo()}`, e não `onClick={window.api.algo}`.
 
 ## Histórico e versões (Git e GitHub)
@@ -487,7 +433,7 @@ Mudanças grandes (como o banco de dados) ganham uma branch própria, que sai da
 
 ### Números de versão
 
-A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no mesmo padrão do [Electron](https://www.electronjs.org/docs/latest/tutorial/electron-versioning):
+A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no padrão do [Versionamento Semântico](https://semver.org/lang/pt-BR/):
 
 | Número | Quando sobe | Exemplo |
 |---|---|---|
@@ -512,12 +458,12 @@ A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no mesmo padrão do [Ele
 
 ## Outras informações úteis
 
-- **`npm run dev` e recarga automática:** mudanças na interface (`src/renderer`) aparecem na hora, sem fechar a janela. Mudanças no `src/main`, no `src/preload` ou no `src/shared` fazem o Electron recompilar e reabrir o app sozinho (opção `--watch`).
-- **Atalhos de import:** no React, `@/` aponta para `src/renderer` e `@shared/` para `src/shared`. Exemplo: `import { Button } from "@/components/ui/button"`.
-- **Onde fica o banco:** `%APPDATA%\Playtrove\playtrove.db` no app instalado, e `%APPDATA%\Playtrove Dev\playtrove.db` no `npm run dev` (uma cópia do primeiro, para o código em teste nunca mexer nos jogos de verdade; `npm run dev:nova-copia` renova). É criado na primeira execução, com as tabelas e os 9 status. A biblioteca começa vazia. Até a versão 0.4.0 o app se chamava Bibliotecaofgames e usava `%APPDATA%\Bibliotecaofgames\bibliotecaofgames.db`: na primeira vez com o nome novo, tudo o que estava lá passa para a pasta nova (`dataFolder.ts`).
-- **Testes:** `npm test` roda tudo: os testes rápidos (`npm run test:unit`) e os do app (`npm run test:app`, que compila antes e abre a janela sozinho por alguns segundos). Os testes do app usam uma pasta de dados temporária (variável `PLAYTROVE_DATA_DIR`) com os 12 jogos de exemplo (`PLAYTROVE_SAMPLE_GAMES=1`), então nunca mexem na sua biblioteca, e fingem o idioma do Windows (`PLAYTROVE_SYSTEM_LANGUAGE`: português, e inglês nos testes de idioma). O teste do controle só roda com um DualSense ligado.
-- **Aviso de scripts do npm:** o npm 11 pede aprovação para scripts de instalação de pacotes. Os do `better-sqlite3`, do `esbuild` e do `electron-winstaller` estão negados de propósito em `allowScripts`, no `package.json`, porque nenhum dos dois é necessário. Não aprove o do `better-sqlite3`: ele tentaria compilar o SQLite e falharia sem o Visual Studio.
-- **`dependencies` × `devDependencies`:** em `dependencies` fica só o que o processo main carrega enquanto o app roda (hoje, o `better-sqlite3` e o `electron-updater`). React, shadcn, Tailwind e o resto ficam em `devDependencies`, porque o Vite já os empacota dentro do app.
+- **`npm run dev` e recarga automática:** mudanças na interface (`src/renderer` e `src/shared`) aparecem na hora, sem fechar a janela. Mudanças no Rust (`src-tauri`) fazem o Tauri recompilar e reabrir o app sozinho. A primeira vez compila todas as dependências do Rust e leva alguns minutos.
+- **Atalhos de import:** na interface, `@/` aponta para `src/renderer` e `@shared/` para `src/shared`. Exemplo: `import { Button } from "@/components/ui/button"`.
+- **Onde fica o banco:** `%APPDATA%\Playtrove\playtrove.db` no app instalado, a pasta `data` ao lado do .exe na versão portátil e `%APPDATA%\Playtrove Dev\playtrove.db` no `npm run dev` (uma cópia do primeiro, para o código em teste nunca mexer nos jogos de verdade; `npm run dev:nova-copia` renova). É criado na primeira execução, com as tabelas e os 9 status. A biblioteca começa vazia. O WebView2 guarda o que precisa na pasta `webview`, ao lado do banco.
+- **Testes:** `npm test` roda tudo: os da interface (`npm run test:unit`), os do Rust (`npm run test:rust`) e os do app (`npm run test:app`, que compila o app dos testes antes e abre a janela sozinho por alguns segundos). Os testes do app usam uma pasta de dados temporária (variável `PLAYTROVE_DATA_DIR`) com os 12 jogos de exemplo (`PLAYTROVE_SAMPLE_GAMES=1`), então nunca mexem na sua biblioteca, e fingem o idioma do Windows (`PLAYTROVE_SYSTEM_LANGUAGE`: português, e inglês nos testes de idioma). O teste do controle só roda com um DualSense ligado.
+- **Aviso de scripts do npm:** o npm 11 pede aprovação para scripts de instalação de pacotes. O do `esbuild` está negado de propósito em `allowScripts`, no `package.json`, porque não é necessário.
+- **Dependências:** a interface não tem nada em `dependencies`: React, shadcn, Tailwind e o resto ficam em `devDependencies`, porque o Vite já os empacota dentro do app. As do Rust ficam no `src-tauri/Cargo.toml`.
 - **Tooltip em volta de toggle:** o tooltip do shadcn sobrescreve o atributo `data-state` do botão que ele envolve. Por isso o modo ativo do seletor de modos (Detalhes, Grade, Lista e Kanban) é destacado por `aria-checked` (veja `LibraryTools.tsx`).
 - **O que ainda falta:** fica no "Roadmap" do `README.md`, e não no código: aqui só entra o que já funciona.
 - **Controle no Bluetooth:** no Bluetooth, o DualSense começa num modo simples, sem a bateria. Para ler a bateria, o app pede o modo completo, o mesmo que a Steam usa, e o controle fica nele até ser desligado. Se algum jogo antigo aberto fora da Steam não reconhecer o controle, feche o app e desligue e ligue o controle.

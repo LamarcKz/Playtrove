@@ -1,6 +1,5 @@
-//! Abre um jogo no emulador dele e conta o tempo até o emulador fechar. O mesmo do app em Electron
-//! (src/main/launcher.ts): os jogos abertos ficam na memória, e o emulador abre separado do app (fechar
-//! o app não fecha o jogo).
+//! Abre um jogo no emulador dele e conta o tempo até o emulador fechar: os jogos abertos ficam na
+//! memória, e o emulador abre separado do app (fechar o app não fecha o jogo).
 
 use std::collections::HashMap;
 use std::io;

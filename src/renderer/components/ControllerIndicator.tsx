@@ -29,7 +29,7 @@ export function ControllerIndicator() {
   if (controllers.length === 0) return null
 
   return (
-    <div className="app-no-drag flex items-center gap-1 px-2">
+    <div className="flex items-center gap-1 px-2">
       {controllers.map((controller) => (
         <ControllerStatus key={controller.key} controller={controller} />
       ))}

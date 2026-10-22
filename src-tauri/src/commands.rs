@@ -1,6 +1,6 @@
-//! Os comandos que a interface chama (window.api, pela ponte de src/renderer/lib/tauriApi.ts): os
-//! mesmos canais do app em Electron (src/main/ipc.ts), um por função. Os valores chegam crus (JSON) e
-//! são conferidos em validation.rs antes de usar; o erro volta como a mensagem que a tela mostra.
+//! Os comandos que a interface chama (window.api, pela ponte de src/renderer/lib/tauriApi.ts), um por
+//! função. Os valores chegam crus (JSON) e são conferidos em validation.rs antes de usar; o erro volta
+//! como a mensagem que a tela mostra.
 
 use std::path::Path;
 
@@ -259,7 +259,7 @@ pub fn games_show_rom(app: AppHandle, state: State<'_, AppState>, game_id: Value
     if !path_exists(&rom_path) {
         return Err(AppError::text(language, "errors.romNotFound", &[&rom_path]));
     }
-    // Como no Electron: se o Explorador não abrir, não há o que avisar.
+    // Se o Explorador não abrir, não há o que avisar.
     show_in_explorer(&app, &rom_path);
     Ok(())
 }

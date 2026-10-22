@@ -40,7 +40,7 @@ export function LibraryTools({
 }: LibraryToolsProps) {
   const { t } = useI18n()
   return (
-    <div className="app-no-drag flex items-center gap-1.5">
+    <div className="flex items-center gap-1.5">
       <SearchBar value={searchQuery} onChange={onSearchChange} />
       <FilterButton open={filtersOpen} active={filtersActive} onToggle={onToggleFilters} />
 

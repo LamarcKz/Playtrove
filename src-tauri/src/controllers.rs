@@ -1,7 +1,6 @@
 //! Os controles reconhecidos (DualSense) na barra do topo: por onde cada um está conectado e a bateria.
-//! No Electron, a interface lia pela WebHID (src/renderer/lib/dualsense.ts); aqui, o Rust lê pelo hidapi,
-//! numa linha de execução à parte, e avisa a interface quando algo muda. Os números seguem o driver
-//! oficial desses controles no Linux (hid-playstation).
+//! O Rust lê pelo hidapi, numa linha de execução à parte, e avisa a interface quando algo muda. Os
+//! números seguem o driver oficial desses controles no Linux (hid-playstation).
 
 use std::ffi::CString;
 use std::sync::{Arc, Mutex, PoisonError};

@@ -7,29 +7,21 @@
   "homepage": "https://github.com/LamarcKz/Playtrove",
   "license": "MIT",
   "private": true,
-  "main": "./out/main/index.js",
   "scripts": {
-    "dev": "electron-vite dev --watch",
+    "dev": "tauri dev",
     "dev:nova-copia": "node scripts/dev-library.mjs",
-    "build": "npm run typecheck && electron-vite build",
-    "preview": "electron-vite preview",
+    "build": "npm run typecheck && vite build",
     "typecheck": "tsc -b",
     "test": "npm run test:unit && npm run test:rust && npm run test:app",
     "test:unit": "vitest run",
+    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:app": "node scripts/build-test-app.mjs && playwright test",
     "versao": "node scripts/next-version.mjs",
-    "dist": "npm run build && node scripts/dist.mjs",
-    "dist:tauri": "npm run typecheck && node scripts/dist-tauri.mjs",
-    "dev:tauri": "tauri dev",
+    "dist": "npm run typecheck && node scripts/dist.mjs",
     "web:dev": "vite",
     "web:build": "vite build",
     "tauri:mensagens": "node scripts/backend-messages.mjs",
-    "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "prepare": "git config core.hooksPath .githooks || exit 0"
-  },
-  "dependencies": {
-    "better-sqlite3": "^13.0.3",
-    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -37,17 +29,12 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/cli": "^2.12.4",
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.13.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/w3c-web-hid": "^1.0.7",
     "@vitejs/plugin-react": "^5.2.0",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
-    "electron": "^44.4.3",
-    "electron-builder": "^26.15.3",
-    "electron-vite": "^5.0.0",
     "lucide-react": "^1.47.0",
     "radix-ui": "^1.6.7",
     "react": "^19.3.0",
@@ -60,8 +47,6 @@
     "vitest": "^5.0.1"
   },
   "allowScripts": {
-    "better-sqlite3": false,
-    "electron-winstaller": false,
     "esbuild": false
   }
 }

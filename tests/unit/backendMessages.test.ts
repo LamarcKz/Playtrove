@@ -17,10 +17,10 @@ describe("textos da parte em Rust (Tauri)", () => {
 })
 
 describe("o que o Rust repete da parte compartilhada", () => {
-  it("os sites que o Rust abre são os mesmos de EXTERNAL_LINKS (src-tauri/src/links.rs)", () => {
+  it("os sites que a interface pode pedir são os que o Rust abre (src-tauri/src/links.rs)", () => {
     const source = readFileSync("src-tauri/src/links.rs", "utf8")
     const block = /pub const EXTERNAL_LINKS[^=]*= \[([\s\S]*?)\];/.exec(source)?.[1] ?? ""
-    const links = Object.fromEntries([...block.matchAll(/\("(\w+)", "([^"]+)"\)/g)].map((match) => [match[1], match[2]]))
-    expect(links).toEqual(EXTERNAL_LINKS)
+    const names = [...block.matchAll(/\("(\w+)", "https:\/\/[^"]+"\)/g)].map((match) => match[1])
+    expect(names).toEqual([...EXTERNAL_LINKS])
   })
 })

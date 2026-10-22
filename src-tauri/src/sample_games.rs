@@ -1,6 +1,5 @@
 //! 12 jogos FALSOS (títulos inventados), usados só nos testes automáticos: o app só coloca estes jogos
-//! quando é aberto com PLAYTROVE_SAMPLE_GAMES=1 e a biblioteca está vazia. São os mesmos do app em
-//! Electron (src/main/sampleGames.ts).
+//! quando é aberto com PLAYTROVE_SAMPLE_GAMES=1 e a biblioteca está vazia.
 
 use chrono::{Duration, Utc};
 use rusqlite::Connection;

@@ -1,16 +1,8 @@
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
-import { IPC_CHANNELS, type AppApi } from "@shared/ipc"
+import { EVENTS, type AppApi } from "@shared/ipc"
 
-/** A interface está rodando no Tauri (e não no Electron)? */
-export function isTauri(): boolean {
-  return "__TAURI_INTERNALS__" in window
-}
-
-/**
- * Ouve um aviso do Rust (os mesmos nomes dos canais do Electron). Devolve uma função para parar de
- * ouvir, como o preload do Electron.
- */
+/** Ouve um aviso do Rust. Devolve uma função para parar de ouvir. */
 function subscribe<T>(event: string, callback: (payload: T) => void): () => void {
   let stopped = false
   let unlisten: (() => void) | undefined
@@ -25,8 +17,8 @@ function subscribe<T>(event: string, callback: (payload: T) => void): () => void
 }
 
 /**
- * O `window.api` da versão em Tauri: o mesmo formato do preload do Electron (AppApi), com cada função
- * chamando o comando do Rust de mesmo nome (src-tauri/src/commands.rs).
+ * O `window.api`: cada função chama o comando do Rust de mesmo nome, em snake_case
+ * (src-tauri/src/commands.rs), e os avisos chegam pelos nomes de EVENTS.
  */
 export function createTauriApi(): AppApi {
   return {
@@ -42,17 +34,17 @@ export function createTauriApi(): AppApi {
       toggleMaximize: () => void invoke("window_toggle_maximize"),
       close: () => void invoke("window_close"),
       getState: () => invoke("window_get_state"),
-      onStateChange: (callback) => subscribe(IPC_CHANNELS.windowState, callback),
+      onStateChange: (callback) => subscribe(EVENTS.windowState, callback),
     },
     library: {
       get: () => invoke("library_get"),
-      onChange: (callback) => subscribe(IPC_CHANNELS.libraryChanged, () => callback()),
+      onChange: (callback) => subscribe(EVENTS.libraryChanged, () => callback()),
     },
     games: {
       setStatus: (gameId, statusId) => invoke("games_set_status", { gameId, statusId }),
       play: (gameId) => invoke("games_play", { gameId }),
       getRunning: () => invoke("games_get_running"),
-      onRunningChange: (callback) => subscribe(IPC_CHANNELS.gamesRunning, callback),
+      onRunningChange: (callback) => subscribe(EVENTS.gamesRunning, callback),
       setFavorite: (gameId, favorite) => invoke("games_set_favorite", { gameId, favorite }),
       showRom: (gameId) => invoke("games_show_rom", { gameId }),
       setEvaluation: (gameId, evaluation) => invoke("games_set_evaluation", { gameId, evaluation }),
@@ -64,7 +56,7 @@ export function createTauriApi(): AppApi {
       setAutoDownload: (enabled) => invoke("metadata_set_auto_download", { enabled }),
       download: (gameIds) => invoke("metadata_download", { gameIds: gameIds ?? null }),
       getProgress: () => invoke("metadata_get_progress"),
-      onProgress: (callback) => subscribe(IPC_CHANNELS.metadataProgress, callback),
+      onProgress: (callback) => subscribe(EVENTS.metadataProgress, callback),
     },
     emulators: {
       list: () => invoke("emulators_list"),
@@ -88,19 +80,19 @@ export function createTauriApi(): AppApi {
       sync: () => invoke("achievements_sync"),
       game: (gameId) => invoke("achievements_game", { gameId }),
       overview: () => invoke("achievements_overview"),
-      onStatus: (callback) => subscribe(IPC_CHANNELS.achievementsStatus, callback),
-      onUnlocked: (callback) => subscribe(IPC_CHANNELS.achievementsUnlocked, callback),
+      onStatus: (callback) => subscribe(EVENTS.achievementsStatus, callback),
+      onUnlocked: (callback) => subscribe(EVENTS.achievementsUnlocked, callback),
     },
     updates: {
       getStatus: () => invoke("updates_get_status"),
       check: () => invoke("updates_check"),
       install: () => invoke("updates_install"),
       setAutoCheck: (enabled) => invoke("updates_set_auto_check", { enabled }),
-      onStatus: (callback) => subscribe(IPC_CHANNELS.updatesStatus, callback),
+      onStatus: (callback) => subscribe(EVENTS.updatesStatus, callback),
     },
     controllers: {
       list: () => invoke("controllers_list"),
-      onChange: (callback) => subscribe(IPC_CHANNELS.controllersChanged, callback),
+      onChange: (callback) => subscribe(EVENTS.controllersChanged, callback),
     },
     statuses: {
       create: (name) => invoke("statuses_create", { name }),

@@ -1,6 +1,5 @@
-//! A biblioteca que a interface mostra: os jogos, os status e as regras automáticas. Os campos e as
-//! regras são os mesmos do app em Electron (src/main/library.ts), e o formato é o de LibrarySnapshot
-//! (src/shared/types.ts).
+//! A biblioteca que a interface mostra: os jogos, os status e as regras automáticas, no formato de
+//! LibrarySnapshot (src/shared/types.ts).
 
 use std::cmp::Ordering;
 use std::collections::HashMap;

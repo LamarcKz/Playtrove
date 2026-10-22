@@ -1,5 +1,5 @@
 //! Os sites que o app abre no navegador: as páginas para criar as chaves, a de download das versões e o
-//! formulário de bug do GitHub (o mesmo de src/main/bugReport.ts), com a versão do app e a do Windows.
+//! formulário de bug do GitHub, com a versão do app e a do Windows.
 
 use tauri::Url;
 use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RRF_RT_REG_DWORD, RRF_RT_REG_SZ, RegGetValueW};

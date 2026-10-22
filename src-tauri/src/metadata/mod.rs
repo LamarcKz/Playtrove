@@ -1,6 +1,6 @@
 //! Metadados e imagens dos jogos: IGDB (descrição, gêneros, empresas e lançamento), SteamGridDB (capa e
 //! fundo), libretro-thumbnails (a capa escaneada dos jogos de emulador), a escolha do resultado certo, o
-//! download de um jogo, a fila e as chaves. O mesmo do app em Electron (src/main/metadata).
+//! download de um jogo, a fila e as chaves.
 
 pub mod credentials;
 pub mod download;

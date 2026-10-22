@@ -1,6 +1,6 @@
 //! Leitura dos discos dos jogos (só o necessário, sem carregar o arquivo inteiro): o código do jogo
 //! (ex.: SLUS-20100), que é como os emuladores identificam cada jogo nos registros de tempo jogado, e o
-//! nome dos jogos de PS3. O mesmo do app em Electron (src/main/discs.ts).
+//! nome dos jogos de PS3.
 
 use std::collections::HashMap;
 use std::fs::File;

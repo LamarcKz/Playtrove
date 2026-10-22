@@ -1,4 +1,4 @@
-// Sem a janela do console no app de verdade (no "npm run dev:tauri" ela mostra os registros).
+// Sem a janela do console no app de verdade (no "npm run dev" ela mostra os registros).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod achievements;

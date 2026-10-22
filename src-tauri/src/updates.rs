@@ -1,5 +1,5 @@
-//! A atualização do app pelas releases do GitHub (o aviso de versão nova e Configurações → Sobre), como em
-//! src/main/updateService.ts. Quem procura e instala é o atualizador do Tauri: cada versão vem assinada, e
+//! A atualização do app pelas releases do GitHub (o aviso de versão nova e Configurações → Sobre). Quem
+//! procura e instala é o atualizador do Tauri: cada versão vem assinada, e
 //! o app só instala o que tiver a assinatura da chave do projeto (a pública fica no tauri.conf.json). Na
 //! versão portátil, o botão só abre a página de download.
 
@@ -27,7 +27,7 @@ const STARTUP_CHECK_DELAY: Duration = Duration::from_secs(5);
 /// A opção "procurar ao abrir" (Configurações → Sobre), guardada no banco: "0" quando desligada.
 const AUTO_CHECK_SETTING: &str = "updatesAutoCheck";
 
-/// unsupported: rodando pelo npm run dev:tauri, sem atualização; idle: ainda não procurou; checking;
+/// unsupported: rodando pelo npm run dev, sem atualização; idle: ainda não procurou; checking;
 /// latest: esta já é a versão mais nova; available: há uma versão nova; downloading; ready: baixada, o app
 /// fecha para instalar e abre de novo; error: não deu para procurar ou baixar (ex.: sem internet).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -69,7 +69,7 @@ pub trait Updater: Send + Sync {
 }
 
 pub struct UpdateOptions {
-    /// None quando o app não se atualiza (rodando pelo npm run dev:tauri).
+    /// None quando o app não se atualiza (rodando pelo npm run dev).
     pub updater: Option<Box<dyn Updater>>,
     /// Versão portátil: não instala nada; o botão abre a página de download.
     pub portable: bool,
@@ -212,7 +212,7 @@ impl UpdateService {
 
 /// Liga a atualização do app e, 5 segundos depois de abrir, procura uma versão nova (se a opção estiver
 /// ligada). Quem procura: o atualizador do Tauri no app de verdade (instalado ou portátil); um de mentira
-/// nos testes (PLAYTROVE_FAKE_UPDATE, nunca a internet); e ninguém no npm run dev:tauri.
+/// nos testes (PLAYTROVE_FAKE_UPDATE, nunca a internet); e ninguém no npm run dev.
 pub fn start(app: &AppHandle) {
     let updater: Option<Box<dyn Updater>> = match &test_mode().fake_update {
         Some(version) => Some(Box::new(FakeUpdater { version: version.clone() })),

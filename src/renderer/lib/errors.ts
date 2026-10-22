@@ -1,5 +1,4 @@
-/** Mensagem de um erro para mostrar ao usuário, sem o prefixo técnico que o Electron põe nos erros de IPC. */
+/** Mensagem de um erro para mostrar ao usuário: o Rust já manda a mensagem pronta, no idioma do app. */
 export function errorMessage(error: unknown): string {
-  const text = error instanceof Error ? error.message : String(error)
-  return text.replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "")
+  return error instanceof Error ? error.message : String(error)
 }

@@ -1,6 +1,5 @@
 //! Acompanha o tempo jogado nos emuladores: lê os registros deles ao abrir o app, a cada minuto e
-//! sempre que pedirem (ex.: logo depois de um jogo fechar), numa linha de execução à parte. O mesmo do
-//! app em Electron (src/main/playtimeSync.ts).
+//! sempre que pedirem (ex.: logo depois de um jogo fechar), numa linha de execução à parte.
 
 use std::sync::Mutex;
 use std::sync::mpsc::{RecvTimeoutError, Sender, channel};

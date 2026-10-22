@@ -5,7 +5,7 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["node", "w3c-web-hid"],
+    "types": ["node"],
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -20,5 +20,5 @@
       "@shared/*": ["./src/shared/*"]
     }
   },
-  "include": ["tests/**/*", "vitest.config.ts", "playwright.config.ts", "scripts/**/*", "src/preload/index.d.ts"]
+  "include": ["tests/**/*", "vitest.config.ts", "playwright.config.ts", "scripts/**/*", "src/renderer/api.d.ts"]
 }
