@@ -31,25 +31,6 @@ export function isLanguage(value: unknown): value is Language {
   return typeof value === "string" && Object.hasOwn(MESSAGES, value)
 }
 
-/**
- * O idioma pelo do Windows (a lista de idiomas preferidos, do principal para os outros), para
- * quando o usuário ainda não escolheu: Windows em português → português; em qualquer outra língua,
- * inglês (escolha do usuário em 2026-09-27).
- */
-export function languageFromSystem(locales: readonly string[]): Language {
-  const main = locales[0]
-  if (!main) return DEFAULT_LANGUAGE
-  return main.toLowerCase().startsWith("pt") ? "pt-BR" : "en"
-}
-
-/** Um status que vem com o app: o nome dele muda com o idioma, até o usuário renomear. */
-export type StatusPreset = keyof Messages["statusPresets"]
-
-/** É um dos status que vêm com o app? */
-export function isStatusPreset(value: unknown): value is StatusPreset {
-  return typeof value === "string" && Object.hasOwn(ptBR.statusPresets, value)
-}
-
 /** O nome de um gênero do IGDB no idioma (os que o dicionário não tem aparecem como vieram). */
 export function genreLabel(genre: string, t: Messages): string {
   return Object.hasOwn(t.genres, genre) ? t.genres[genre] : genre

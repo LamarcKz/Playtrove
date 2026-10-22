@@ -1,6 +1,6 @@
 import { join } from "node:path"
-import Database from "better-sqlite3"
-import { expect, test, type ElectronApplication, type Locator, type Page } from "@playwright/test"
+import { DatabaseSync } from "node:sqlite"
+import { expect, test, type Locator, type Page } from "@playwright/test"
 import {
   IGDB_CLIENT_ID,
   IGDB_CLIENT_SECRET,
@@ -8,14 +8,14 @@ import {
   STEAMGRIDDB_KEY,
   type FakeMetadataServer,
 } from "./fakeMetadataServer"
-import { chooseView, createFiles, launchApp, mockOpenDialog, removeDataDir, toast } from "./helpers"
+import { type AppProcess, chooseView, createFiles, launchApp, mockOpenDialog, removeDataDir, toast } from "./helpers"
 
 // Os testes deste arquivo seguem em ordem, no mesmo app (com os 12 jogos de exemplo). O IGDB e o
 // SteamGridDB são de mentira (fakeMetadataServer.ts): nada vai para a internet.
 test.describe.configure({ mode: "serial" })
 
 let server: FakeMetadataServer
-let app: ElectronApplication
+let app: AppProcess
 let page: Page
 let dataDir: string
 let romsDir: string
@@ -41,7 +41,7 @@ const navigate = (page_: "Biblioteca" | "Emuladores" | "Configurações") =>
 
 /** A imagem aparece de verdade: veio do protocolo das imagens do app e carregou. */
 async function expectLoaded(image: Locator, kind: "cover" | "background") {
-  await expect(image).toHaveAttribute("src", new RegExp(`^playtrove-img://images/\\d+/${kind}\\.\\w+\\?v=`))
+  await expect(image).toHaveAttribute("src", new RegExp(`^http://playtrove-img\\.localhost/\\d+/${kind}\\.\\w+\\?v=`))
   await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true)
 }
 
@@ -80,8 +80,9 @@ test("chave errada mostra o erro; a certa é conferida e salva (sem voltar para 
   expect(JSON.stringify(config)).not.toContain(IGDB_CLIENT_SECRET)
   expect(JSON.stringify(config)).not.toContain(STEAMGRIDDB_KEY)
   // ...e ficam criptografadas no banco.
-  const db = new Database(join(dataDir, "playtrove.db"), { readonly: true })
-  const stored = db.prepare("SELECT group_concat(value, ' ') FROM settings").pluck().get() as string
+  // O app pode estar gravando neste instante: espera ele terminar, em vez de acusar o banco travado.
+  const db = new DatabaseSync(join(dataDir, "playtrove.db"), { readOnly: true, timeout: 10_000 })
+  const stored = (db.prepare("SELECT group_concat(value, ' ') AS value FROM settings").get() as { value: string }).value
   db.close()
   expect(stored).not.toContain(IGDB_CLIENT_SECRET)
   expect(stored).not.toContain(STEAMGRIDDB_KEY)
@@ -182,9 +183,9 @@ test("o protocolo das imagens só entrega arquivos da pasta de imagens", async (
       src
     )
   expect(await load(cover)).toBe("carregou")
-  expect(await load("playtrove-img://images/..%2Fplaytrove.db")).toBe("erro")
-  expect(await load("playtrove-img://images/%2E%2E%2F%2E%2E%2Fplaytrove.db")).toBe("erro")
-  expect(await load(cover.replace("//images/", "//outro/"))).toBe("erro")
+  expect(await load("http://playtrove-img.localhost/..%2Fplaytrove.db")).toBe("erro")
+  expect(await load("http://playtrove-img.localhost/%2E%2E%2F%2E%2E%2Fplaytrove.db")).toBe("erro")
+  expect(await load(cover.replace("playtrove-img.localhost/", "playtrove-img.localhost/outro/"))).toBe("erro")
 })
 
 test("jogos novos de uma pasta de ROMs já ganham os metadados sozinhos", async () => {

@@ -1,17 +1,11 @@
 import { describe, expect, it } from "vitest"
-import { formatScore, isScore } from "@shared/evaluation"
+import { formatScore } from "@shared/evaluation"
 import { messagesFor } from "@shared/i18n"
 import { describeScore, iconFill, scoreFromClick, scoreFromKey } from "@/lib/score"
 import { EMPTY_FILTERS, filterGames, matchesScore } from "@/lib/filters"
-import { addEmulatedGame, listGames, saveGameEvaluation } from "../../src/main/library"
-import { makeGame, memoryDatabase } from "./helpers"
+import { makeGame } from "./helpers"
 
 describe("nota e dificuldade: de 1 a 10, em meios ícones", () => {
-  it("só aceita números inteiros de 1 a 10", () => {
-    expect([1, 5, 10].every(isScore)).toBe(true)
-    expect([0, 11, 4.5, -1, "9", null, undefined, Number.NaN].some(isScore)).toBe(false)
-  })
-
   it("mostra em estrelas, com vírgula (e com ponto, em inglês)", () => {
     const pt = messagesFor("pt-BR")
     const en = messagesFor("en")
@@ -45,61 +39,6 @@ describe("nota e dificuldade: de 1 a 10, em meios ícones", () => {
     expect(scoreFromKey("End", 2)).toBe(10)
     expect(scoreFromKey("Delete", 6)).toBeNull()
     expect(scoreFromKey("a", 6)).toBeUndefined()
-  })
-})
-
-describe("salvar a avaliação no banco", () => {
-  function setup() {
-    const db = memoryDatabase()
-    const gameId = addEmulatedGame(db, {
-      title: "Salto Estelar",
-      romPath: "D:\\Jogos\\PS2\\Salto Estelar.iso",
-      platform: "PlayStation 2",
-      library: "PCSX2",
-      emulatorId: "pcsx2",
-      core: null,
-    }) as number
-    return { db, gameId }
-  }
-  const evaluatedAt = (db: ReturnType<typeof memoryDatabase>, id: number) =>
-    db.prepare("SELECT evaluated_at FROM games WHERE id = ?").pluck().get(id)
-
-  it("guarda a nota, a dificuldade e a análise (sem os espaços das pontas)", () => {
-    const { db, gameId } = setup()
-    const now = new Date(2026, 8, 24, 20, 0)
-    saveGameEvaluation(db, gameId, { rating: 9, difficulty: 7, review: "  Muito bom.\nRecomendo.  " }, now)
-
-    expect(listGames(db)[0]).toMatchObject({ rating: 9, difficulty: 7, review: "Muito bom.\nRecomendo." })
-    expect(evaluatedAt(db, gameId)).toBe(now.toISOString())
-  })
-
-  it("null apaga cada parte, e a análise só de espaços vira vazia", () => {
-    const { db, gameId } = setup()
-    saveGameEvaluation(db, gameId, { rating: 9, difficulty: 7, review: "Texto" })
-    saveGameEvaluation(db, gameId, { rating: null, difficulty: 3, review: "   " })
-    expect(listGames(db)[0]).toMatchObject({ rating: null, difficulty: 3, review: null })
-
-    saveGameEvaluation(db, gameId, { rating: null, difficulty: null, review: null })
-    expect(listGames(db)[0]).toMatchObject({ rating: null, difficulty: null, review: null })
-    // Sem nada avaliado, também não fica a data.
-    expect(evaluatedAt(db, gameId)).toBeNull()
-  })
-
-  it("cada janela muda só a sua parte: a nota não apaga a análise, e vice-versa", () => {
-    const { db, gameId } = setup()
-    saveGameEvaluation(db, gameId, { rating: 9, difficulty: 7 })
-    saveGameEvaluation(db, gameId, { review: "Texto" })
-    expect(listGames(db)[0]).toMatchObject({ rating: 9, difficulty: 7, review: "Texto" })
-
-    saveGameEvaluation(db, gameId, { rating: null, difficulty: null })
-    expect(listGames(db)[0]).toMatchObject({ rating: null, difficulty: null, review: "Texto" })
-    // Ainda tem a análise: a data continua.
-    expect(evaluatedAt(db, gameId)).not.toBeNull()
-  })
-
-  it("jogo que não existe dá erro", () => {
-    const { db } = setup()
-    expect(() => saveGameEvaluation(db, 999, { rating: 5, difficulty: null, review: null })).toThrow("Jogo não encontrado.")
   })
 })
 

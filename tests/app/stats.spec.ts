@@ -1,10 +1,10 @@
-import { expect, test, type ElectronApplication, type Page } from "@playwright/test"
-import { launchApp, removeDataDir } from "./helpers"
+import { expect, test, type Page } from "@playwright/test"
+import { type AppProcess, launchApp, removeDataDir } from "./helpers"
 
 // Os testes deste arquivo seguem em ordem, no mesmo app (com os 12 jogos de exemplo e as sessões deles).
 test.describe.configure({ mode: "serial" })
 
-let app: ElectronApplication
+let app: AppProcess
 let page: Page
 let dataDir: string
 

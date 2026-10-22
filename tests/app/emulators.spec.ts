@@ -1,15 +1,15 @@
 import { join } from "node:path"
-import { expect, test, type ElectronApplication, type Page } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 import { writeFileSync } from "node:fs"
 import { mkdirSync } from "node:fs"
 import { buildIso } from "../fakeDiscs"
-import { chooseView, createFiles, launchApp, mockOpenDialog, removeDataDir, toast as toastIn } from "./helpers"
+import { type AppProcess, chooseView, createFiles, launchApp, mockOpenDialog, removeDataDir, toast as toastIn } from "./helpers"
 
 // Os testes deste arquivo seguem em ordem, no mesmo app, que começa com a biblioteca vazia.
 // Os emuladores são arquivos vazios numa pasta temporária: nenhum jogo é aberto de verdade.
 test.describe.configure({ mode: "serial" })
 
-let app: ElectronApplication
+let app: AppProcess
 let page: Page
 let dataDir: string
 let emulatorsDir: string

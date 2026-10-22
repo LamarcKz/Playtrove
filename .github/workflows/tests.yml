@@ -15,7 +15,7 @@ permissions:
 jobs:
   tests:
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Get the code
         uses: actions/checkout@v7
@@ -26,14 +26,45 @@ jobs:
           node-version: 24
           cache: npm
 
-      # O npm ci instala exatamente o que está no package-lock.json. O better-sqlite3 já vem compilado,
-      # e os scripts de instalação negados no allowScripts (package.json) não rodam.
+      # O npm ci instala exatamente o que está no package-lock.json. Os scripts de instalação negados no
+      # allowScripts (package.json) não rodam.
       - name: Install dependencies
         run: npm ci
 
-      # O Electron baixa o programa dele na primeira vez que é chamado; aqui, antes dos testes.
-      - name: Download Electron
-        run: node -e "require('electron')"
+      # O Rust já vem no Windows do GitHub: aqui, a versão estável mais nova e o que já foi compilado nas
+      # rodadas anteriores (as dependências levam alguns minutos na primeira vez).
+      - name: Set up Rust
+        run: rustup update stable --no-self-update && rustup default stable
+
+      - name: Reuse the Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          cache-on-failure: true
+
+      # A janela do app mostra a interface pelo WebView2, que já vem no Windows 10 e 11, mas pode faltar no
+      # Windows Server do GitHub. Sem ele, os testes do app não conseguem abrir a janela: aqui ele é
+      # conferido e, se faltar, instalado pelo instalador oficial da Microsoft.
+      - name: Make sure WebView2 is installed
+        shell: pwsh
+        run: |
+          $key = 'SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+          function Get-WebView2Version {
+            foreach ($root in 'HKLM:', 'HKCU:') {
+              $version = (Get-ItemProperty -Path "$root\$key" -ErrorAction SilentlyContinue).pv
+              if ($version -and $version -ne '0.0.0.0') { return $version }
+            }
+          }
+          $version = Get-WebView2Version
+          if (-not $version) {
+            Write-Host 'WebView2 is missing: installing it.'
+            $setup = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
+            Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $setup
+            Start-Process -FilePath $setup -ArgumentList '/silent', '/install' -Wait
+            $version = Get-WebView2Version
+          }
+          if (-not $version) { throw 'WebView2 could not be installed.' }
+          Write-Host "WebView2 $version"
 
       - name: Run the tests
         run: npm test

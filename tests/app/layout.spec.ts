@@ -20,11 +20,7 @@ const STATUS_DRAFT = "Rascunho preservado ao redimensionar"
 const DRAFT_SIZES = [SIZES[0], { width: 1200, height: 800 }, SIZES[2], SIZES[1]]
 
 async function resize(session: TestApp, size: (typeof SIZES)[number]) {
-  await session.app.evaluate(({ BrowserWindow }, requested) => {
-    const win = BrowserWindow.getAllWindows()[0]
-    win.unmaximize()
-    win.setContentSize(requested.width, requested.height)
-  }, size)
+  await session.app.invoke("test_set_window_size", { width: size.width, height: size.height })
   // O monitor do runner pode ser menor que 1920x1080. O viewport torna a medida do layout
   // determinística mesmo quando o Windows limita o tamanho da janela física.
   await session.page.setViewportSize(size)
