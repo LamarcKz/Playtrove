@@ -1,5 +1,5 @@
 #!/bin/sh
-# Trava: a main é a versão estável e só muda por Pull Request da branch "desenvolvimento".
+# Trava 1: a main é a versão estável e só muda por Pull Request da branch "desenvolvimento".
 # Detalhes na seção "Git e GitHub" do CLAUDE.md e em "Histórico e versões" do ESTRUTURA.md.
 branch=$(git symbolic-ref --quiet --short HEAD 2>/dev/null)
 if [ "$branch" = "main" ]; then
@@ -7,6 +7,42 @@ if [ "$branch" = "main" ]; then
   echo "Commit bloqueado: você está na branch main (a versão estável)."
   echo "O dia a dia acontece na branch desenvolvimento. Para ir até ela:"
   echo "  git switch desenvolvimento"
+  echo ""
+  exit 1
+fi
+
+# Trava 2: dados pessoais. Os padrões ficam fora do Git, na pasta .git principal (vale para todas as
+# worktrees): um por linha, sem diferenciar maiúsculas de minúsculas, com "#" para comentários.
+# A lista não fica aqui porque este arquivo é público. Detalhes na seção "Privacidade" do CLAUDE.md.
+patterns_file="$(git rev-parse --git-common-dir)/private-patterns.txt"
+if [ ! -f "$patterns_file" ]; then
+  echo "Aviso: sem a lista $patterns_file, a procura de dados pessoais não foi feita." >&2
+  exit 0
+fi
+
+patterns=$(mktemp)
+trap 'rm -f "$patterns"' EXIT
+tr -d '\r' < "$patterns_file" | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$' > "$patterns"
+if [ ! -s "$patterns" ]; then
+  echo "Aviso: a lista $patterns_file está vazia; a procura de dados pessoais não foi feita." >&2
+  exit 0
+fi
+
+# Para cada arquivo que entra no commit: o nome dele e só as linhas adicionadas (tirar um dado é livre).
+found=$(git -c core.quotepath=off diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
+  if printf '%s\n' "$file" | grep -qiF -f "$patterns" ||
+    git diff --cached --no-color --no-ext-diff -U0 -- "$file" |
+      awk '/^@@/ { hunk = 1; next } hunk && /^\+/ { print substr($0, 2) }' |
+      grep -qiF -f "$patterns"; then
+    echo "  $file"
+  fi
+done)
+
+if [ -n "$found" ]; then
+  echo ""
+  echo "Commit bloqueado: estes arquivos têm um dado pessoal da lista $patterns_file:"
+  echo "$found"
+  echo "Confira com git diff --cached e tire o dado (ou ajuste a lista, se for um falso positivo)."
   echo ""
   exit 1
 fi
