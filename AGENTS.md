@@ -1,6 +1,6 @@
 # AGENTS.md — Playtrove
 
-Este é o ponto de entrada do Codex. O guia compartilhado de trabalho e o estado do projeto ficam em [CLAUDE.md](CLAUDE.md), mantido com esse nome para continuar compatível com o Claude Code.
+Este é o ponto de entrada do Codex. O guia compartilhado de trabalho fica em [CLAUDE.md](CLAUDE.md), mantido com esse nome para continuar compatível com o Claude Code.
 
 ## Antes de trabalhar
 
@@ -15,5 +15,5 @@ Este é o ponto de entrada do Codex. O guia compartilhado de trabalho e o estado
 - Preserve a biblioteca separada do DEV, os dados temporários dos testes e o aviso antes de abrir janelas. Nunca use dados privados ou emuladores reais nos testes automáticos.
 - A memória privada do Claude não é herdada pelo Codex. Peça o contexto necessário apenas quando uma tarefa depender dele; não importe credenciais, caminhos pessoais ou a biblioteca do usuário para arquivos versionados.
 - Use as ferramentas disponíveis na sessão e confira caminhos e autenticação quando necessário, sem presumir a configuração de outra ferramenta.
-- Registre decisões, convenções e estado atual no `CLAUDE.md`; atualize o `ESTRUTURA.md` quando a organização mudar. Mantenha este arquivo curto, sem duplicar o guia compartilhado.
+- O estado do projeto, o histórico e as notas do mantenedor ficam fora do repositório. Registre no `CLAUDE.md` só as regras e convenções técnicas que mudarem, e atualize o `ESTRUTURA.md` quando a organização mudar. Mantenha este arquivo curto, sem duplicar o guia compartilhado.
 - Estes ajustes são do projeto. Configurações globais, modelo e permissões do Codex só mudam por pedido específico do usuário.

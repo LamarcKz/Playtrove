@@ -2,7 +2,7 @@
 
 Guia de onde fica cada coisa no Playtrove e de qual arquivo abrir para criar cada funcionalidade nova.
 
-Para trabalhar no projeto, Codex e Claude Code usam o mesmo guia de regras, decisões e estado atual: `CLAUDE.md`. O Codex começa pelo `AGENTS.md`, que orienta a leitura integral desse guia e a consulta a este mapa, sem manter uma segunda cópia das regras.
+Para trabalhar no projeto, Codex e Claude Code usam o mesmo guia de regras técnicas: `CLAUDE.md` (o estado do projeto e as notas do mantenedor ficam fora do repositório). O Codex começa pelo `AGENTS.md`, que orienta a leitura integral desse guia e a consulta a este mapa, sem manter uma segunda cópia das regras.
 
 ## A ideia geral: 2 partes que conversam
 
@@ -106,7 +106,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `components.json` | Configuração do shadcn/ui, usada pelo comando `npx shadcn add` |
 | `.gitignore` | O que o Git deve ignorar (`node_modules`, `out`, `dist`, o que o Rust compila em `src-tauri/target`...) |
 | `.gitattributes` | Faz o Git guardar os arquivos de texto sempre com o mesmo tipo de quebra de linha (LF) |
-| `.githooks/` | Travas do Git: impedem commit e envio direto na `main` (ver "Histórico e versões") |
+| `.githooks/` | Travas do Git: impedem commit e envio direto na `main` (ver "Histórico e versões") e commit com dados pessoais, pelos padrões de uma lista fora do Git (ver "Privacidade" no `CLAUDE.md`) |
 | `.claude/settings.json` | Configuração do Claude Code para o projeto: os comandos liberados sem perguntar (leitura, conferência de tipos, build e testes rápidos) e os bloqueados pelo guia (ver "Convenções de código" no `CLAUDE.md`). A pasta `.claude/worktrees/` e o `settings.local.json` são só deste computador e ficam fora do Git |
 | `scripts/next-version.mjs` | O comando `npm run versao`: diz qual deve ser a próxima versão, pelos commits desde a última, e monta o rascunho das notas |
 | `scripts/backend-messages.mjs` | O comando `npm run tauri:mensagens`: gera o `src-tauri/messages.json`, com as partes dos dicionários que o Rust usa (nomes dos status padrão, erros e janelas do Windows), nos dois idiomas. As funções viram modelos com `{0}`, `{1}`... O `tests/unit/backendMessages.test.ts` acusa quando o arquivo ficou para trás |
@@ -129,7 +129,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `docs/logo.svg` | Logo do projeto (o mesmo baú do ícone do app), usado no README |
 | `docs/screenshots/` | Capturas de tela do app usadas nos READMEs: `en/` e `pt-BR/`, com os mesmos nomes de arquivo |
 | `AGENTS.md` | Ponto de entrada do Codex: orienta a leitura integral do guia compartilhado e a consulta a este mapa |
-| `CLAUDE.md` | Guia compartilhado do Codex e do Claude Code: regras de trabalho, decisões e estado atual do projeto |
+| `CLAUDE.md` | Guia compartilhado do Codex e do Claude Code: o que o app faz e as regras técnicas de trabalho (o estado do projeto fica fora do repositório) |
 | `out/` | Gerada pelo build da interface (`out/web`). Não edite |
 | `dist/` | Gerada pelo `npm run dist`: o instalador, a versão portátil, o `latest.json` e o `latest.yml`. Não edite |
 
@@ -288,11 +288,11 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 
 ### `src-tauri`: a parte de trás, em Rust
 
-O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não é tela (até a 0.7.x, isso era o processo principal do Electron; a passagem foi em 2026-10-21, escolha do usuário). Um módulo por assunto; os testes de cada um ficam no fim do próprio arquivo (`#[cfg(test)]`), com bancos em memória e pastas temporárias.
+O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não é tela (até a 0.7.x, isso era o processo principal do Electron). Um módulo por assunto; os testes de cada um ficam no fim do próprio arquivo (`#[cfg(test)]`), com bancos em memória e pastas temporárias.
 
 | Arquivo | O que faz |
 |---|---|
-| `Cargo.toml` | O projeto em Rust e as dependências (`tauri`, `rusqlite` com o SQLite embutido, `serde`...). A versão do app vem do `package.json` (pelo `tauri.conf.json`). Os build scripts saem com as informações de depuração também no release (`[profile.release.build-override]`), porque o Smart App Control do Windows bloqueou um deles sem elas |
+| `Cargo.toml` | O projeto em Rust e as dependências (`tauri`, `rusqlite` com o SQLite embutido, `serde`...). A versão do app vem do `package.json` (pelo `tauri.conf.json`). Os build scripts saem com as informações de depuração também no release (`[profile.release.build-override]`), porque o Smart App Control do Windows pode bloquear build scripts sem elas |
 | `tauri.conf.json` | Configuração do Tauri: nome, id, o Vite no endereço 1420 no desenvolvimento e `out/web` no build; o instalador (o padrão do Tauri, só para o usuário, em inglês e português, com os ganchos de `windows/hooks.nsh`) e a atualização (a chave pública que confere a assinatura e o endereço do `latest.json` da última release) |
 | `windows/hooks.nsh` | Os ganchos do instalador: a passagem de quem tem o app em Electron (até a 0.7.x). Antes de instalar, tira o app antigo sem perguntar nada (a biblioteca fica) e, quando veio do atualizador dele (sem telas), abre o app novo no fim |
 | `capabilities/default.json` | O que a janela pode pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar pela barra do topo |
@@ -445,7 +445,7 @@ A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no padrão do [Versionam
 - O número **só muda quando uma versão é lançada**. Enquanto o trabalho acontece, o app continua mostrando o número da última versão (em Configurações → "Sobre").
 - **Quem lança:** versões com novidades esperam você dizer "pode lançar". Versões só com correções o Claude lança sozinho, depois de testar, e te avisa.
 - **Qual número:** o comando `npm run versao` olha o que mudou desde a última versão e diz qual deve ser a próxima, e por quê.
-- **Lançamento de ajustes autorizado em 2026-10-20:** a **0.7.1** reúne capas na proporção original e a leitura das quatro abas. O usuário pediu explicitamente integrar e publicar esses ajustes como correção, embora os commits originais sejam `refactor`; essa decisão não altera o calculador nem reescreve o histórico. Novas funcionalidades continuariam seguindo o número do meio; a 1.0.0 depende do marco de estabilidade escolhido pelo usuário.
+- **Número pedido no lançamento:** você pode pedir um número diferente do sugerido. A **0.7.1** saiu como correção, embora os commits fossem `refactor`, e a **0.8.0** subiu o número do meio na troca do Electron pelo Tauri. Isso não altera o calculador nem reescreve o histórico. Novas funcionalidades continuam seguindo o número do meio; a 1.0.0 depende de um marco de estabilidade.
 
 ### Para voltar atrás
 
