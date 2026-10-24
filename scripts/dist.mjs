@@ -15,6 +15,7 @@ import { createHash } from "node:crypto"
 import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
+import { releaseBuildEnv } from "./release-build-env.mjs"
 
 const REPOSITORY = "https://github.com/LamarcKz/Playtrove"
 const { version } = JSON.parse(readFileSync("package.json", "utf8"))
@@ -40,6 +41,7 @@ if (!process.env.TAURI_SIGNING_PRIVATE_KEY && !existsSync(signingKey)) {
   process.exit(1)
 }
 run("npx", ["tauri", "build"], {
+  ...releaseBuildEnv(process.env, homedir(), process.cwd()),
   TAURI_SIGNING_PRIVATE_KEY: signingKey,
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD: process.env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD ?? "",
 })
