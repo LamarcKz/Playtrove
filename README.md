@@ -54,8 +54,9 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Play**: opens the game in its emulator, with the emulator's own settings (RetroArch opens maximized in a window, unless it is set to fullscreen), and keeps track of playtime and when you last played. Time recorded by the emulators themselves counts too, so games you started straight from the emulator show up the same way.
 - **Metadata and images**: covers come from [libretro-thumbnails](https://thumbnails.libretro.com/) (the same ones RetroArch uses, no key needed) and, when one is missing, from [SteamGridDB](https://www.steamgriddb.com/), which also provides the background art; description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
 - **Details view**: the main library view. Your games are listed on the left, with icons. On the right: the background art, the cover above the title, the **Play** and **More** buttons, the details and the description.
-- **Grid view**: covers in a grid that adapts to the window, with the status on a strip under each cover and a details panel when you click a game.
+- **Grid view**: whole covers centered in matching 2:3 areas, with a neutral background around different image shapes. The grid adapts to the window, with the status on a strip below each cover area and a details panel when you click a game.
 - **Full cover art**: Grid, Details and the side panel preserve each image's original proportions, with no cropping, stretching or blurred filler.
+- **Local background videos**: choose an MP4 or WebM for each game from **More**. Playtrove stores its own copy and plays it silently on a loop in Details view, with a pause button. Reduced motion starts playback paused, and the background image remains available if the video cannot play. Removing the video leaves your original file untouched.
 - **Ratings**: from the **More** menu, rate a game (half to five stars) and mark its difficulty in peppers (halves too); in the same menu, write your review. The rating and difficulty appear next to **Play**, and the review above the description.
 - **List view**: one row per game, with the name, status, platform, library, playtime, rating, difficulty and achievements.
 - **Kanban view**: a board with one column per status (Plan to play, Playing, Beaten, Platinum...), all visible at once. Drag a game to another column to change its status.
@@ -75,7 +76,7 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 
 ## Screenshots
 
-Demonstration images from version 0.7.0.
+Screenshots use a demonstration library.
 
 <table>
   <tr>

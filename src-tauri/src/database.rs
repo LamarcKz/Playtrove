@@ -310,7 +310,7 @@ mod tests {
         let mode: String = db.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
         assert_eq!(mode, "delete");
         let version: i64 = db.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
-        assert_eq!(version, LANGUAGES_VERSION);
+        assert_eq!(version, 9);
     }
 
     #[test]

@@ -15,9 +15,8 @@ interface GameCardProps {
 /**
  * Card de um jogo no grid: capa com o status numa faixa embaixo, título, tempo jogado e, nos jogos
  * com conquistas, o troféu com o progresso.
- * A capa dá um leve zoom no hover. A faixa fica embaixo da capa, e não por cima, para a capa
- * aparecer inteira (pedido do usuário em 2026-10-14); os cantos de baixo são retos, para a faixa
- * não ficar cortada (pedido de 2026-09-19).
+ * A capa inteira fica centralizada numa área 2:3, com leve zoom no hover. A faixa fica embaixo
+ * dessa área, sem cobrir a arte; os cantos de baixo são retos para a faixa não ficar cortada.
  */
 export function GameCard({ game, selected, onSelect }: GameCardProps) {
   const { t } = useI18n()
@@ -36,7 +35,7 @@ export function GameCard({ game, selected, onSelect }: GameCardProps) {
           selected && "ring-2 ring-primary"
         )}
       >
-        <GameCover title={game.title} src={game.coverUrl} className="mx-auto w-full rounded-none" />
+        <GameCover title={game.title} src={game.coverUrl} layout="grid" className="mx-auto w-full rounded-none" />
         {/* Faixa do status: logo embaixo da capa, sem cobrir a imagem. */}
         <span className="block bg-cover-label px-2.5 py-1.5 text-xs font-medium text-cover-label-foreground [overflow-wrap:anywhere]">
           {statusName(game.statusId)}

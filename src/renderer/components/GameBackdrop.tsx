@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Gamepad2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -9,6 +9,8 @@ interface GameBackdropProps {
   fadeTo: "background" | "card"
   /** Mostrar o controle grande quando não há imagem (modo Detalhes). */
   placeholderIcon?: boolean
+  /** Mídia adicional, abaixo do degradê que mantém os textos legíveis. */
+  children?: ReactNode
   className?: string
 }
 
@@ -16,7 +18,7 @@ interface GameBackdropProps {
  * Arte de fundo no topo dos detalhes do jogo (modo Detalhes e painel lateral): fica atrás do
  * conteúdo e vai sumindo para baixo.
  */
-export function GameBackdrop({ src, fadeTo, placeholderIcon, className }: GameBackdropProps) {
+export function GameBackdrop({ src, fadeTo, placeholderIcon, children, className }: GameBackdropProps) {
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const showImage = Boolean(src) && src !== failedSrc
 
@@ -42,6 +44,7 @@ export function GameBackdrop({ src, fadeTo, placeholderIcon, className }: GameBa
           )}
         </>
       )}
+      {children}
       <div
         className={cn(
           "absolute inset-0 bg-linear-to-b from-transparent",

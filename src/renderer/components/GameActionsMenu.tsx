@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react"
-import { CircleStar, Download, FolderOpen, NotebookPen, Star, StarOff } from "lucide-react"
+import { CircleStar, Download, FolderOpen, NotebookPen, Star, StarOff, Video, VideoOff } from "lucide-react"
 import type { Game } from "@shared/types"
 import { RatingDialog } from "@/components/RatingDialog"
 import { ReviewDialog } from "@/components/ReviewDialog"
@@ -67,6 +67,21 @@ export function GameActionsMenu({ game, children }: GameActionsMenuProps) {
             {game.favorite ? <StarOff /> : <Star />}
             {game.favorite ? t.actions.removeFavorite : t.actions.addFavorite}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => void run(t.actions.backgroundVideoError, () => window.api.games.pickBackgroundVideo(game.id))}
+          >
+            <Video />
+            {t.actions.pickBackgroundVideo}
+          </DropdownMenuItem>
+          {game.backgroundVideoUrl && (
+            <DropdownMenuItem
+              onSelect={() => void run(t.actions.backgroundVideoError, () => window.api.games.removeBackgroundVideo(game.id))}
+            >
+              <VideoOff />
+              {t.actions.removeBackgroundVideo}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           <DropdownMenuItem
             disabled={!game.romPath}

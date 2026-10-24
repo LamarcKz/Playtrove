@@ -152,6 +152,8 @@ export const ptBR = {
     running: "Em execução",
     opening: "Abrindo...",
     playError: (game: string) => `Não deu para abrir ${game}`,
+    pauseBackgroundVideo: "Pausar vídeo de fundo",
+    playBackgroundVideo: "Reproduzir vídeo de fundo",
   },
 
   /** O menu Mais de um jogo. */
@@ -166,6 +168,9 @@ export const ptBR = {
     metadataError: "Não deu para baixar os metadados",
     favoriteError: "Não deu para mudar o favorito",
     folderError: "Não deu para abrir a pasta",
+    pickBackgroundVideo: "Escolher vídeo de fundo…",
+    removeBackgroundVideo: "Remover vídeo de fundo",
+    backgroundVideoError: "Não deu para alterar o vídeo de fundo",
   },
 
   rating: {
@@ -569,6 +574,9 @@ export const ptBR = {
     },
     unknownEmulator: "Emulador desconhecido.",
     gameNotFound: "Jogo não encontrado.",
+    invalidBackgroundVideo: "Escolha um arquivo de vídeo MP4 ou WebM válido.",
+    backgroundVideoRead: "Não deu para ler o arquivo de vídeo escolhido.",
+    backgroundVideoSave: "Não deu para guardar o vídeo de fundo. Confira o espaço disponível e tente novamente.",
     noRom: "Esse jogo não tem ROM.",
     romNotFound: (path: string) => `A ROM não foi encontrada: ${path}`,
     alreadyRunning: "Esse jogo já está aberto.",
@@ -612,6 +620,8 @@ export const ptBR = {
     pickEmulator: (emulator: string) => `Escolha o executável do ${emulator}`,
     programs: "Programas",
     pickRomFolder: "Escolha a pasta com as ROMs",
+    pickBackgroundVideo: "Escolha o vídeo de fundo do jogo",
+    videoFiles: "Vídeos MP4 e WebM",
     startupError: "Erro ao iniciar o Playtrove",
     repairedTitle: "Banco de dados consertado",
   },
