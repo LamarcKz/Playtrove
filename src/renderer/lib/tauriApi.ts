@@ -50,6 +50,7 @@ export function createTauriApi(): AppApi {
       setEvaluation: (gameId, evaluation) => invoke("games_set_evaluation", { gameId, evaluation }),
       pickBackgroundVideo: (gameId) => invoke("games_pick_background_video", { gameId }),
       removeBackgroundVideo: (gameId) => invoke("games_remove_background_video", { gameId }),
+      useAutomaticBackgroundVideo: (gameId) => invoke("games_use_automatic_background_video", { gameId }),
     },
     metadata: {
       getConfig: () => invoke("metadata_get_config"),

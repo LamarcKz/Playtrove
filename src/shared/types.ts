@@ -54,6 +54,10 @@ export interface Game {
   backgroundUrl: string | null
   /** Vídeo local copiado para os dados do app, ou null. Usado apenas no fundo do modo Detalhes. */
   backgroundVideoUrl: string | null
+  /** Automático, escolhido manualmente ou desativado para este jogo. */
+  backgroundVideoMode: "auto" | "manual" | "disabled"
+  /** Última busca concluída de trailer, inclusive quando não há vídeo disponível. */
+  backgroundVideoCheckedAt: string | null
   /** Quando os metadados foram baixados pela última vez (ISO), ou null se nunca. */
   metadataUpdatedAt: string | null
   /** Minha nota, de 1 a 10 em meias estrelas (9 = quatro e meia), ou null se ainda não avaliei. */

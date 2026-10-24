@@ -20,7 +20,7 @@ export function describeMetadataResult(progress: MetadataProgress, t: Messages):
   if (errors.length > 0) {
     messages.push({
       kind: "error",
-      title: done > errors.length ? t.metadata.someFailed : t.metadata.downloadError,
+      title: found > 0 || done > errors.length ? t.metadata.someFailed : t.metadata.downloadError,
       description: errors.join(" "),
     })
   }

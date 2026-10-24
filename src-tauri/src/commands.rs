@@ -213,6 +213,22 @@ pub fn games_remove_background_video(
     Ok(())
 }
 
+#[tauri::command(async)]
+pub fn games_use_automatic_background_video(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    service: State<'_, MetadataService>,
+    game_id: Value,
+) -> AppResult<()> {
+    let language = state.language();
+    let game_id = to_id(&game_id, language)?;
+    videos::use_automatic_background_video(state.database(), language, &images.0, game_id)?;
+    notify_library_changed(&app);
+    service.queue.enqueue(&[game_id]);
+    Ok(())
+}
+
 // ---------------------------------------------------------------- status (Configurações → Status)
 
 #[tauri::command]
@@ -477,9 +493,15 @@ pub fn metadata_set_auto_download(
 
 /// Baixa os metadados dos jogos dados ou, sem ids, dos que ainda não têm. Devolve quantos entraram na fila.
 #[tauri::command]
-pub fn metadata_download(state: State<'_, AppState>, service: State<'_, MetadataService>, game_ids: Value) -> AppResult<usize> {
+pub fn metadata_download(
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    secrets: State<'_, Secrets>,
+    game_ids: Value,
+) -> AppResult<usize> {
     let ids = if game_ids.is_null() {
-        library::list_games_without_metadata(&state.db())?
+        let has_igdb = credentials::read_metadata_credentials(&state.db(), &secrets).igdb.is_some();
+        library::list_games_needing_metadata(&state.db(), has_igdb)?
     } else {
         to_id_list(&game_ids, state.language())?
     };

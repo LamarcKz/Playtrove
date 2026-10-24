@@ -112,6 +112,7 @@ fn main() {
             commands::games_set_evaluation,
             commands::games_pick_background_video,
             commands::games_remove_background_video,
+            commands::games_use_automatic_background_video,
             commands::games_play,
             commands::games_get_running,
             commands::games_show_rom,

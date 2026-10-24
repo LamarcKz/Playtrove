@@ -180,15 +180,18 @@ export interface FakeMetadataServer {
   requests: string[]
   /** Desbloqueia agora uma conquista no RetroAchievements de mentira (como se o emulador tivesse avisado o site). */
   unlockAchievement: (id: number) => void
+  /** Trailer sintético opcional; null simula um vídeo indisponível. */
+  setTrailer: (gameTitle: string, videoId: string, bytes: Buffer | null) => void
   close: () => Promise<void>
 }
 
 export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
   const requests: string[] = []
   const ra = createRaState()
+  const trailers = new Map<string, { id: string; bytes: Buffer | null }>()
   const server = createServer((request, response) => {
     requests.push(`${request.method} ${request.url}`)
-    void handle(request, response, base, ra).catch(() => send(response, 500, { erro: "falhou" }))
+    void handle(request, response, base, ra, trailers).catch(() => send(response, 500, { erro: "falhou" }))
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -196,14 +199,30 @@ export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
     url: base,
     requests,
     unlockAchievement: (id) => void ra.unlock(id),
+    setTrailer: (gameTitle, videoId, bytes) => { trailers.set(gameTitle.toLowerCase(), { id: videoId, bytes }) },
     close: () => new Promise((resolve) => server.close(() => resolve())),
   }
 }
 
-async function handle(request: IncomingMessage, response: ServerResponse, base: string, ra: RaState): Promise<void> {
+async function handle(
+  request: IncomingMessage,
+  response: ServerResponse,
+  base: string,
+  ra: RaState,
+  trailers: Map<string, { id: string; bytes: Buffer | null }>
+): Promise<void> {
   const url = new URL(request.url ?? "/", base)
   const path = url.pathname
   const body = await readBody(request)
+
+  const trailerPath = /^\/trailers\/([A-Za-z0-9_-]{11})\.mp4$/.exec(path)
+  if (trailerPath) {
+    const trailer = [...trailers.values()].find((item) => item.id === trailerPath[1])
+    if (!trailer?.bytes) return send(response, 404, { erro: "vídeo indisponível" })
+    response.writeHead(200, { "content-type": "video/mp4", "content-length": trailer.bytes.length })
+    response.end(trailer.bytes)
+    return
+  }
 
   if (path.startsWith("/ra/API/")) return handleRetroAchievements(url, response, ra)
   const badge = /^\/ra-media\/Badge\/(\d+)(_lock)?\.png$/.exec(path)
@@ -228,7 +247,9 @@ async function handle(request: IncomingMessage, response: ServerResponse, base: 
     }
     const term = /search "((?:[^"\\]|\\.)*)"/.exec(body)?.[1] ?? ""
     const game = IGDB_GAMES[term.toLowerCase()]
-    return send(response, 200, game ? [game] : [])
+    const trailer = trailers.get(term.toLowerCase())
+    const videos = trailer ? [{ name: "Gameplay Trailer", video_id: trailer.id }] : []
+    return send(response, 200, game ? [{ ...game, videos }] : [])
   }
 
   if (path.startsWith("/sgdb/")) {

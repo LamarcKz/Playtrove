@@ -74,12 +74,20 @@ export function GameActionsMenu({ game, children }: GameActionsMenuProps) {
             <Video />
             {t.actions.pickBackgroundVideo}
           </DropdownMenuItem>
-          {game.backgroundVideoUrl && (
+          {game.backgroundVideoMode !== "auto" && (
+            <DropdownMenuItem
+              onSelect={() => void run(t.actions.backgroundVideoError, () => window.api.games.useAutomaticBackgroundVideo(game.id))}
+            >
+              <Download />
+              {t.actions.useAutomaticBackgroundVideo}
+            </DropdownMenuItem>
+          )}
+          {game.backgroundVideoMode !== "disabled" && (
             <DropdownMenuItem
               onSelect={() => void run(t.actions.backgroundVideoError, () => window.api.games.removeBackgroundVideo(game.id))}
             >
               <VideoOff />
-              {t.actions.removeBackgroundVideo}
+              {game.backgroundVideoUrl ? t.actions.removeBackgroundVideo : t.actions.disableAutomaticBackgroundVideo}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
