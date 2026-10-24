@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.8.0" src="https://img.shields.io/badge/version-0.8.0-0072d0">
+  <img alt="Version 0.9.0" src="https://img.shields.io/badge/version-0.9.0-0072d0">
   <img alt="In development" src="https://img.shields.io/badge/status-in%20development-orange">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -54,8 +54,9 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Play**: opens the game in its emulator, with the emulator's own settings (RetroArch opens maximized in a window, unless it is set to fullscreen), and keeps track of playtime and when you last played. Time recorded by the emulators themselves counts too, so games you started straight from the emulator show up the same way.
 - **Metadata and images**: covers come from [libretro-thumbnails](https://thumbnails.libretro.com/) (the same ones RetroArch uses, no key needed) and, when one is missing, from [SteamGridDB](https://www.steamgriddb.com/), which also provides the background art; description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
 - **Details view**: the main library view. Your games are listed on the left, with icons. On the right: the background art, the cover above the title, the **Play** and **More** buttons, the details and the description.
-- **Grid view**: covers in a grid that adapts to the window, with the status on a strip under each cover and a details panel when you click a game.
+- **Grid view**: whole covers centered in matching 2:3 areas, with a neutral background around different image shapes. The grid adapts to the window, with the status on a strip below each cover area and a details panel when you click a game.
 - **Full cover art**: Grid, Details and the side panel preserve each image's original proportions, with no cropping, stretching or blurred filler.
+- **Background trailers and videos**: with IGDB configured, Playtrove downloads a YouTube trailer alongside each game's metadata, up to 720p and 100 MiB, and prepares the required tools on first use. It plays silently on a loop in Details view, with the background image as a fallback; reduced motion starts playback paused. From **More**, choose a local MP4 or WebM to override the trailer, remove it and disable automatic videos, or choose **Use automatic trailer** to restore them. Your original local file stays untouched.
 - **Ratings**: from the **More** menu, rate a game (half to five stars) and mark its difficulty in peppers (halves too); in the same menu, write your review. The rating and difficulty appear next to **Play**, and the review above the description.
 - **List view**: one row per game, with the name, status, platform, library, playtime, rating, difficulty and achievements.
 - **Kanban view**: a board with one column per status (Plan to play, Playing, Beaten, Platinum...), all visible at once. Drag a game to another column to change its status.
@@ -75,7 +76,7 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 
 ## Screenshots
 
-Demonstration images from version 0.7.0.
+Screenshots use a demonstration library.
 
 <table>
   <tr>
@@ -146,7 +147,7 @@ Each version's changes are on the same page. Version numbers follow [Semantic Ve
 
 ## Privacy
 
-Playtrove doesn't collect anything about you. Your library, ratings and reviews stay in a database on your computer, and your API keys are encrypted by Windows. The app only goes online to download game metadata and images (IGDB, SteamGridDB and libretro-thumbnails), to read your achievements (RetroAchievements, if you add your account) and to check GitHub for new versions (you can turn that off in Settings → About).
+Playtrove doesn't collect anything about you. Your library, ratings and reviews stay in a database on your computer, and your API keys are encrypted by Windows. The app goes online to download game metadata and images (IGDB, SteamGridDB and libretro-thumbnails), trailers (YouTube) and their tools (official GitHub releases), to read your achievements (RetroAchievements, if you add your account) and to check GitHub for new versions (you can turn that off in Settings → About).
 
 ## Bugs and ideas
 
@@ -200,6 +201,7 @@ Want to understand the code? The guide to every folder and file, and where to bu
 - The look is inspired by [Playnite](https://playnite.link/), an independent project with no connection to this one.
 - The icons come from [Lucide](https://lucide.dev/) (ISC license).
 - Game metadata comes from [IGDB](https://www.igdb.com/) (by Twitch); covers from [libretro-thumbnails](https://thumbnails.libretro.com/), the [RetroArch](https://www.retroarch.com/) community's collection; and background art (and any missing covers) from [SteamGridDB](https://www.steamgriddb.com/), made by its community.
+- Trailer downloads use [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [Deno](https://github.com/denoland/deno), downloaded from their official releases and verified before use.
 - Achievements come from [RetroAchievements](https://retroachievements.org/), a community project with no connection to this one.
 - Game, console and service names belong to their owners. PlayStation and DualSense are trademarks of Sony Interactive Entertainment; Playtrove isn't affiliated with Sony or with any of the services above.
 

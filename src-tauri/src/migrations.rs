@@ -13,7 +13,7 @@ const DEFAULT_STATUSES: [&str; 9] =
 
 type Migration = fn(&Transaction) -> rusqlite::Result<()>;
 
-const MIGRATIONS: [Migration; 8] = [
+const MIGRATIONS: [Migration; 10] = [
     // 1: status, jogos, emuladores, pastas de ROMs e configurações.
     |db| {
         db.execute_batch(
@@ -182,6 +182,17 @@ const MIGRATIONS: [Migration; 8] = [
         db.execute_batch("ALTER TABLE statuses ADD COLUMN preset TEXT")?;
         upgrade_to_languages(db)
     },
+    // 9: o arquivo de vídeo escolhido para o fundo de cada jogo, copiado para os dados do app.
+    |db| db.execute_batch("ALTER TABLE games ADD COLUMN background_video TEXT"),
+    // 10: trailers automáticos, seleção manual e preferência por manter só a imagem.
+    |db| {
+        db.execute_batch(
+            "ALTER TABLE games ADD COLUMN background_video_mode TEXT NOT NULL DEFAULT 'auto'
+        CHECK (background_video_mode IN ('auto', 'manual', 'disabled'));
+        ALTER TABLE games ADD COLUMN background_video_checked_at TEXT;
+        UPDATE games SET background_video_mode = 'manual' WHERE background_video IS NOT NULL;",
+        )
+    },
 ];
 
 /// O status padrão (a chave do dicionário) de cada nome de DEFAULT_STATUSES.
@@ -309,6 +320,61 @@ mod tests {
         run_migrations(&mut db).unwrap();
         let count: i64 = db.query_row("SELECT COUNT(*) FROM statuses", [], |row| row.get(0)).unwrap();
         assert_eq!(count, 9);
+    }
+
+    #[test]
+    fn a_migracao_9_preserva_os_jogos_e_o_video_ao_reabrir() {
+        let mut db = Connection::open_in_memory().unwrap();
+        for migration in &MIGRATIONS[..8] {
+            let transaction = db.transaction().unwrap();
+            migration(&transaction).unwrap();
+            transaction.commit().unwrap();
+        }
+        db.pragma_update(None, "user_version", 8).unwrap();
+        db.execute("INSERT INTO games (title, status_id, added_at) VALUES ('Jogo', 1, '2026-01-01')", []).unwrap();
+
+        run_migrations(&mut db).unwrap();
+        let video: Option<String> =
+            db.query_row("SELECT background_video FROM games WHERE id = 1", [], |row| row.get(0)).unwrap();
+        assert_eq!(video, None);
+        db.execute("UPDATE games SET background_video = 'background-video-1.mp4' WHERE id = 1", []).unwrap();
+        run_migrations(&mut db).unwrap();
+        let row: (String, String) = db
+            .query_row("SELECT title, background_video FROM games WHERE id = 1", [], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap();
+        assert_eq!(row, ("Jogo".into(), "background-video-1.mp4".into()));
+    }
+
+    #[test]
+    fn a_migracao_10_preserva_videos_manuais_e_habilita_automatico_nos_outros() {
+        let mut db = Connection::open_in_memory().unwrap();
+        for migration in &MIGRATIONS[..9] {
+            let transaction = db.transaction().unwrap();
+            migration(&transaction).unwrap();
+            transaction.commit().unwrap();
+        }
+        db.pragma_update(None, "user_version", 9).unwrap();
+        db.execute_batch(
+            "INSERT INTO games (id, title, status_id, added_at, background_video) VALUES
+            (1, 'Manual', 1, '2026-01-01', 'background-video-1.mp4'),
+            (2, 'Sem vídeo', 1, '2026-01-01', NULL);",
+        )
+        .unwrap();
+        run_migrations(&mut db).unwrap();
+        let rows: Vec<(i64, Option<String>, String)> = db
+            .prepare("SELECT id, background_video, background_video_mode FROM games ORDER BY id")
+            .unwrap()
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(rows, [(1, Some("background-video-1.mp4".into()), "manual".into()), (2, None, "auto".into())]);
+        assert!(db.execute("UPDATE games SET background_video_mode = 'outro' WHERE id = 1", []).is_err());
+        run_migrations(&mut db).unwrap();
+        assert_eq!(
+            db.query_row("SELECT background_video_mode FROM games WHERE id = 1", [], |row| row.get::<_, String>(0)).unwrap(),
+            "manual"
+        );
     }
 
     #[test]

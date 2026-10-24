@@ -137,6 +137,45 @@ async function expectNativeCover(cover: Locator, fixture: CoverFixture, maxHeigh
   expect(blurredCopies).toBe(0)
 }
 
+async function expectGridCover(cover: Locator, fixture: CoverFixture) {
+  await cover.scrollIntoViewIfNeeded()
+  await expect(cover).toHaveAttribute("data-state", "loaded")
+  const image = cover.locator('[data-slot="game-cover-image"]')
+  await expect(image).toHaveAttribute("alt", "")
+  const metrics = await image.evaluate((element: HTMLImageElement) => {
+    const image = element.getBoundingClientRect()
+    const frame = element.closest('[data-slot="game-cover"]')!.getBoundingClientRect()
+    return {
+      naturalWidth: element.naturalWidth,
+      naturalHeight: element.naturalHeight,
+      image: { x: image.x, y: image.y, width: image.width, height: image.height },
+      frame: { x: frame.x, y: frame.y, width: frame.width, height: frame.height },
+      blurredCopies: [...element.parentElement!.querySelectorAll("*")].filter((child) => {
+        const style = getComputedStyle(child)
+        return style.backgroundImage.includes("url(") && style.filter.includes("blur(")
+      }).length,
+    }
+  })
+  expect(metrics.naturalWidth).toBe(fixture.width)
+  expect(metrics.naturalHeight).toBe(fixture.height)
+  expect(metrics.frame.width).toBeGreaterThan(0)
+  expect(Math.abs(metrics.frame.height - metrics.frame.width * 1.5)).toBeLessThanOrEqual(1)
+  expect(metrics.frame.height).toBeLessThanOrEqual(385)
+  // A imagem inteira cabe no quadro comum e mantém sua própria proporção, sem recorte ou distorção.
+  expect(metrics.image.width).toBeGreaterThan(0)
+  expect(metrics.image.height).toBeGreaterThan(0)
+  expect(Math.abs(metrics.image.height - metrics.image.width * fixture.height / fixture.width)).toBeLessThanOrEqual(1)
+  expect(metrics.image.x).toBeGreaterThanOrEqual(metrics.frame.x - 1)
+  expect(metrics.image.y).toBeGreaterThanOrEqual(metrics.frame.y - 1)
+  expect(metrics.image.x + metrics.image.width).toBeLessThanOrEqual(metrics.frame.x + metrics.frame.width + 1)
+  expect(metrics.image.y + metrics.image.height).toBeLessThanOrEqual(metrics.frame.y + metrics.frame.height + 1)
+  expect(Math.abs(metrics.image.x + metrics.image.width / 2 - metrics.frame.x - metrics.frame.width / 2)).toBeLessThanOrEqual(1)
+  expect(Math.abs(metrics.image.y + metrics.image.height / 2 - metrics.frame.y - metrics.frame.height / 2)).toBeLessThanOrEqual(1)
+  expect(Math.min(Math.abs(metrics.frame.width - metrics.image.width), Math.abs(metrics.frame.height - metrics.image.height))).toBeLessThanOrEqual(1)
+  expect(metrics.blurredCopies).toBe(0)
+  return metrics.frame
+}
+
 async function expectTextFits(text: Locator) {
   const overflow = await text.evaluate((element) => ({
     x: element.scrollWidth - element.clientWidth,
@@ -155,24 +194,36 @@ async function selectWithKeyboard(title: string) {
 }
 
 for (const size of SIZES) {
-  test(`${size.width}x${size.height}: proporção original na Grade, em Detalhes e no painel`, async () => {
+  test(`${size.width}x${size.height}: Grade com áreas iguais e capas inteiras; Detalhes e painel com proporção original`, async () => {
     await resize(size)
     await chooseView(session.page, "Detalhes")
     await chooseView(session.page, "Grade")
+    let gridFrame: { width: number; height: number } | undefined
+    let statusOffset: number | undefined
     for (const fixture of COVERS) {
       const button = gameButton(fixture.title)
       const cover = coverIn(button, fixture.title)
-      await expectNativeCover(cover, fixture, 384)
+      const frame = await expectGridCover(cover, fixture)
+      if (gridFrame) {
+        expect(Math.abs(frame.width - gridFrame.width)).toBeLessThanOrEqual(1)
+        expect(Math.abs(frame.height - gridFrame.height)).toBeLessThanOrEqual(1)
+      }
+      gridFrame ??= frame
       const status = button.getByText(STATUS, { exact: true })
       const title = button.getByText(fixture.title, { exact: true })
       const imageBounds = await cover.boundingBox()
       const statusBounds = await status.boundingBox()
       const titleBounds = await title.boundingBox()
+      const buttonBounds = await button.boundingBox()
       expect(imageBounds).not.toBeNull()
       expect(statusBounds).not.toBeNull()
       expect(titleBounds).not.toBeNull()
-      if (!imageBounds || !statusBounds || !titleBounds) return
-      expect(statusBounds.y).toBeGreaterThanOrEqual(imageBounds.y + imageBounds.height - 1)
+      expect(buttonBounds).not.toBeNull()
+      if (!imageBounds || !statusBounds || !titleBounds || !buttonBounds) return
+      expect(Math.abs(statusBounds.y - imageBounds.y - imageBounds.height)).toBeLessThanOrEqual(1)
+      const offset = statusBounds.y - buttonBounds.y
+      if (statusOffset !== undefined) expect(Math.abs(offset - statusOffset)).toBeLessThanOrEqual(1)
+      statusOffset ??= offset
       expect(titleBounds.y).toBeGreaterThanOrEqual(statusBounds.y + statusBounds.height - 1)
       await expectTextFits(status)
       await expectTextFits(title)
@@ -203,11 +254,12 @@ for (const size of SIZES) {
   })
 }
 
-test("sem capa, imagem inválida e carregamento conservam um placeholder estável", async () => {
+test("sem capa, imagem inválida e carregamento conservam a mesma área das capas carregadas", async () => {
   for (const size of SIZES) {
     await resize(size)
     await chooseView(session.page, "Detalhes")
     await chooseView(session.page, "Grade")
+    const loaded = await expectGridCover(coverIn(gameButton(COVERS[0].title), COVERS[0].title), COVERS[0])
     for (const [fixture, state] of [[EMPTY, "empty"], [BROKEN, "error"], [LOADING, "loading"]] as const) {
       const cover = coverIn(gameButton(fixture.title), fixture.title)
       await cover.scrollIntoViewIfNeeded()
@@ -217,6 +269,8 @@ test("sem capa, imagem inválida e carregamento conservam um placeholder estáve
       if (!first) return
       expect(first.width).toBeGreaterThan(0)
       expect(Math.abs(first.height - first.width * 1.5)).toBeLessThanOrEqual(1)
+      expect(Math.abs(first.width - loaded.width)).toBeLessThanOrEqual(1)
+      expect(Math.abs(first.height - loaded.height)).toBeLessThanOrEqual(1)
       await gameButton(fixture.title).focus()
       const afterFocus = await cover.boundingBox()
       expect(afterFocus).not.toBeNull()
@@ -226,6 +280,7 @@ test("sem capa, imagem inválida e carregamento conservam um placeholder estáve
     }
   }
 
+  const gridBefore = await coverIn(gameButton(LOADING.title), LOADING.title).boundingBox()
   await chooseView(session.page, "Detalhes")
   await selectWithKeyboard(LOADING.title)
   const cover = mainCover(LOADING.title)
@@ -240,6 +295,13 @@ test("sem capa, imagem inválida e carregamento conservam um placeholder estáve
   if (before && after) expect(Math.abs(before.height - after.height)).toBeLessThanOrEqual(1)
   await releaseImage(LOADING.id)
   await expectNativeCover(cover, LOADING, 288, 160)
+  await chooseView(session.page, "Grade")
+  const gridAfter = await expectGridCover(coverIn(gameButton(LOADING.title), LOADING.title), LOADING)
+  expect(gridBefore).not.toBeNull()
+  if (gridBefore) {
+    expect(Math.abs(gridAfter.width - gridBefore.width)).toBeLessThanOrEqual(1)
+    expect(Math.abs(gridAfter.height - gridBefore.height)).toBeLessThanOrEqual(1)
+  }
 })
 
 async function releaseImage(id: number) {

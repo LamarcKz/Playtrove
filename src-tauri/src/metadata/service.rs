@@ -14,6 +14,7 @@ use super::http::{Fetch, HttpClient, MetadataEndpoints};
 use super::igdb::{IgdbCredentials, IgdbSession};
 use super::queue::{MetadataProgress, MetadataQueue, QueueContext};
 use super::steam_grid_db::SteamGridDbSession;
+use super::trailer_downloader::{TrailerDownloader, YoutubeDownloader};
 use crate::commands::notify_library_changed;
 use crate::i18n::Language;
 use crate::images::ImagesDir;
@@ -71,12 +72,21 @@ impl MetadataService {
                 }
             }
         });
+        // Construir o downloader não prepara ferramentas; elas só são buscadas quando há um trailer.
+        // Nos testes, a implementação HTTP nunca executa nem baixa ferramentas externas.
+        let trailer_downloader = igdb.as_ref().map(|_| -> Arc<dyn TrailerDownloader> {
+            match test_mode().metadata_server.as_deref() {
+                Some(base) => Arc::new(crate::test_hooks::TestTrailerDownloader::new(base)),
+                None => Arc::new(YoutubeDownloader::new(images.0.parent().unwrap_or(&images.0).join("tools"))),
+            }
+        });
         MetadataServices {
             fetch: Arc::clone(&self.fetch),
             endpoints: self.endpoints.clone(),
             igdb,
             steam_grid_db: credentials.steam_grid_db_key.map(|key| self.steam_grid_db_session(key, language)),
             images_dir: images.0.clone(),
+            trailer_downloader,
         }
     }
 }

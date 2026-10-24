@@ -54,4 +54,19 @@ describe("aviso no fim do download de metadados", () => {
       description: "X: erro 500.",
     })
   })
+
+  it("um trailer com erro não transforma metadados salvos em falha total", () => {
+    const messages = describeMetadataResult(finished({
+      done: 1,
+      total: 1,
+      found: 1,
+      errors: ["A aventura: não deu para baixar o trailer."],
+    }), pt)
+    expect(messages[0].title).toBe("Metadados baixados para 1 jogo")
+    expect(messages[1]).toEqual({
+      kind: "error",
+      title: "Alguns metadados não foram baixados",
+      description: "A aventura: não deu para baixar o trailer.",
+    })
+  })
 })

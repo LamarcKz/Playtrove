@@ -11,7 +11,39 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, LogicalSize, Manager, State, WebviewWindow};
 
+use crate::metadata::trailer_downloader::TrailerDownloader;
 use crate::test_mode::test_mode;
+
+/// Só o servidor HTTP de mentira dos testes fornece trailers aqui; ferramentas reais nunca são usadas.
+pub struct TestTrailerDownloader {
+    base: String,
+}
+
+impl TestTrailerDownloader {
+    pub fn new(base: &str) -> Self {
+        Self { base: base.trim_end_matches('/').to_string() }
+    }
+}
+
+impl TrailerDownloader for TestTrailerDownloader {
+    fn download(&self, video_id: &str, destination: &std::path::Path) -> Result<(), String> {
+        use std::io::Read;
+        let error = || "falha no trailer do servidor de testes".to_string();
+        if video_id.len() != 11 || !video_id.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_') {
+            return Err(error());
+        }
+        let agent: ureq::Agent =
+            ureq::Agent::config_builder().timeout_global(Some(std::time::Duration::from_secs(60))).build().into();
+        let mut response = agent.get(&format!("{}/trailers/{video_id}.mp4", self.base)).call().map_err(|_| error())?;
+        let mut output = std::fs::OpenOptions::new().write(true).create_new(true).open(destination).map_err(|_| error())?;
+        let mut reader = response.body_mut().as_reader();
+        std::io::copy(&mut (&mut reader).take(100 * 1024 * 1024), &mut output).map_err(|_| error())?;
+        if reader.read(&mut [0; 1]).map_err(|_| error())? != 0 {
+            return Err(error());
+        }
+        Ok(())
+    }
+}
 
 /// Os testes automáticos estão rodando (com a pasta de dados deles)?
 pub fn active() -> bool {

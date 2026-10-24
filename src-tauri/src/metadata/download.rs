@@ -13,10 +13,12 @@ use super::igdb::{IgdbGame, IgdbSession, igdb_image_url, igdb_platform_id, prefe
 use super::libretro::libretro_boxart_url;
 use super::matching::{pick_best_match, search_term_for};
 use super::steam_grid_db::SteamGridDbSession;
+use super::trailer_downloader::TrailerDownloader;
 use crate::dates::iso;
 use crate::i18n::Language;
 use crate::images::{ImageKind, MAX_IMAGE_BYTES, image_extension, save_game_image};
 use crate::library::{GameMetadata, get_metadata_target, save_game_metadata};
+use crate::videos::{download_automatic_background_video, mark_background_video_checked};
 
 /// Os serviços configurados agora (o IGDB e o SteamGridDB podem faltar; o libretro-thumbnails não precisa
 /// de chave e vale sempre) e onde guardar as imagens.
@@ -27,6 +29,12 @@ pub struct MetadataServices {
     pub steam_grid_db: Option<SteamGridDbSession>,
     /// Pasta das imagens dos jogos (uma subpasta por jogo).
     pub images_dir: PathBuf,
+    pub trailer_downloader: Option<Arc<dyn TrailerDownloader>>,
+}
+
+pub struct MetadataDownload {
+    pub found: bool,
+    pub warnings: Vec<String>,
 }
 
 /// O banco, só durante as leituras e gravações (os pedidos pela internet acontecem sem ele).
@@ -47,7 +55,7 @@ pub fn download_game_metadata(
     language: Language,
     game_id: i64,
     services: &MetadataServices,
-) -> Result<bool, MetadataError> {
+) -> Result<MetadataDownload, MetadataError> {
     let game = get_metadata_target(&lock(db), language, game_id).map_err(|error| MetadataError::Skip(error.to_string()))?;
     let term = search_term_for(&game.title);
 
@@ -114,7 +122,30 @@ pub fn download_game_metadata(
     };
     save_game_metadata(&lock(db), game_id, &metadata, &iso(Utc::now()))
         .map_err(|error| MetadataError::Skip(error.to_string()))?;
-    Ok(igdb_game.is_some() || sgdb_id.is_some() || found_on_libretro)
+    let mut warnings = Vec::new();
+    if services.igdb.is_some() {
+        let video_id = igdb_game.as_ref().and_then(|game| game.trailer_video_id.as_deref());
+        let checked_at = if let Some(video_id) = video_id {
+            if let Some(downloader) = &services.trailer_downloader {
+                match download_automatic_background_video(db, language, &services.images_dir, game_id, |path| {
+                    downloader.download(video_id, path)
+                }) {
+                    Ok(_) => Some(iso(Utc::now())),
+                    Err(error) => {
+                        warnings.push(error.to_string());
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            Some(iso(Utc::now()))
+        };
+        mark_background_video_checked(&lock(db), game_id, checked_at.as_deref())
+            .map_err(|error| MetadataError::Skip(error.to_string()))?;
+    }
+    Ok(MetadataDownload { found: igdb_game.is_some() || sgdb_id.is_some() || found_on_libretro, warnings })
 }
 
 /// Baixa uma imagem e guarda na pasta do jogo. Se não der (link quebrado, não é imagem, grande demais),
@@ -204,6 +235,7 @@ pub mod tests {
             fetch: Arc::clone(&shared),
             endpoints: endpoints(),
             images_dir: images_dir.to_path_buf(),
+            trailer_downloader: None,
             igdb: (only != Some("sgdb"))
                 .then(|| Arc::new(IgdbSession::new(Arc::clone(&shared), endpoints(), credentials(), Language::PtBr))),
             steam_grid_db: (only != Some("igdb"))
@@ -241,7 +273,78 @@ pub mod tests {
     }
 
     fn download(db: &Mutex<Connection>, game_id: i64, services: &MetadataServices) -> bool {
-        download_game_metadata(db, Language::PtBr, game_id, services).unwrap()
+        download_game_metadata(db, Language::PtBr, game_id, services).unwrap().found
+    }
+
+    pub struct FakeTrailerDownloader {
+        pub failure: bool,
+    }
+
+    impl TrailerDownloader for FakeTrailerDownloader {
+        fn download(&self, video_id: &str, destination: &Path) -> Result<(), String> {
+            assert_eq!(video_id, "Trailer001A");
+            if self.failure {
+                return Err("erro privado do processo".into());
+            }
+            std::fs::write(destination, b"\0\0\0\x18ftypisom\0\0\0\0isommp42conteudo").map_err(|error| error.to_string())
+        }
+    }
+
+    pub fn services_with_trailer(images: &Path, failure: bool) -> MetadataServices {
+        let fetch = services_world(vec![(
+            "/igdb/games",
+            Box::new(|| {
+                let mut game = salto_estelar();
+                game["videos"] = json!([{ "name": "Trailer", "video_id": "Trailer001A" }]);
+                json_response(json!([game]), 200)
+            }),
+        )]);
+        let mut services = make_services(fetch, images, Some("igdb"));
+        services.trailer_downloader = Some(Arc::new(FakeTrailerDownloader { failure }));
+        services
+    }
+
+    #[test]
+    fn automatico_baixa_trailer_local_sem_perder_metadados_e_marca_consulta() {
+        let (db, id) = database_with_game("Salto Estelar");
+        let images = temp_folder("metadados-trailer");
+        let outcome = download_game_metadata(&db, Language::PtBr, id, &services_with_trailer(&images, false)).unwrap();
+        assert!(outcome.found);
+        assert!(outcome.warnings.is_empty());
+        let filename = field(&db, "background_video").expect("trailer associado ao jogo");
+        assert!(images.join(id.to_string()).join(filename).is_file());
+        assert_eq!(field(&db, "background_video_mode").as_deref(), Some("auto"));
+        assert!(field(&db, "background_video_checked_at").is_some());
+        assert_eq!(field(&db, "description").as_deref(), Some("A aventura continua."));
+    }
+
+    #[test]
+    fn trailer_com_falha_vira_aviso_mas_salva_arte_e_permite_nova_tentativa() {
+        let (db, id) = database_with_game("Salto Estelar");
+        let images = temp_folder("metadados-trailer-falha");
+        let outcome = download_game_metadata(&db, Language::PtBr, id, &services_with_trailer(&images, true)).unwrap();
+        assert!(outcome.found);
+        assert_eq!(outcome.warnings, [crate::i18n::text(Language::PtBr, "errors.trailerDownloadFailed", &[])]);
+        assert_eq!(field(&db, "background_video"), None);
+        assert_eq!(field(&db, "background_video_checked_at"), None);
+        assert!(field(&db, "metadata_updated_at").is_some());
+        assert!(field(&db, "cover_image").is_some());
+        assert_eq!(crate::library::list_games_needing_metadata(&lock(&db), true).unwrap(), [id]);
+    }
+
+    #[test]
+    fn igdb_sem_video_marca_consulta_e_sem_igdb_nao_executa_downloader() {
+        let (db, id) = database_with_game("Salto Estelar");
+        let images = temp_folder("metadados-trailer-ausente");
+        let mut services = make_services(services_world(vec![]), &images, Some("igdb"));
+        services.trailer_downloader = Some(Arc::new(FakeTrailerDownloader { failure: true }));
+        assert!(download_game_metadata(&db, Language::PtBr, id, &services).unwrap().warnings.is_empty());
+        assert!(field(&db, "background_video_checked_at").is_some());
+        assert!(crate::library::list_games_needing_metadata(&lock(&db), true).unwrap().is_empty());
+        lock(&db).execute("UPDATE games SET background_video_checked_at = NULL", []).unwrap();
+        services.igdb = None;
+        assert!(download_game_metadata(&db, Language::PtBr, id, &services).unwrap().warnings.is_empty());
+        assert_eq!(field(&db, "background_video_checked_at"), None);
     }
 
     #[test]

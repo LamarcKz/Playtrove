@@ -33,6 +33,7 @@ mod test_mode;
 mod test_support;
 mod updates;
 mod validation;
+mod videos;
 mod window;
 
 use std::sync::Arc;
@@ -56,6 +57,7 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .register_asynchronous_uri_scheme_protocol(images::IMAGE_PROTOCOL, images::handle_request)
+        .register_asynchronous_uri_scheme_protocol(videos::VIDEO_PROTOCOL, videos::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
             // idioma (o escolhido ou o do Windows).
@@ -108,6 +110,9 @@ fn main() {
             commands::games_set_status,
             commands::games_set_favorite,
             commands::games_set_evaluation,
+            commands::games_pick_background_video,
+            commands::games_remove_background_video,
+            commands::games_use_automatic_background_video,
             commands::games_play,
             commands::games_get_running,
             commands::games_show_rom,

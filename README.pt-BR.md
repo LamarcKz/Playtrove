@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão 0.8.0" src="https://img.shields.io/badge/vers%C3%A3o-0.8.0-0072d0">
+  <img alt="Versão 0.9.0" src="https://img.shields.io/badge/vers%C3%A3o-0.9.0-0072d0">
   <img alt="Em desenvolvimento" src="https://img.shields.io/badge/status-em%20desenvolvimento-orange">
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Testes" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -54,8 +54,9 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 - **Jogar**: abre o jogo no emulador, com as configurações dele (o RetroArch abre maximizado em janela, a não ser que esteja em tela cheia), e conta sozinho o tempo jogado e a última vez jogado. O tempo que os próprios emuladores registram também entra na biblioteca, então o que foi jogado abrindo o emulador direto aparece do mesmo jeito.
 - **Metadados e imagens**: a capa vem do [libretro-thumbnails](https://thumbnails.libretro.com/) (a mesma do RetroArch, sem precisar de chave) e, quando falta, do [SteamGridDB](https://www.steamgriddb.com/), que também dá a arte de fundo; a descrição, os gêneros, a desenvolvedora, a publicadora e a data de lançamento vêm do [IGDB](https://www.igdb.com/). As duas chaves são gratuitas, e o app explica como criar cada uma.
 - **Modo Detalhes**: a visão principal da biblioteca. À esquerda fica a lista de jogos, com os ícones. À direita aparecem a arte de fundo, a capa acima do título, os botões **Jogar** e **Mais**, os detalhes e a descrição.
-- **Modo Grade**: as capas em uma grade que se ajusta ao tamanho da janela, com o status numa faixa embaixo de cada capa e um painel lateral de detalhes ao clicar em um jogo.
+- **Modo Grade**: capas inteiras centralizadas em áreas iguais 2:3, com fundo neutro nas sobras de imagens de formatos diferentes. A grade se ajusta ao tamanho da janela, com o status numa faixa abaixo da área de cada capa e um painel lateral de detalhes ao clicar em um jogo.
 - **Capas inteiras**: Grade, Detalhes e painel lateral preservam a proporção original de cada imagem, sem cortes, distorções ou preenchimento desfocado.
+- **Trailers e vídeos de fundo**: com o IGDB configurado, o Playtrove baixa um trailer do YouTube junto dos metadados de cada jogo, em até 720p e 100 MiB, e prepara as ferramentas necessárias na primeira utilização. Ele toca sem som, em repetição, no modo Detalhes, com a imagem de fundo como reserva; com movimento reduzido, começa pausado. Pelo menu **Mais**, escolha um MP4 ou WebM local com prioridade sobre o trailer, remova e desative os vídeos automáticos ou escolha **Usar trailer automático** para reativá-los. O arquivo local original permanece intacto.
 - **Avaliação**: pelo menu **Mais**, dê a sua nota (de meia a cinco estrelas) e marque a dificuldade em pimentas (também com meia); no mesmo menu, escreva a sua análise do jogo. A nota e a dificuldade aparecem ao lado do botão **Jogar**, e a análise, em cima da descrição.
 - **Modo Lista**: uma linha por jogo, com o nome, o status, a plataforma, a biblioteca, o tempo jogado, a nota, a dificuldade e as conquistas.
 - **Modo Kanban**: um quadro com uma coluna para cada status (Planejo jogar, Jogando, Zerado, Platinado...), todas visíveis de uma vez. Para mudar o status de um jogo, é só arrastá-lo para outra coluna.
@@ -75,7 +76,7 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 
 ## Capturas de tela
 
-Imagens de demonstração da versão 0.7.0.
+Capturas com uma biblioteca de demonstração.
 
 <table>
   <tr>
@@ -146,7 +147,7 @@ As novidades de cada versão ficam na mesma página. Os números seguem o [Versi
 
 ## Privacidade
 
-O Playtrove não coleta nada sobre você. A biblioteca, as notas e as análises ficam num banco de dados no seu computador, e as chaves das APIs são trancadas pelo Windows. O app só usa a internet para baixar os metadados e as imagens dos jogos (IGDB, SteamGridDB e libretro-thumbnails), para ler as suas conquistas (RetroAchievements, se você colocar a sua conta) e para conferir no GitHub se há versão nova (dá para desligar em Configurações → Sobre).
+O Playtrove não coleta nada sobre você. A biblioteca, as notas e as análises ficam num banco de dados no seu computador, e as chaves das APIs são trancadas pelo Windows. O app usa a internet para baixar os metadados e as imagens dos jogos (IGDB, SteamGridDB e libretro-thumbnails), os trailers (YouTube) e suas ferramentas (releases oficiais no GitHub), para ler as suas conquistas (RetroAchievements, se você colocar a sua conta) e para conferir no GitHub se há versão nova (dá para desligar em Configurações → Sobre).
 
 ## Bugs e ideias
 
@@ -200,6 +201,7 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 - O visual é inspirado no [Playnite](https://playnite.link/), um projeto independente, sem ligação com este.
 - Os ícones vêm do [Lucide](https://lucide.dev/) (licença ISC).
 - Os metadados dos jogos vêm do [IGDB](https://www.igdb.com/) (da Twitch); as capas, do [libretro-thumbnails](https://thumbnails.libretro.com/), o acervo da comunidade do [RetroArch](https://www.retroarch.com/); e as artes de fundo (e as capas que faltarem), do [SteamGridDB](https://www.steamgriddb.com/), feitas pela comunidade.
+- O download de trailers usa [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [Deno](https://github.com/denoland/deno), baixados das releases oficiais e verificados antes do uso.
 - As conquistas vêm do [RetroAchievements](https://retroachievements.org/), um projeto da comunidade, sem ligação com este.
 - Os nomes de jogos, consoles e serviços pertencem aos seus donos. PlayStation e DualSense são marcas da Sony Interactive Entertainment; o Playtrove não tem ligação com a Sony nem com os serviços acima.
 
