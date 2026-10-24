@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão 0.8.0" src="https://img.shields.io/badge/vers%C3%A3o-0.8.0-0072d0">
+  <img alt="Versão 0.9.0" src="https://img.shields.io/badge/vers%C3%A3o-0.9.0-0072d0">
   <img alt="Em desenvolvimento" src="https://img.shields.io/badge/status-em%20desenvolvimento-orange">
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Testes" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
