@@ -54,8 +54,9 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 - **Jogar**: abre o jogo no emulador, com as configurações dele (o RetroArch abre maximizado em janela, a não ser que esteja em tela cheia), e conta sozinho o tempo jogado e a última vez jogado. O tempo que os próprios emuladores registram também entra na biblioteca, então o que foi jogado abrindo o emulador direto aparece do mesmo jeito.
 - **Metadados e imagens**: a capa vem do [libretro-thumbnails](https://thumbnails.libretro.com/) (a mesma do RetroArch, sem precisar de chave) e, quando falta, do [SteamGridDB](https://www.steamgriddb.com/), que também dá a arte de fundo; a descrição, os gêneros, a desenvolvedora, a publicadora e a data de lançamento vêm do [IGDB](https://www.igdb.com/). As duas chaves são gratuitas, e o app explica como criar cada uma.
 - **Modo Detalhes**: a visão principal da biblioteca. À esquerda fica a lista de jogos, com os ícones. À direita aparecem a arte de fundo, a capa acima do título, os botões **Jogar** e **Mais**, os detalhes e a descrição.
-- **Modo Grade**: as capas em uma grade que se ajusta ao tamanho da janela, com o status numa faixa embaixo de cada capa e um painel lateral de detalhes ao clicar em um jogo.
+- **Modo Grade**: capas inteiras centralizadas em áreas iguais 2:3, com fundo neutro nas sobras de imagens de formatos diferentes. A grade se ajusta ao tamanho da janela, com o status numa faixa abaixo da área de cada capa e um painel lateral de detalhes ao clicar em um jogo.
 - **Capas inteiras**: Grade, Detalhes e painel lateral preservam a proporção original de cada imagem, sem cortes, distorções ou preenchimento desfocado.
+- **Vídeos locais de fundo**: escolha um MP4 ou WebM para cada jogo pelo menu **Mais**. O Playtrove guarda uma cópia e a reproduz sem som, em repetição, no modo Detalhes, com botão para pausar. Com movimento reduzido, a reprodução começa pausada, e a imagem de fundo continua disponível se o vídeo não tocar. Remover o vídeo mantém o arquivo original.
 - **Avaliação**: pelo menu **Mais**, dê a sua nota (de meia a cinco estrelas) e marque a dificuldade em pimentas (também com meia); no mesmo menu, escreva a sua análise do jogo. A nota e a dificuldade aparecem ao lado do botão **Jogar**, e a análise, em cima da descrição.
 - **Modo Lista**: uma linha por jogo, com o nome, o status, a plataforma, a biblioteca, o tempo jogado, a nota, a dificuldade e as conquistas.
 - **Modo Kanban**: um quadro com uma coluna para cada status (Planejo jogar, Jogando, Zerado, Platinado...), todas visíveis de uma vez. Para mudar o status de um jogo, é só arrastá-lo para outra coluna.
@@ -75,7 +76,7 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 
 ## Capturas de tela
 
-Imagens de demonstração da versão 0.7.0.
+Capturas com uma biblioteca de demonstração.
 
 <table>
   <tr>

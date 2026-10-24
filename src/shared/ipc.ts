@@ -97,6 +97,10 @@ export interface AppApi {
     showRom: (gameId: number) => Promise<void>
     /** Salva a nota, a dificuldade e a análise do jogo (null apaga cada uma). */
     setEvaluation: (gameId: number, evaluation: GameEvaluation) => Promise<void>
+    /** Escolhe um MP4/WebM e guarda uma cópia como fundo do jogo. Cancelar conserva o vídeo atual. */
+    pickBackgroundVideo: (gameId: number) => Promise<void>
+    /** Remove somente a cópia do vídeo guardada pelo app. */
+    removeBackgroundVideo: (gameId: number) => Promise<void>
   }
   metadata: {
     getConfig: () => Promise<MetadataConfig>

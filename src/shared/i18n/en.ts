@@ -143,6 +143,8 @@ export const en: Messages = {
     running: "Running",
     opening: "Opening...",
     playError: (game) => `Couldn't open ${game}`,
+    pauseBackgroundVideo: "Pause background video",
+    playBackgroundVideo: "Play background video",
   },
 
   actions: {
@@ -156,6 +158,9 @@ export const en: Messages = {
     metadataError: "Couldn't download the metadata",
     favoriteError: "Couldn't change the favorite",
     folderError: "Couldn't open the folder",
+    pickBackgroundVideo: "Choose background video…",
+    removeBackgroundVideo: "Remove background video",
+    backgroundVideoError: "Couldn't change the background video",
   },
 
   rating: {
@@ -535,6 +540,9 @@ export const en: Messages = {
     },
     unknownEmulator: "Unknown emulator.",
     gameNotFound: "Game not found.",
+    invalidBackgroundVideo: "Choose a valid MP4 or WebM video file.",
+    backgroundVideoRead: "Couldn't read the selected video file.",
+    backgroundVideoSave: "Couldn't store the background video. Check the available disk space and try again.",
     noRom: "This game has no ROM.",
     romNotFound: (path) => `The ROM wasn't found: ${path}`,
     alreadyRunning: "This game is already running.",
@@ -576,6 +584,8 @@ export const en: Messages = {
     pickEmulator: (emulator) => `Choose the ${emulator} executable`,
     programs: "Programs",
     pickRomFolder: "Choose the folder with the ROMs",
+    pickBackgroundVideo: "Choose the game's background video",
+    videoFiles: "MP4 and WebM videos",
     startupError: "Error starting Playtrove",
     repairedTitle: "Database repaired",
   },

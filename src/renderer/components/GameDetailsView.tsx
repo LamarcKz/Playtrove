@@ -2,7 +2,7 @@ import { Ellipsis, Star } from "lucide-react"
 import type { Game } from "@shared/types"
 import { AchievementsCard } from "@/components/AchievementsCard"
 import { GameActionsMenu } from "@/components/GameActionsMenu"
-import { GameBackdrop } from "@/components/GameBackdrop"
+import { GameDetailsBackdrop } from "@/components/GameDetailsBackdrop"
 import { GameCover } from "@/components/GameCover"
 import { GameInfoList } from "@/components/GameInfoList"
 import { GameScores } from "@/components/GameScores"
@@ -25,7 +25,7 @@ export function GameDetailsView({ game }: GameDetailsViewProps) {
     <div className="@container relative h-full min-w-0 flex-1 overflow-y-auto">
       {/* A arte de fundo ocupa boa parte da tela, e o conteúdo começa lá embaixo: assim ela aparece
           inteira em cima (pedido do usuário em 2026-09-19). */}
-      <GameBackdrop src={game.backgroundUrl} fadeTo="background" placeholderIcon className="h-[max(34rem,72vh)]" />
+      <GameDetailsBackdrop key={game.backgroundVideoUrl ?? game.id} game={game} />
 
       <div className="relative px-10 pb-10">
         {/* À esquerda, a capa, o nome e os botões; à direita, o cartão das conquistas (quebra para baixo em

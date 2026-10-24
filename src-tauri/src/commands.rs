@@ -40,6 +40,7 @@ use crate::validation::{
     to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_ra_account,
     to_rom_folder, to_secret, to_status_rules, to_text,
 };
+use crate::videos;
 use crate::window::WindowState;
 
 /// O aviso de que algo mudou na biblioteca: a interface pede os dados de novo.
@@ -167,6 +168,47 @@ pub fn games_set_evaluation(app: AppHandle, state: State<'_, AppState>, game_id:
     let language = state.language();
     let game_id = to_id(&game_id, language)?;
     library::save_game_evaluation(&state.db(), language, game_id, to_evaluation(&evaluation, language)?, Utc::now())?;
+    notify_library_changed(&app);
+    Ok(())
+}
+
+/// Escolhe um MP4/WebM local e guarda uma cópia nos dados do app.
+#[tauri::command(async)]
+pub fn games_pick_background_video(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<()> {
+    let language = state.language();
+    let game_id = to_id(&game_id, language)?;
+    videos::current_background_video(&state.db(), language, game_id)?;
+    let picked = if test_hooks::active() {
+        app.state::<TestHooks>().take_open_dialog()
+    } else {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(text(language, "dialogs.pickBackgroundVideo", &[]))
+            .add_filter(text(language, "dialogs.videoFiles", &[]), &["mp4", "webm"])
+            .blocking_pick_file()
+            .and_then(|file| file.into_path().ok())
+    };
+    if videos::pick_background_video(state.database(), language, &images.0, game_id, picked.as_deref())? {
+        notify_library_changed(&app);
+    }
+    Ok(())
+}
+
+#[tauri::command(async)]
+pub fn games_remove_background_video(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<()> {
+    videos::remove_background_video(state.database(), state.language(), &images.0, to_id(&game_id, state.language())?)?;
     notify_library_changed(&app);
     Ok(())
 }

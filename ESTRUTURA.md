@@ -39,6 +39,7 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `rom_folders_list`, `rom_folders_pick`, `rom_folders_add`, `rom_folders_remove` e `rom_folders_scan` | `hooks/useEmulators.ts` e `RomFolderList.tsx` | As pastas de ROMs: listar, escolher uma pasta numa janela do Windows, adicionar, tirar e procurar jogos nelas |
 | `games_play` e `games_get_running` | `PlayButton.tsx` e `hooks/useRunningGames.ts` | Abre o jogo no emulador (responde quando ele abriu, ou com a mensagem do problema) e os jogos abertos agora |
 | `games_set_favorite` e `games_show_rom` | `GameActionsMenu.tsx` (menu "Mais") | Marcam ou desmarcam o favorito e mostram a ROM no Explorador de Arquivos |
+| `games_pick_background_video` e `games_remove_background_video` | `GameActionsMenu.tsx` (menu "Mais") | Escolhem um MP4/WebM pelo diálogo nativo e guardam uma cópia para o fundo dos Detalhes, ou removem só a cópia interna |
 | `games_set_evaluation` | `RatingDialog.tsx` e `ReviewDialog.tsx` (menu "Mais") | Muda só as partes enviadas da avaliação: a nota e a dificuldade, ou a análise (o Rust confere os valores: de 1 a 10, ou vazio) |
 | `metadata_get_config`, `metadata_set_igdb`, `metadata_set_steam_grid_db` e `metadata_set_auto_download` | `MetadataSettings.tsx` (Configurações → Metadados) | O que está configurado (sem as chaves), salvar as chaves (o Rust confere antes, com um pedido de teste) e ligar ou desligar o download sozinho para jogos novos |
 | `metadata_download` e `metadata_get_progress` | `MetadataSettings.tsx`, `GameActionsMenu.tsx` e `hooks/useMetadataProgress.ts` | Coloca jogos na fila de download de metadados (sem ids, os que ainda não têm) e o andamento da fila |
@@ -87,7 +88,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 - **Troféus do PS3:** com o RPCS3 configurado na aba Emuladores, os jogos de PS3 mostram os troféus que ele guarda, sem conta: o cartão dos Detalhes ("Troféus") tem quantos de cada tipo (bronze, prata, ouro e platina, nas cores do PS3; antes da primeira vez que o jogo abre no RPCS3, só o aviso de quando eles aparecem), e a janela "Ver todos" esconde os troféus ocultos que faltam até clicar em "Mostrar ocultos". Na aba Conquistas, eles entram junto com as do RetroAchievements.
 - **Emuladores:** a aba mostra onde está cada emulador (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin e Azahar; o app procura sozinho nos atalhos do menu Iniciar e da Área de Trabalho e nas pastas vizinhas aos que já achou) e as pastas de ROMs. Cada pasta diz qual emulador abre os jogos dela (e qual core, no RetroArch) e de qual console eles são; o app sugere tudo pelo nome da pasta. "Procurar" coloca na biblioteca as ROMs que ainda não estão nela. Os avisos rápidos (no canto de baixo, à direita) contam o que aconteceu.
 - **Jogar:** abre a ROM no emulador da pasta dela, com a configuração do próprio emulador (o app não força tela cheia). O RetroArch abre maximizado, em janela (se ele estiver em tela cheia na configuração dele, fica assim). Enquanto o emulador está aberto, o botão mostra "Em execução"; quando ele fecha, o tempo jogado e a última vez jogado são atualizados. O app também mostra o tempo que os emuladores registram por conta própria, para o que foi jogado fora dele aparecer. Na primeira vez, o jogo sai de "Planejo jogar" e vai para "Jogando" (regra automática de Configurações → Status).
-- **Imagens e metadados:** no modo Detalhes, a lista mostra o ícone de cada jogo (sem ícone, um pedaço da capa), e a área grande mostra a arte de fundo, a capa acima do nome, a descrição e as informações (gênero, desenvolvedora, publicadora, lançamento). A Grade mostra as capas, e o painel lateral mostra o fundo atrás da capa. Sem imagem, aparece o desenho padrão (um controle num degradê). O menu "Mais" baixa os metadados de um jogo, marca como favorito e mostra a ROM na pasta. Enquanto os metadados são baixados, a barra do topo mostra "Metadados 3/7".
+- **Imagens e metadados:** no modo Detalhes, a lista mostra o ícone de cada jogo (sem ícone, um pedaço da capa), e a área grande mostra a arte de fundo, a capa acima do nome, a descrição e as informações (gênero, desenvolvedora, publicadora, lançamento). A Grade centraliza as capas inteiras em áreas iguais 2:3; o painel lateral mostra o fundo atrás da capa na proporção original. Sem imagem, aparece o desenho padrão (um controle num degradê). O menu "Mais" baixa os metadados de um jogo, marca como favorito, escolhe ou remove um vídeo local de fundo e mostra a ROM na pasta. O vídeo se repete sem som apenas nos Detalhes, com pausa, movimento reduzido e imagem de reserva. Enquanto os metadados são baixados, a barra do topo mostra "Metadados 3/7".
 - **Controle:** com um DualSense conectado, a barra do topo mostra por onde ele está ligado (USB ou Bluetooth), a bateria e se ela está carregando (em verde). Passando o mouse, aparece tudo por extenso. Sem controle, não aparece nada.
 - **Idiomas:** o app inteiro em português e inglês. O idioma fica em Configurações → Geral e muda na hora, sem reabrir; na primeira vez, vale o do Windows (português → português; qualquer outro → inglês). Os status que vêm com o app mudam de nome junto (Planejo jogar → Plan to play), e os criados ou renomeados ficam como o usuário escreveu. Os nomes dos jogos, as descrições do IGDB, as conquistas do RetroAchievements e os troféus do RPCS3 vêm de fora e não mudam.
 
@@ -118,7 +119,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `tests/fakeDiscs.ts`, `fakeTrophies.ts` e `fakePng.ts` | Arquivos de mentira para os testes do app: discos (ISOs, os .bin de PS1, o PARAM.SFO, o EBOOT.PBP, os de GameCube, Wii e 3DS), os troféus do RPCS3 e imagens PNG |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela (a versão DEV) e clicam como uma pessoa. `helpers.ts` abre o app dos testes com uma pasta de dados temporária e liga o Playwright na janela pela depuração do WebView2, cria pastas de arquivos de mentira (`createFiles()`) e combina a resposta da janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB, um SteamGridDB e um RetroAchievements de mentira (com imagens geradas na hora), para os testes não usarem a internet |
 | `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
-| `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): proporção original, limites de tamanho na Grade, nos Detalhes e no painel lateral, alinhamento dos cartões e desenho padrão durante carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
+| `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): áreas iguais 2:3 na Grade, arte inteira e status alinhados, proporção original nos Detalhes e no painel lateral, limites de tamanho e área estável durante carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
+| `tests/app/backgroundVideo.spec.ts` | Confere seleção, importação, cancelamento, reprodução sem som, pausa, troca de jogo/modo, persistência, remoção, falha e movimento reduzido com WebM sintético e dados temporários |
 | `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste da interface |
 | `README.md` e `README.pt-BR.md` | Página de apresentação do projeto no GitHub, em inglês (a que o GitHub mostra) e em português: logo, sobre, recursos, capturas de tela, download, privacidade, bugs, como compilar e roadmap |
 | `LICENSE` | A licença do código (MIT) |
@@ -151,7 +153,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 
 | Arquivo | O que faz |
 |---|---|
-| `index.html` | HTML da janela. Tem a classe `dark` (tema escuro padrão) e a regra de segurança (CSP), que só aceita imagens do app e do protocolo das imagens do Rust (`http://playtrove-img.localhost`) |
+| `index.html` | HTML da janela. Tem a classe `dark` (tema escuro padrão) e a regra de segurança (CSP): imagens do app e de `http://playtrove-img.localhost`, vídeos somente de `http://playtrove-video.localhost` |
 | `main.tsx` | Liga a ponte com o Rust (`window.api`), o React na página e o CSS |
 | `api.d.ts` | Avisa o TypeScript que `window.api` existe e qual é o formato dele (`AppApi`) |
 | `App.tsx` | Layout: barra do topo + menu lateral + página atual. Guarda a página aberta, o texto da busca, o modo da Biblioteca e a biblioteca (assim nada disso se perde ao trocar de aba). Liga o idioma (`I18nProvider`) e os avisos rápidos (`ToastProvider`) |
@@ -247,14 +249,15 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `GameList.tsx` | Lista de jogos da esquerda (ícone, nome e o troféu com o progresso nas conquistas) |
 | `GameIcon.tsx` | Ícone pequeno do jogo (lista, Lista e Kanban). Sem ícone, um pedaço da capa; sem os dois, o desenho padrão |
 | `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa na proporção original acima do título (até 160 × 288 px), a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
+| `GameDetailsBackdrop.tsx` | Fundo exclusivo dos Detalhes: vídeo local em repetição sem som, botão de pausa/reprodução, preferência de movimento reduzido e imagem enquanto carrega ou falha. Pausa quando a janela fica oculta e encerra a mídia ao trocar de jogo ou sair dos Detalhes |
 
 **Biblioteca, modo Grade**
 
 | Arquivo | O que faz |
 |---|---|
-| `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela; os cartões ficam alinhados pelo topo e têm alturas variáveis conforme as capas |
-| `GameCard.tsx` | Card do jogo: capa na proporção original, com até 384 px de altura e o status numa faixa logo embaixo dela (sem cobrir a imagem), título, tempo jogado e o progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
-| `GameCover.tsx` | Capa inteira na proporção original, sem moldura fixa 2:3 nem preenchimento desfocado. Durante o carregamento, sem capa ou se ela não carregar, mostra o desenho padrão |
+| `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela; os cartões ficam alinhados pelo topo, com áreas de capa iguais. A altura total ainda varia quando títulos e status quebram linha |
+| `GameCard.tsx` | Card do jogo: capa inteira centralizada numa área 2:3 de até 384 px de altura, fundo neutro nas sobras e status numa faixa logo abaixo dessa área, título, tempo jogado e progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
+| `GameCover.tsx` | Capa inteira sem cortes, distorção ou preenchimento desfocado. `layout="grid"` reserva uma área 2:3 estável; o padrão acompanha a proporção natural nos Detalhes e no painel. Durante o carregamento, sem capa ou em erro, mostra o desenho padrão |
 
 **Biblioteca, modo Lista**
 
@@ -273,8 +276,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | Arquivo | O que faz |
 |---|---|
 | `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa na proporção original (até 176 × 320 px), o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
-| `GameBackdrop.tsx` | A arte de fundo do jogo, que vai sumindo para baixo (modo Detalhes e painel lateral) |
-| `GameActionsMenu.tsx` | O menu "Mais" de um jogo: avaliar (abre a `RatingDialog`), escrever ou editar a análise (abre a `ReviewDialog`), baixar metadados, marcar como favorito e mostrar a ROM no Explorador |
+| `GameBackdrop.tsx` | A imagem de fundo do jogo, que vai sumindo para baixo (modo Detalhes e painel lateral); aceita a camada de vídeo dos Detalhes por baixo do degradê |
+| `GameActionsMenu.tsx` | O menu "Mais" de um jogo: avaliar (abre a `RatingDialog`), escrever ou editar a análise (abre a `ReviewDialog`), baixar metadados, marcar como favorito, escolher ou remover o vídeo de fundo e mostrar a ROM no Explorador |
 | `RatingDialog.tsx` | Janela "Avaliar jogo": a nota em estrelas e a dificuldade em pimentas, as duas com meio ícone (pelo `ScoreInput`) |
 | `ReviewDialog.tsx` | Janela "Minha análise": o texto do usuário sobre o jogo (em branco apaga) |
 | `ScoreInput.tsx` | Escolher a nota clicando nos ícones (metade esquerda = meio ícone) ou pelo teclado (setas de meio em meio), com o botão "Limpar" |
@@ -298,7 +301,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `capabilities/default.json` | O que a janela pode pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar pela barra do topo |
 | `messages.json` | Os textos que o Rust mostra, gerados dos dicionários pelo `npm run tauri:mensagens` (não editar à mão) |
 | `rustfmt.toml` | A formatação do Rust (`cargo fmt`) |
-| `src/main.rs` | Abre o app: a pasta de dados, o banco (com o aviso, se ele foi consertado), o idioma, os jogos de exemplo dos testes, o protocolo das imagens, a janela e a lista dos comandos |
+| `src/main.rs` | Abre o app: a pasta de dados, o banco (com o aviso, se ele foi consertado), o idioma, os jogos de exemplo dos testes, os protocolos de imagens e vídeos, a janela e a lista dos comandos |
 | `src/commands.rs` | Os comandos que a interface chama. Recebem os valores crus (JSON), conferem pelo `validation.rs` e avisam a tela (`library:changed`) depois de gravar |
 | `src/validation.rs` | Confere o que vem da tela (ids, textos, sim ou não, a ordem e as regras dos status, a avaliação) |
 | `src/errors.rs` | `AppError`: o erro que a tela mostra, já no idioma do app (`AppError::text`) |
@@ -327,11 +330,12 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, com os mesmos nomes do `src/shared/ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma das versões em Electron) |
 | `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
-| `src/migrations.rs` | Cria ou atualiza as tabelas. As 8 primeiras migrações são as do app em Electron (até a 0.7.x), na mesma ordem, para o banco de quem vem de lá abrir direto |
+| `src/migrations.rs` | Cria ou atualiza as tabelas. As 8 primeiras migrações são as do app em Electron (até a 0.7.x), na mesma ordem; a 9 acrescenta `background_video` em `games`, com o nome da cópia interna do vídeo de fundo |
 | `src/settings.rs` | Ler e gravar na tabela `settings` |
 | `src/i18n.rs` | O idioma (o escolhido ou o do Windows) e `text()`, que busca os textos no `messages.json` |
 | `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus. Também muda o status, o favorito e a avaliação de um jogo, e cria, renomeia, reordena e apaga status e troca as regras automáticas |
 | `src/images.rs` | As imagens dos jogos pelo protocolo `playtrove-img` (`http://playtrove-img.localhost/<id>/cover.png`), só da pasta de imagens e fora da linha da janela; o tipo de cada imagem e a gravação de uma imagem nova no lugar da antiga |
+| `src/videos.rs` | Importa MP4/WebM escolhidos pelo diálogo nativo para `images/<id>/background-video-<identificador>.<ext>`, troca ou remove somente cópias internas e gera `backgroundVideoUrl`. O protocolo `playtrove-video` serve `GET`/`HEAD` e intervalos de bytes de até 2 MiB fora da linha da janela, limitado à pasta do jogo |
 | `src/updates.rs` | A atualização do app: procurar versão nova (5 s depois de abrir, se a opção estiver ligada, ou quando o usuário pede), baixar avisando o andamento (`updates:status`) e instalar; na portátil, só abrir a página de download. Quem procura é o atualizador do Tauri, que só instala o que tiver a assinatura da chave do projeto; nos testes, um de mentira (`PLAYTROVE_FAKE_UPDATE`); no `npm run dev:tauri`, ninguém |
 | `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state`. No app de verdade, abrir de novo traz para a frente a que já está aberta (`bring_to_front`, pela janela única do `main.rs`). O WebView2 guarda o que precisa em `<pasta de dados>\webview`, para o app de verdade, o desenvolvimento e os testes poderem ficar abertos juntos |
 | `src/state.rs` | O banco e o idioma enquanto o app está aberto |
@@ -376,6 +380,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | Mudar como o resultado certo da busca é escolhido | `src-tauri/src/metadata/matching.rs` |
 | Mudar o tamanho ou o tipo das imagens baixadas | `src-tauri/src/metadata/steam_grid_db.rs` e, as do IGDB, `src-tauri/src/metadata/download.rs` |
 | Mudar onde as imagens aparecem | `GameCover.tsx` (capa), `GameIcon.tsx` (ícone), `GameBackdrop.tsx` (fundo), usados em `GameDetailsView.tsx`, `GameDetailsPanel.tsx`, `GameCard.tsx` e `GameList.tsx` |
+| Mudar o vídeo local de fundo | `src-tauri/src/videos.rs` (importação, remoção e protocolo por intervalos), `GameActionsMenu.tsx` (seleção) e `GameDetailsBackdrop.tsx` (reprodução e imagem de reserva) |
 | Lembrar o modo de exibição e os filtros ao reabrir o app | `src/renderer/App.tsx` → estados `libraryView` e `libraryFilters` (salvar em algum lugar, ex.: na tabela `settings`, por um comando) |
 | Criar outro modo de exibição | `src/renderer/components/LibraryTools.tsx` (`LibraryView` e `VIEWS`) e `src/renderer/pages/LibraryPage.tsx` |
 | Opções em Configurações (ex.: tema claro/escuro) | `src/renderer/pages/SettingsPage.tsx`, seção "Geral". O tema é a classe `dark` do `<html>` (`src/renderer/index.html`) |
