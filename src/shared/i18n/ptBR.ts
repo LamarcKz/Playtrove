@@ -152,8 +152,6 @@ export const ptBR = {
     running: "Em execução",
     opening: "Abrindo...",
     playError: (game: string) => `Não deu para abrir ${game}`,
-    pauseBackgroundVideo: "Pausar vídeo de fundo",
-    playBackgroundVideo: "Reproduzir vídeo de fundo",
   },
 
   /** O menu Mais de um jogo. */

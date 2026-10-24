@@ -91,10 +91,8 @@ test("cancelar a seleção conserva o fundo e importar toca a cópia local sem s
   await chooseVideo(invalid)
   await expect(session.page.getByRole("alert")).toContainText("MP4")
   await expect(video()).toHaveAttribute("src", savedUrl)
-  await session.page.getByRole("button", { name: "Pausar vídeo de fundo", exact: true }).click()
-  await expect.poll(() => video().evaluate((element: HTMLVideoElement) => element.paused)).toBe(true)
-  await session.page.getByRole("button", { name: "Reproduzir vídeo de fundo", exact: true }).click()
-  await expect.poll(() => video().evaluate((element: HTMLVideoElement) => element.paused)).toBe(false)
+  await expect(session.page.getByRole("button", { name: "Pausar vídeo de fundo", exact: true })).toHaveCount(0)
+  await expect(session.page.getByRole("button", { name: "Reproduzir vídeo de fundo", exact: true })).toHaveCount(0)
 })
 
 test("trocar de jogo ou modo interrompe o vídeo e o painel lateral mantém a imagem", async () => {
@@ -146,7 +144,7 @@ test("falha na reprodução volta para a imagem e movimento reduzido começa pau
   await session.page.reload()
   await expect(video()).toHaveCount(1)
   await expect.poll(() => video().evaluate((element: HTMLVideoElement) => element.paused)).toBe(true)
-  await expect(session.page.getByRole("button", { name: "Reproduzir vídeo de fundo", exact: true })).toBeVisible()
+  await expect(session.page.getByRole("button", { name: "Reproduzir vídeo de fundo", exact: true })).toHaveCount(0)
 })
 
 test("reproduz o vídeo após ler vários blocos do protocolo local", async () => {
