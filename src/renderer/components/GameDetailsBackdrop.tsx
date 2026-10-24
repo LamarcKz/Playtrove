@@ -1,34 +1,47 @@
 import { useEffect, useRef, useState } from "react"
-import { Pause, Play } from "lucide-react"
 import type { Game } from "@shared/types"
 import { GameBackdrop } from "@/components/GameBackdrop"
-import { Button } from "@/components/ui/button"
-import { useI18n } from "@/hooks/useI18n"
 import { cn } from "@/lib/utils"
 
 /** Fundo exclusivo dos Detalhes: a imagem permanece enquanto o vídeo local carrega ou falha. */
 export function GameDetailsBackdrop({ game }: { game: Game }) {
-  const { t } = useI18n()
   const videoRef = useRef<HTMLVideoElement>(null)
-  const [paused, setPaused] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches)
+  const [reducedMotion, setReducedMotion] = useState(() => matchMedia("(prefers-reduced-motion: reduce)").matches)
   const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
   const src = game.backgroundVideoUrl
 
   useEffect(() => {
     const preference = matchMedia("(prefers-reduced-motion: reduce)")
-    const change = () => setPaused(preference.matches)
+    const change = () => setReducedMotion(preference.matches)
+    change()
     preference.addEventListener("change", change)
     return () => preference.removeEventListener("change", change)
   }, [])
 
   useEffect(() => {
     const video = videoRef.current
+    if (!video || !src) return
+    // O StrictMode do DEV repete setup/cleanup sem recriar o elemento.
+    // Cada setup restaura a fonte que o cleanup anterior liberou.
+    if (video.getAttribute("src") !== src) video.setAttribute("src", src)
+    return () => {
+      video.pause()
+      video.removeAttribute("src")
+      video.load()
+    }
+  }, [src, failed])
+
+  useEffect(() => {
+    const video = videoRef.current
     if (!video) return
     let active = true
     const update = () => {
-      if (paused || document.hidden) video.pause()
-      else void video.play().catch(() => { if (active) setPaused(true) })
+      if (reducedMotion || document.hidden) video.pause()
+      else void video.play().catch((error: unknown) => {
+        // Pausar ou liberar a mídia pode cancelar um play ainda pendente.
+        if (active && !(error instanceof DOMException && error.name === "AbortError")) setFailed(true)
+      })
     }
     update()
     document.addEventListener("visibilitychange", update)
@@ -37,17 +50,7 @@ export function GameDetailsBackdrop({ game }: { game: Game }) {
       document.removeEventListener("visibilitychange", update)
       video.pause()
     }
-  }, [src, paused, failed])
-
-  useEffect(() => {
-    const video = videoRef.current
-    return () => {
-      if (!video) return
-      video.pause()
-      video.removeAttribute("src")
-      video.load()
-    }
-  }, [src, failed])
+  }, [src, reducedMotion, failed])
 
   return (
     <>
@@ -67,18 +70,6 @@ export function GameDetailsBackdrop({ game }: { game: Game }) {
           />
         )}
       </GameBackdrop>
-      {src && !failed && (
-        <Button
-          variant="secondary"
-          size="sm"
-          className="absolute top-6 right-6 z-10"
-          onClick={() => setPaused((value) => !value)}
-          aria-label={paused ? t.details.playBackgroundVideo : t.details.pauseBackgroundVideo}
-        >
-          {paused ? <Play /> : <Pause />}
-          {paused ? t.details.playBackgroundVideo : t.details.pauseBackgroundVideo}
-        </Button>
-      )}
     </>
   )
 }

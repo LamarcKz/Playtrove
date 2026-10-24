@@ -143,8 +143,6 @@ export const en: Messages = {
     running: "Running",
     opening: "Opening...",
     playError: (game) => `Couldn't open ${game}`,
-    pauseBackgroundVideo: "Pause background video",
-    playBackgroundVideo: "Play background video",
   },
 
   actions: {
