@@ -116,7 +116,7 @@ fn pick_background_video_with_copy(
     let saved = (|| -> AppResult<Option<String>> {
         let db = db.lock().unwrap_or_else(PoisonError::into_inner);
         let previous = current_background_video(&db, language, game_id)?;
-        db.execute("UPDATE games SET background_video = ?1 WHERE id = ?2", (&filename, game_id)).map_err(|_| save_error())?;
+        db.execute("UPDATE games SET background_video = ?1, background_video_mode = 'manual', background_video_checked_at = NULL WHERE id = ?2", (&filename, game_id)).map_err(|_| save_error())?;
         Ok(previous)
     })();
     let previous = match saved {
@@ -137,7 +137,7 @@ pub fn remove_background_video(db: &Mutex<Connection>, language: Language, image
     let previous = {
         let db = db.lock().unwrap_or_else(PoisonError::into_inner);
         let previous = current_background_video(&db, language, game_id)?;
-        db.execute("UPDATE games SET background_video = NULL WHERE id = ?1", [game_id])
+        db.execute("UPDATE games SET background_video = NULL, background_video_mode = 'disabled', background_video_checked_at = NULL WHERE id = ?1", [game_id])
             .map_err(|_| AppError::text(language, "errors.backgroundVideoSave", &[]))?;
         previous
     };
@@ -145,6 +145,106 @@ pub fn remove_background_video(db: &Mutex<Connection>, language: Language, image
         let _ = std::fs::remove_file(previous);
     }
     Ok(())
+}
+
+/// Restaura o modo automático. A fila de metadados procura o trailer depois que esta gravação termina.
+pub fn use_automatic_background_video(
+    db: &Mutex<Connection>,
+    language: Language,
+    images_dir: &Path,
+    game_id: i64,
+) -> AppResult<()> {
+    let previous = {
+        let db = db.lock().unwrap_or_else(PoisonError::into_inner);
+        let previous = current_background_video(&db, language, game_id)?;
+        db.execute("UPDATE games SET background_video = NULL, background_video_mode = 'auto', background_video_checked_at = NULL WHERE id = ?1", [game_id])
+            .map_err(|_| AppError::text(language, "errors.backgroundVideoSave", &[]))?;
+        previous
+    };
+    if let Some(previous) = previous.and_then(|filename| video_file(images_dir, game_id, &filename)) {
+        let _ = std::fs::remove_file(previous);
+    }
+    Ok(())
+}
+
+/// Marca consultas concluídas, inclusive quando o IGDB não oferece vídeo. Uma falha permite tentar de novo.
+pub fn mark_background_video_checked(db: &Connection, game_id: i64, checked_at: Option<&str>) -> rusqlite::Result<()> {
+    db.execute(
+        "UPDATE games SET background_video_checked_at = ?1 WHERE id = ?2 AND background_video_mode = 'auto'",
+        (checked_at, game_id),
+    )?;
+    Ok(())
+}
+
+/// O downloader recebe apenas um destino interno e trabalha sem segurar a trava do banco.
+pub fn download_automatic_background_video(
+    db: &Mutex<Connection>,
+    language: Language,
+    images_dir: &Path,
+    game_id: i64,
+    download: impl FnOnce(&Path) -> Result<(), String>,
+) -> AppResult<bool> {
+    let read_state = |db: &Connection| -> AppResult<(Option<String>, String)> {
+        db.query_row("SELECT background_video, background_video_mode FROM games WHERE id = ?1", [game_id], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .optional()
+        .map_err(|_| AppError::text(language, "errors.backgroundVideoRead", &[]))?
+        .ok_or_else(|| AppError::text(language, "errors.gameNotFound", &[]))
+    };
+    let (original, mode) = read_state(&db.lock().unwrap_or_else(PoisonError::into_inner))?;
+    if mode != "auto" || original.as_ref().and_then(|name| video_file(images_dir, game_id, name)).is_some() {
+        return Ok(false);
+    }
+    let error = || AppError::text(language, "errors.trailerDownloadFailed", &[]);
+    let directory = images_dir.join(game_id.to_string());
+    std::fs::create_dir_all(&directory).map_err(|_| error())?;
+    let root = images_dir.canonicalize().map_err(|_| error())?;
+    let directory = directory.canonicalize().map_err(|_| error())?;
+    if directory != root.join(game_id.to_string()) {
+        return Err(error());
+    }
+    let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
+    let sequence = NEXT_VIDEO.fetch_add(1, Ordering::Relaxed);
+    let filename = format!("background-video-{stamp}-{sequence}.mp4");
+    let target = directory.join(&filename);
+    let valid = download(&target).is_ok()
+        && (|| -> std::io::Result<bool> {
+            let mut file = File::open(&target)?;
+            if file.metadata()?.len() > 100 * 1024 * 1024 {
+                return Ok(false);
+            }
+            let mut signature = [0; 12];
+            file.read_exact(&mut signature)?;
+            Ok(&signature[4..8] == b"ftyp")
+        })()
+        .unwrap_or(false);
+    if !valid {
+        let _ = std::fs::remove_file(&target);
+        return Err(error());
+    }
+    let saved = (|| -> AppResult<Option<Option<String>>> {
+        let db = db.lock().unwrap_or_else(PoisonError::into_inner);
+        let (current, mode) = read_state(&db)?;
+        // Restaurar automático enquanto o download anda autoriza aproveitar o mesmo trailer.
+        if mode != "auto" || (current.is_some() && current != original) {
+            return Ok(None);
+        }
+        db.execute("UPDATE games SET background_video = ?1 WHERE id = ?2", (&filename, game_id)).map_err(|_| error())?;
+        Ok(Some(current))
+    })();
+    match saved {
+        Ok(Some(previous)) => {
+            if let Some(previous) = previous.and_then(|name| video_file(images_dir, game_id, &name)) {
+                let _ = std::fs::remove_file(previous);
+            }
+            Ok(true)
+        }
+        result => {
+            let _ = std::fs::remove_file(&target);
+            result.map(|_| false)
+        }
+    }
 }
 
 /// Caminho canônico dentro da pasta do jogo: impede travessia e atalhos para fora dela.
@@ -323,6 +423,13 @@ mod tests {
 
         remove_background_video(&db, Language::PtBr, &root, 12).unwrap();
         assert_eq!(stored(&db), None);
+        assert_eq!(
+            db.lock()
+                .unwrap()
+                .query_row("SELECT background_video_mode FROM games WHERE id=12", [], |row| row.get::<_, String>(0))
+                .unwrap(),
+            "disabled"
+        );
         assert!(!copied.exists());
         assert!(folder.join("original-movido.mp4").is_file());
         assert!(root.join("12/cover.png").is_file());
@@ -353,6 +460,75 @@ mod tests {
         assert!(second.ends_with(".webm"));
         assert!(!root.join("12").join(first).exists());
         assert_eq!(request(&root, "GET", &format!("/12/{second}"), None).headers()[CONTENT_TYPE], "video/webm");
+        assert_eq!(
+            db.lock()
+                .unwrap()
+                .query_row("SELECT background_video_mode FROM games WHERE id=12", [], |row| row.get::<_, String>(0))
+                .unwrap(),
+            "manual"
+        );
+    }
+
+    #[test]
+    fn automatico_guarda_o_trailer_e_respeita_mudancas_de_modo_durante_o_download() {
+        let db = database();
+        let root = temp_folder("video-automatico");
+        let save = |path: &Path| std::fs::write(path, MP4).map_err(|error| error.to_string());
+        assert!(download_automatic_background_video(&db, Language::En, &root, 12, save).unwrap());
+        let first = stored(&db).unwrap();
+        assert_eq!(std::fs::read(root.join("12").join(&first)).unwrap(), MP4);
+        assert!(
+            !download_automatic_background_video(&db, Language::En, &root, 12, |_| panic!("não baixar vídeo existente")).unwrap()
+        );
+
+        use_automatic_background_video(&db, Language::En, &root, 12).unwrap();
+        assert!(!root.join("12").join(&first).exists());
+        assert!(
+            !download_automatic_background_video(&db, Language::En, &root, 12, |path| {
+                remove_background_video(&db, Language::En, &root, 12).unwrap();
+                save(path)
+            })
+            .unwrap()
+        );
+        assert_eq!(stored(&db), None);
+        assert_eq!(std::fs::read_dir(root.join("12")).unwrap().count(), 0);
+
+        use_automatic_background_video(&db, Language::En, &root, 12).unwrap();
+        let source = root.join("manual.mp4");
+        std::fs::write(&source, MP4).unwrap();
+        assert!(
+            !download_automatic_background_video(&db, Language::En, &root, 12, |path| {
+                pick_background_video(&db, Language::En, &root, 12, Some(&source)).unwrap();
+                save(path)
+            })
+            .unwrap()
+        );
+        assert!(stored(&db).is_some());
+        assert_eq!(std::fs::read_dir(root.join("12")).unwrap().count(), 1);
+        assert!(!download_automatic_background_video(&db, Language::En, &root, 12, |_| panic!("manual tem prioridade")).unwrap());
+    }
+
+    #[test]
+    fn falha_automatica_apaga_parciais_e_a_restauração_autoriza_download_em_andamento() {
+        let db = database();
+        let root = temp_folder("video-automatico-falha");
+        assert!(
+            download_automatic_background_video(&db, Language::En, &root, 12, |path| {
+                std::fs::write(path, b"parcial").unwrap();
+                Err("erro interno com caminho privado".into())
+            })
+            .is_err()
+        );
+        assert_eq!(std::fs::read_dir(root.join("12")).unwrap().count(), 0);
+        assert_eq!(stored(&db), None);
+        assert!(
+            download_automatic_background_video(&db, Language::En, &root, 12, |path| {
+                remove_background_video(&db, Language::En, &root, 12).unwrap();
+                use_automatic_background_video(&db, Language::En, &root, 12).unwrap();
+                std::fs::write(path, MP4).map_err(|error| error.to_string())
+            })
+            .unwrap()
+        );
     }
 
     #[test]

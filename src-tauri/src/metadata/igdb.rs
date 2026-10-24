@@ -34,6 +34,8 @@ pub struct IgdbGame {
     pub cover_image_id: Option<String>,
     /// Artes oficiais e telas do jogo, para o fundo (as artes primeiro).
     pub background_image_ids: Vec<String>,
+    /// Id de vídeo do YouTube, preferindo um trailer quando houver mais de uma opção.
+    pub trailer_video_id: Option<String>,
     /// Não é o jogo em si, mas algo feito em cima dele: um hack, mod, DLC, pacote ou coletânea.
     pub derivative: bool,
 }
@@ -88,7 +90,7 @@ pub fn igdb_platform_id(platform: Option<&str>) -> Option<i64> {
 
 /// Campos pedidos ao IGDB em cada busca.
 const FIELDS: &str = "name,summary,first_release_date,genres.name,involved_companies.company.name,involved_companies.developer,\
-involved_companies.publisher,cover.image_id,artworks.image_id,screenshots.image_id,game_type";
+involved_companies.publisher,cover.image_id,artworks.image_id,screenshots.image_id,game_type,videos.name,videos.video_id";
 
 /// Tipos de jogo do IGDB (campo game_type) que não são o jogo em si: DLC (1), expansão (2), coletânea
 /// (3), mod (5, onde ficam os ROM hacks), fork (12), pacote (13) e atualização (14).
@@ -110,7 +112,15 @@ struct GameResponse {
     artworks: Vec<ImageResponse>,
     #[serde(default)]
     screenshots: Vec<ImageResponse>,
+    #[serde(default)]
+    videos: Vec<VideoResponse>,
     game_type: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct VideoResponse {
+    name: Option<String>,
+    video_id: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -256,6 +266,8 @@ fn to_igdb_game(game: GameResponse) -> IgdbGame {
         )
     };
     let image_ids = |images: &[ImageResponse]| unique(images.iter().map(|image| image.image_id.clone()));
+    let mut videos: Vec<_> = game.videos.iter().filter(|video| video.video_id.as_deref().is_some_and(valid_youtube_id)).collect();
+    videos.sort_by_key(|video| !video.name.as_deref().unwrap_or_default().to_ascii_lowercase().contains("trailer"));
     IgdbGame {
         id: game.id,
         summary: game.summary.as_deref().map(str::trim).filter(|summary| !summary.is_empty()).map(str::to_string),
@@ -269,9 +281,15 @@ fn to_igdb_game(game: GameResponse) -> IgdbGame {
         publishers: names_of(false),
         cover_image_id: game.cover.as_ref().and_then(|cover| cover.image_id.clone()),
         background_image_ids: [image_ids(&game.artworks), image_ids(&game.screenshots)].concat(),
+        trailer_video_id: videos.first().and_then(|video| video.video_id.clone()),
         derivative: game.game_type.is_some_and(|kind| DERIVATIVE_TYPES.contains(&kind)),
         name: game.name,
     }
+}
+
+/// Apenas o id do YouTube, nunca um endereço ou argumento para o downloader.
+fn valid_youtube_id(id: &str) -> bool {
+    id.len() == 11 && id.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
 }
 
 /// Tira os vazios e os repetidos, mantendo a ordem.
@@ -361,6 +379,7 @@ pub mod tests {
                 publishers: vec!["Editora Meridiano".into()],
                 cover_image_id: Some("co1abc".into()),
                 background_image_ids: vec!["ar1".into(), "sc1".into()],
+                trailer_video_id: None,
                 derivative: false,
             }
         );
@@ -408,6 +427,27 @@ pub mod tests {
         );
     }
 
+    #[test]
+    fn escolhe_trailer_antes_de_outros_videos_e_rejeita_ids_que_nao_sao_do_youtube() {
+        let fetch = igdb_world(|_| {
+            let mut game = salto_estelar();
+            game["videos"] = json!([
+                { "name": "Gameplay", "video_id": "Gameplay01A" },
+                { "name": "Trailer inválido", "video_id": "https://fora" },
+                { "name": "Official Launch TRAILER", "video_id": "Trailer001A" }
+            ]);
+            json!([game])
+        });
+        assert_eq!(session(fetch).search("Salto Estelar", None).unwrap()[0].trailer_video_id.as_deref(), Some("Trailer001A"));
+        let fetch = igdb_world(|_| {
+            let mut game = salto_estelar();
+            game["videos"] =
+                json!([{ "video_id": "curto" }, { "video_id": "../arquivo!" }, { "name": "Outro", "video_id": "Gameplay01A" }]);
+            json!([game])
+        });
+        assert_eq!(session(fetch).search("Salto Estelar", None).unwrap()[0].trailer_video_id.as_deref(), Some("Gameplay01A"));
+    }
+
     fn game(name: &str, release_date: Option<&str>, derivative: bool) -> IgdbGame {
         IgdbGame {
             id: 0,
@@ -419,6 +459,7 @@ pub mod tests {
             publishers: vec![],
             cover_image_id: None,
             background_image_ids: vec![],
+            trailer_video_id: None,
             derivative,
         }
     }

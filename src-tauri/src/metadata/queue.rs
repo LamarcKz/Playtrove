@@ -140,13 +140,14 @@ fn run(state: &Mutex<QueueState>, context: &dyn QueueContext, delay: Duration) {
             download_game_metadata(context.database(), language, game_id, &services)
         });
         match result {
-            Ok(found) => {
+            Ok(download) => {
                 let name = title.clone();
-                update(
-                    state,
-                    context,
-                    |state| if found { state.progress.found += 1 } else { state.progress.not_found.push(name) },
-                );
+                update(state, context, |state| {
+                    if download.found { state.progress.found += 1 } else { state.progress.not_found.push(name) }
+                });
+                update(state, context, |state| {
+                    state.progress.errors.extend(download.warnings.into_iter().map(|warning| format!("{title}: {warning}")))
+                });
                 context.on_game_updated();
             }
             Err(MetadataError::Stop(message)) => update(state, context, |state| {
@@ -289,6 +290,22 @@ mod tests {
         let (result, _) = run_queue(db, Some(make_services(offline, &temp_folder("fila-sem-internet"), None)), &[game_id, other]);
         assert_eq!((result.done, result.total, result.found), (1, 1, 0));
         assert_eq!(result.errors, ["Não deu para falar com o IGDB. Confira a conexão com a internet."]);
+    }
+
+    #[test]
+    fn aviso_do_trailer_nao_impede_a_biblioteca_de_receber_os_metadados() {
+        let (db, id) = database_with_game("Salto Estelar");
+        let services = super::super::download::tests::services_with_trailer(&temp_folder("fila-trailer-aviso"), true);
+        let (result, context) = run_queue(db, Some(services), &[id]);
+        assert_eq!(result.found, 1);
+        assert_eq!(result.errors, [format!("Salto Estelar: {}", text(Language::PtBr, "errors.trailerDownloadFailed", &[]))]);
+        assert_eq!(*context.games_updated.lock().unwrap(), 1);
+        assert!(
+            lock(&context.db)
+                .query_row("SELECT description FROM games WHERE id = ?1", [id], |row| row.get::<_, Option<String>>(0))
+                .unwrap()
+                .is_some()
+        );
     }
 
     #[test]

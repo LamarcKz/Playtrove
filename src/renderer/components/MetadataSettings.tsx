@@ -36,7 +36,10 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
   }, [])
 
   if (!config) return null
-  const missing = games.filter((game) => game.metadataUpdatedAt === null).length
+  const needsTrailer = (game: Game) => config.igdb && game.backgroundVideoMode === "auto"
+    && game.backgroundVideoUrl === null && game.backgroundVideoCheckedAt === null
+  const missingTrailers = games.filter(needsTrailer).length
+  const missing = games.filter((game) => game.metadataUpdatedAt === null || needsTrailer(game)).length
   const running = progress?.running ?? false
 
   /** Baixa para os jogos sem metadados ou, com `all`, de novo para todos (ex.: para pegar capas novas). */
@@ -91,6 +94,8 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
         onChange={setConfig}
       />
 
+      <p className="text-xs leading-relaxed text-muted-foreground">{t.metadata.trailersHint}</p>
+
       <div className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4">
         <label htmlFor={autoDownloadId} className="flex cursor-pointer items-start gap-3 text-sm">
           <Checkbox
@@ -106,7 +111,9 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
         </label>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className="text-sm text-muted-foreground">
-            {missing === 0 ? t.metadata.allHaveMetadata : t.metadata.missing(t.common.games(missing))}
+            {missing === 0 ? t.metadata.allHaveMetadata
+              : missingTrailers > 0 ? t.metadata.missingWithTrailers(t.common.games(missing))
+                : t.metadata.missing(t.common.games(missing))}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button

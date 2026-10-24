@@ -101,6 +101,8 @@ export interface AppApi {
     pickBackgroundVideo: (gameId: number) => Promise<void>
     /** Remove somente a cópia do vídeo guardada pelo app. */
     removeBackgroundVideo: (gameId: number) => Promise<void>
+    /** Volta a buscar o trailer automaticamente, preservando o arquivo original de vídeos manuais. */
+    useAutomaticBackgroundVideo: (gameId: number) => Promise<void>
   }
   metadata: {
     getConfig: () => Promise<MetadataConfig>
