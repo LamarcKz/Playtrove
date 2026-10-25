@@ -181,6 +181,29 @@ export interface MusicConfig {
   autoDownload: boolean
 }
 
+export interface MusicCandidate {
+  videoId: string
+  title: string
+  channel: string | null
+  duration: number | null
+  viewCount: number | null
+}
+
+export interface MusicReview {
+  gameId: number
+  gameTitle: string
+  generation: string
+  query: string
+  state: "needsChoice" | "notFound" | "failed"
+  candidates: MusicCandidate[]
+  error: string | null
+}
+
+export interface MusicPreview {
+  url: string
+  token: string
+}
+
 /**
  * A marca DEV, que aparece em tudo o que roda o código em desenvolvimento, e não o app instalado:
  * "library" no npm run dev (com a cópia da biblioteca) e "tests" nos testes automáticos (numa pasta

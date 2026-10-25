@@ -20,6 +20,8 @@ mod links;
 mod metadata;
 mod migrations;
 mod music;
+mod music_previews;
+mod music_search;
 mod playtime_sync;
 mod rom_scanner;
 mod sample_games;
@@ -60,6 +62,7 @@ fn main() {
         .register_asynchronous_uri_scheme_protocol(images::IMAGE_PROTOCOL, images::handle_request)
         .register_asynchronous_uri_scheme_protocol(videos::VIDEO_PROTOCOL, videos::handle_request)
         .register_asynchronous_uri_scheme_protocol(music::MUSIC_PROTOCOL, music::handle_request)
+        .register_asynchronous_uri_scheme_protocol(music_previews::PREVIEW_PROTOCOL, music_previews::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
             // idioma (o escolhido ou o do Windows).
@@ -75,6 +78,7 @@ fn main() {
                 sample_games::seed_sample_games(&db)?;
             }
             app.manage(images::ImagesDir(folder.join("images")));
+            app.manage(music_previews::MusicPreviewCache::new(folder.join("music-previews"))?);
             app.manage(test_hooks::TestHooks::default());
             app.manage(secrets::Secrets::new(&folder));
             app.manage(AppState::new(db, language));
@@ -121,6 +125,11 @@ fn main() {
             commands::music_get_config,
             commands::music_set_config,
             commands::music_download,
+            commands::music_get_reviews,
+            commands::music_search,
+            commands::music_preview,
+            commands::music_choose,
+            commands::music_cancel_preview,
             commands::games_play,
             commands::games_get_running,
             commands::games_show_rom,
@@ -169,6 +178,7 @@ fn main() {
     app.run(|app, event| {
         // Fechando o app com jogos abertos: registra o tempo jogado até agora (os emuladores continuam).
         if let RunEvent::Exit = event {
+            app.state::<music_previews::MusicPreviewCache>().cancel();
             commands::finish_open_games(app);
         }
     });

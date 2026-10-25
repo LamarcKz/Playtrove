@@ -57,7 +57,7 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Grid view**: whole covers centered in matching 2:3 areas, with a neutral background around different image shapes. The grid adapts to the window, with the status on a strip below each cover area and a details panel when you click a game.
 - **Full cover art**: Grid, Details and the side panel preserve each image's original proportions, with no cropping, stretching or blurred filler.
 - **Background trailers and videos**: with IGDB configured, Playtrove downloads a YouTube trailer alongside each game's metadata, up to 720p and 100 MiB, and prepares the required tools on first use. It plays silently on a loop in Details view, with the background image as a fallback; reduced motion starts playback paused. From **More**, choose a local MP4 or WebM to override the trailer, remove it and disable automatic videos, or choose **Use automatic trailer** to restore them. Your original local file stays untouched.
-- **Game theme music**: the selected game's saved track plays offline on a loop in Details, Grid, List and Kanban, with volume and play/pause controls. Tracks fade when the selection changes and pause while the window is inactive, a game is running or you leave the Library. YouTube searches can run automatically for new games and alongside metadata downloads; **Settings → General** controls playback, volume and automatic music searches independently of metadata, and **Find missing music** queues pending tracks. Searches are conservative, so some games may have no match. From **More**, choose a local MP3, M4A or WAV up to 32 MiB, remove its internal copy and disable automatic music for that game, or choose **Use automatic music** to restore searching. Manual choices stay protected and original files stay untouched. If autoplay is blocked, click play to enable audio.
+- **Game theme music**: saved tracks play offline on a loop in Details, Grid, List and Kanban, with volume and play/pause controls. Tracks fade when the selection changes and pause while the window is inactive, a game is running or you leave the Library. **Settings → General** controls playback and volume; **Metadata** brings soundtrack searches and downloads together. Search accepts title variations and named soundtrack tracks; a strong recommendation can be downloaded automatically. After the other metadata finishes, **Review music** lets you listen to candidates and choose, or refine the search by game or track name. Audio loads only when you click to listen, and confirmed choices keep manual priority. Recommendations are estimates and searches can return no match; retries are explicit. **More** also lets you find another track or import a local MP3, M4A or WAV up to 32 MiB. Removing a track deletes only the internal copy and disables automatic music for that game; original files stay untouched. If autoplay is blocked, click play to enable audio.
 - **Ratings**: from the **More** menu, rate a game (half to five stars) and mark its difficulty in peppers (halves too); in the same menu, write your review. The rating and difficulty appear next to **Play**, and the review above the description.
 - **List view**: one row per game, with the name, status, platform, library, playtime, rating, difficulty and achievements.
 - **Kanban view**: a board with one column per status (Plan to play, Playing, Beaten, Platinum...), all visible at once. Drag a game to another column to change its status.
@@ -131,9 +131,13 @@ Screenshots use a demonstration library.
     </td>
   </tr>
   <tr>
-    <td colspan="2">
-      <img src="docs/screenshots/en/music.png" alt="Theme music settings: playback, volume and automatic downloads">
+    <td width="50%">
+      <img src="docs/screenshots/en/music.png" alt="Theme music settings: playback and volume">
       <p align="center"><sub>Theme music settings</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/en/music-review.png" alt="Soundtrack candidates with listening, selection and search controls">
+      <p align="center"><sub>Listen and choose a soundtrack</sub></p>
     </td>
   </tr>
 </table>

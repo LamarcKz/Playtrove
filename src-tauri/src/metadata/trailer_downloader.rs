@@ -4,6 +4,7 @@ use std::ffi::OsString;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
 #[path = "trailer_tools_process.rs"]
@@ -36,6 +37,17 @@ impl VerifiedYoutubeTools {
 
     pub(super) fn run(&self, args: &[OsString], output: File, deadline: Instant, limit: u64) -> Result<(), String> {
         process::run_limited(&self.0.youtube, args, &self.0.runtime, output, deadline, limit)
+    }
+
+    pub(super) fn run_cancelable(
+        &self,
+        args: &[OsString],
+        output: File,
+        deadline: Instant,
+        limit: u64,
+        cancel: &AtomicBool,
+    ) -> Result<(), String> {
+        process::run_limited_cancelable(&self.0.youtube, args, &self.0.runtime, output, deadline, limit, cancel)
     }
 }
 

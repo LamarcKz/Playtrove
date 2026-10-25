@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import type { AddressInfo } from "node:net"
 import { makePng, type Rgb } from "../fakePng"
+import type { MusicCandidate } from "../../src/shared/types"
 
 /**
  * Um IGDB, um SteamGridDB, um libretro-thumbnails e um RetroAchievements de mentira, rodando neste
@@ -183,6 +184,9 @@ export interface FakeMetadataServer {
   /** Trailer sintético opcional; null simula um vídeo indisponível. */
   setTrailer: (gameTitle: string, videoId: string, bytes: Buffer | null) => void
   setTheme: (gameTitle: string, bytes: Buffer | null) => void
+  setThemeSearch: (gameTitle: string, result: { candidates: MusicCandidate[]; automaticVideoId: string | null }, query?: string) => void
+  setThemeAudio: (videoId: string, bytes: Buffer | null) => void
+  holdThemeAudio: (videoId: string) => () => void
   close: () => Promise<void>
 }
 
@@ -191,9 +195,13 @@ export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
   const ra = createRaState()
   const trailers = new Map<string, { id: string; bytes: Buffer | null }>()
   const themes = new Map<string, Buffer | null>()
+  const themeSearches = new Map<string, { candidates: MusicCandidate[]; automaticVideoId: string | null }>()
+  const themeAudio = new Map<string, Buffer | null>()
+  const heldThemeAudio = new Map<string, Promise<void>>()
+  let nextTheme = 1
   const server = createServer((request, response) => {
     requests.push(`${request.method} ${request.url}`)
-    void handle(request, response, base, ra, trailers, themes).catch(() => send(response, 500, { erro: "falhou" }))
+    void handle(request, response, base, ra, trailers, themes, themeSearches, themeAudio, heldThemeAudio).catch(() => send(response, 500, { erro: "falhou" }))
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -202,7 +210,25 @@ export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
     requests,
     unlockAchievement: (id) => void ra.unlock(id),
     setTrailer: (gameTitle, videoId, bytes) => { trailers.set(gameTitle.toLowerCase(), { id: videoId, bytes }) },
-    setTheme: (gameTitle, bytes) => { themes.set(gameTitle.toLowerCase(), bytes) },
+    setTheme: (gameTitle, bytes) => {
+      const key = gameTitle.toLowerCase()
+      const videoId = "Theme" + String(nextTheme++).padStart(6, "0")
+      themes.set(key, bytes)
+      themeAudio.set(videoId, bytes)
+      themeSearches.set(key, {
+        candidates: bytes ? [{ videoId, title: gameTitle + " — trilha de teste", channel: "Canal de teste", duration: 1, viewCount: null }] : [],
+        automaticVideoId: bytes ? videoId : null,
+      })
+    },
+    setThemeSearch: (gameTitle, result, query) => {
+      themeSearches.set(gameTitle.toLowerCase() + (query === undefined ? "" : "\u0000" + query.toLowerCase()), result)
+    },
+    setThemeAudio: (videoId, bytes) => { themeAudio.set(videoId, bytes) },
+    holdThemeAudio: (videoId) => {
+      let release!: () => void
+      heldThemeAudio.set(videoId, new Promise<void>((resolve) => { release = resolve }))
+      return () => { heldThemeAudio.delete(videoId); release() }
+    },
     close: () => new Promise((resolve) => server.close(() => resolve())),
   }
 }
@@ -213,11 +239,33 @@ async function handle(
   base: string,
   ra: RaState,
   trailers: Map<string, { id: string; bytes: Buffer | null }>,
-  themes: Map<string, Buffer | null>
+  themes: Map<string, Buffer | null>,
+  themeSearches: Map<string, { candidates: MusicCandidate[]; automaticVideoId: string | null }>,
+  themeAudio: Map<string, Buffer | null>,
+  heldThemeAudio: Map<string, Promise<void>>,
 ): Promise<void> {
   const url = new URL(request.url ?? "/", base)
   const path = url.pathname
   const body = await readBody(request)
+
+  if (path === "/theme-search") {
+    const title = (url.searchParams.get("title") ?? "").toLowerCase()
+    const query = url.searchParams.get("query")
+    const result = (query === null ? undefined : themeSearches.get(title + "\u0000" + query.toLowerCase()))
+      ?? themeSearches.get(title)
+      ?? { candidates: [], automaticVideoId: null }
+    return send(response, 200, result)
+  }
+
+  const themeAudioPath = /^\/theme-audio\/([A-Za-z0-9_-]{11})\.m4a$/.exec(path)
+  if (themeAudioPath) {
+    await heldThemeAudio.get(themeAudioPath[1])
+    const bytes = themeAudio.get(themeAudioPath[1])
+    if (!bytes) return send(response, 404, { erro: "música indisponível" })
+    response.writeHead(200, { "content-type": "audio/mp4", "content-length": bytes.length })
+    response.end(bytes)
+    return
+  }
 
   const themePath = /^\/themes\/(.+)\.m4a$/.exec(path)
   if (themePath) {

@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react"
 import { Music2, Pause, Play, Volume2 } from "lucide-react"
 import type { Game } from "@shared/types"
 import { Button } from "@/components/ui/button"
+import { MusicReviewPanel } from "@/components/MusicReviewPanel"
 import { useI18n } from "@/hooks/useI18n"
 import { useMusicConfig } from "@/hooks/useMusicConfig"
 import { useRunningGamesState } from "@/hooks/useRunningGames"
 import { ThemeMusicPlayer, type ThemeMusicPlayback } from "@/lib/themeMusicPlayer"
+import { onMusicPreviewChange } from "@/lib/musicPreviewPlayer"
 
 /** Um player da Biblioteca, independente do vídeo e preservado entre os quatro modos. */
 export function ThemeMusicControls({ game }: { game: Game | undefined }) {
@@ -20,18 +22,26 @@ export function ThemeMusicControls({ game }: { game: Game | undefined }) {
   const suspended = !windowActive || loadingRunning || running.length > 0
   const enabled = config?.enabled ?? false
   const volume = config?.volume ?? 20
+  const previewActive = useRef(false)
+  const options = useRef({ url, enabled, suspended, volume })
+  options.current = { url, enabled, suspended, volume }
 
   useEffect(() => {
     const instance = new ThemeMusicPlayer(audio.current!, setPlayback)
     player.current = instance
+    const stopPreview = onMusicPreviewChange((active) => {
+      previewActive.current = active
+      instance.update({ ...options.current, suspended: options.current.suspended || active })
+    })
     return () => {
+      stopPreview()
       player.current = null
       instance.dispose()
     }
   }, [])
 
   useEffect(() => {
-    player.current?.update({ url, enabled, suspended, volume })
+    player.current?.update({ url, enabled, suspended: suspended || previewActive.current, volume })
   }, [url, enabled, suspended, volume])
 
   return (
@@ -64,6 +74,7 @@ export function ThemeMusicControls({ game }: { game: Game | undefined }) {
       <span role="status" className="text-xs text-muted-foreground">
         {!url ? t.music.noTrack : !enabled ? "" : playback.blocked ? t.music.autoplayBlocked : playback.failed ? t.music.unavailable : ""}
       </span>
+      <MusicReviewPanel compact />
     </div>
   )
 }

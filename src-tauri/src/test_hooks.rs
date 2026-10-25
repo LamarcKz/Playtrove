@@ -11,7 +11,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, LogicalSize, Manager, State, WebviewWindow};
 
-use crate::metadata::theme_downloader::ThemeDownloader;
+use crate::metadata::theme_downloader::{ThemeDownloader, ThemeSearchResult};
 use crate::metadata::trailer_downloader::TrailerDownloader;
 use crate::test_mode::test_mode;
 
@@ -58,7 +58,7 @@ impl TestThemeDownloader {
 }
 
 impl ThemeDownloader for TestThemeDownloader {
-    fn download(&self, title: &str, _platform: Option<&str>, destination: &std::path::Path) -> Result<bool, String> {
+    fn search(&self, title: &str, _platform: Option<&str>, query: Option<&str>) -> Result<ThemeSearchResult, String> {
         use std::io::Read;
         let agent: ureq::Agent = ureq::Agent::config_builder()
             .http_status_as_error(false)
@@ -66,25 +66,62 @@ impl ThemeDownloader for TestThemeDownloader {
             .build()
             .into();
         let encoded = percent_encoding::utf8_percent_encode(title, percent_encoding::NON_ALPHANUMERIC);
-        let mut response =
-            agent.get(&format!("{}/themes/{encoded}.m4a", self.base)).call().map_err(|_| "falha no tema de testes")?;
-        if response.status() == 404 {
-            return Ok(false);
-        }
+        let query = query
+            .map(|query| format!("&query={}", percent_encoding::utf8_percent_encode(query, percent_encoding::NON_ALPHANUMERIC)))
+            .unwrap_or_default();
+        let mut response = agent
+            .get(&format!("{}/theme-search?title={encoded}{query}", self.base))
+            .call()
+            .map_err(|_| "falha na busca de testes")?;
         if response.status() != 200 {
-            return Err("falha no tema de testes".into());
+            return Err("falha na busca de testes".into());
         }
+        let mut bytes = Vec::new();
+        response.body_mut().as_reader().take(1024 * 1024 + 1).read_to_end(&mut bytes).map_err(|_| "falha na busca de testes")?;
+        if bytes.len() > 1024 * 1024 {
+            return Err("busca de testes grande demais".into());
+        }
+        serde_json::from_slice(&bytes).map_err(|_| "busca de testes inválida".into())
+    }
+
+    fn download_video(
+        &self,
+        video_id: &str,
+        destination: &std::path::Path,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<(), String> {
+        use std::io::{Read, Write};
+        use std::sync::atomic::Ordering;
+        if video_id.len() != 11 || !video_id.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_') {
+            return Err("ID de áudio de testes inválido".into());
+        }
+        let agent: ureq::Agent =
+            ureq::Agent::config_builder().timeout_global(Some(std::time::Duration::from_secs(20))).build().into();
+        let mut response =
+            agent.get(&format!("{}/theme-audio/{video_id}.m4a", self.base)).call().map_err(|_| "falha no tema de testes")?;
         let mut file = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(destination)
             .map_err(|_| "falha ao gravar tema de testes")?;
         let mut reader = response.body_mut().as_reader();
-        std::io::copy(&mut (&mut reader).take(32 * 1024 * 1024), &mut file).map_err(|_| "falha ao receber tema de testes")?;
-        if reader.read(&mut [0; 1]).map_err(|_| "falha ao receber tema de testes")? != 0 {
-            return Err("tema de testes grande demais".into());
+        let mut bytes = [0; 16384];
+        let mut received = 0usize;
+        loop {
+            if cancel.load(Ordering::SeqCst) {
+                return Err("tema de testes cancelado".into());
+            }
+            let read = reader.read(&mut bytes).map_err(|_| "falha ao receber tema de testes")?;
+            if read == 0 {
+                break;
+            }
+            received += read;
+            if received > 32 * 1024 * 1024 {
+                return Err("tema de testes grande demais".into());
+            }
+            file.write_all(&bytes[..read]).map_err(|_| "falha ao gravar tema de testes")?;
         }
-        Ok(true)
+        Ok(())
     }
 }
 

@@ -28,6 +28,8 @@ use crate::metadata::credentials::{self, MetadataConfig};
 use crate::metadata::queue::MetadataProgress;
 use crate::metadata::service::MetadataService;
 use crate::music::{self, MusicConfig};
+use crate::music_previews::MusicPreviewCache;
+use crate::music_search::{self, MusicPreview, MusicReview};
 use crate::playtime_sync::{AFTER_GAME_DELAY, PlaytimeSync};
 use crate::rom_scanner::{self, RomFolder, ScanResult};
 use crate::secrets::Secrets;
@@ -253,6 +255,7 @@ pub fn games_pick_theme_music(
             .and_then(|file| file.into_path().ok())
     };
     if music::pick_theme_music(state.database(), language, &images.0, game_id, picked.as_deref())? {
+        app.state::<MusicPreviewCache>().cancel();
         notify_library_changed(&app);
     }
     Ok(())
@@ -266,6 +269,7 @@ pub fn games_remove_theme_music(
     game_id: Value,
 ) -> AppResult<()> {
     music::remove_theme_music(state.database(), state.language(), &images.0, to_id(&game_id, state.language())?)?;
+    app.state::<MusicPreviewCache>().cancel();
     notify_library_changed(&app);
     Ok(())
 }
@@ -279,6 +283,7 @@ pub fn games_use_automatic_theme_music(
 ) -> AppResult<()> {
     let id = to_id(&game_id, state.language())?;
     music::use_automatic_theme_music(&state.db(), state.language(), id)?;
+    app.state::<MusicPreviewCache>().cancel();
     notify_library_changed(&app);
     service.queue.enqueue_music(&[id]);
     Ok(())
@@ -304,7 +309,130 @@ pub fn music_set_config(app: AppHandle, state: State<'_, AppState>, config: Valu
 /// Busca somente os temas ainda pendentes; as cópias manuais e desativadas ficam preservadas.
 #[tauri::command]
 pub fn music_download(state: State<'_, AppState>, service: State<'_, MetadataService>) -> AppResult<usize> {
-    Ok(service.queue.enqueue_music(&library::list_games_needing_music(&state.db())?))
+    Ok(service.queue.enqueue_music(&prepare_missing_music(&state)?))
+}
+
+/// Só operações locais, sob uma trava. Um guard temporário no iterador do `for`
+/// permaneceria vivo no corpo e impediria adquirir o mesmo banco novamente.
+fn prepare_missing_music(state: &AppState) -> rusqlite::Result<Vec<i64>> {
+    let db = state.db();
+    let ids = library::list_games_without_music(&db)?;
+    for id in ids {
+        music_search::retry_missing(&db, id)?;
+    }
+    library::list_games_needing_music(&db)
+}
+
+#[tauri::command]
+pub fn music_get_reviews(state: State<'_, AppState>) -> AppResult<Vec<MusicReview>> {
+    music_search::list_reviews(&state.db(), state.language())
+}
+
+#[tauri::command(async)]
+pub fn music_search(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+    query: Value,
+) -> AppResult<MusicReview> {
+    let language = state.language();
+    let query = if query.is_null() { None } else { Some(to_text(&query, language)?) };
+    if query.as_ref().is_some_and(|query| query.len() > 512 || query.chars().any(char::is_control)) {
+        return Err(AppError::text(language, "errors.invalidText", &[]));
+    }
+    let downloader =
+        service.theme_downloader(&images).ok_or_else(|| AppError::text(language, "errors.themeMusicDownloadFailed", &[]))?;
+    app.state::<MusicPreviewCache>().cancel();
+    let result = music_search::search_choices(
+        state.database(),
+        language,
+        downloader.as_ref(),
+        to_id(&game_id, language)?,
+        query.as_deref(),
+    )?;
+    notify_library_changed(&app);
+    Ok(result)
+}
+
+fn music_choice_reference(value: &Value, language: Language) -> AppResult<String> {
+    let value = to_text(value, language)?;
+    if value.is_empty() || value.len() > 128 || value.chars().any(char::is_control) {
+        return Err(AppError::text(language, "errors.invalidValue", &[]));
+    }
+    Ok(value)
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)] // Referências validadas e autorização de operação cancelável.
+pub fn music_preview(
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    images: State<'_, ImagesDir>,
+    cache: State<'_, MusicPreviewCache>,
+    game_id: Value,
+    generation: Value,
+    video_id: Value,
+    operation_id: Option<Value>,
+) -> AppResult<MusicPreview> {
+    let language = state.language();
+    let downloader =
+        service.theme_downloader(&images).ok_or_else(|| AppError::text(language, "errors.themeMusicDownloadFailed", &[]))?;
+    cache.preview(
+        state.database(),
+        language,
+        downloader.as_ref(),
+        to_id(&game_id, language)?,
+        &music_choice_reference(&generation, language)?,
+        &music_choice_reference(&video_id, language)?,
+        operation_id
+            .as_ref()
+            .filter(|value| !value.is_null())
+            .map(|value| music_choice_reference(value, language))
+            .transpose()?
+            .as_deref(),
+    )
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)] // Contextos do Tauri e três campos validados da escolha.
+pub fn music_choose(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    images: State<'_, ImagesDir>,
+    cache: State<'_, MusicPreviewCache>,
+    game_id: Value,
+    generation: Value,
+    video_id: Value,
+    operation_id: Option<Value>,
+) -> AppResult<()> {
+    let language = state.language();
+    let downloader =
+        service.theme_downloader(&images).ok_or_else(|| AppError::text(language, "errors.themeMusicDownloadFailed", &[]))?;
+    cache.choose(
+        state.database(),
+        language,
+        &images.0,
+        downloader.as_ref(),
+        to_id(&game_id, language)?,
+        &music_choice_reference(&generation, language)?,
+        &music_choice_reference(&video_id, language)?,
+        operation_id
+            .as_ref()
+            .filter(|value| !value.is_null())
+            .map(|value| music_choice_reference(value, language))
+            .transpose()?
+            .as_deref(),
+    )?;
+    notify_library_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn music_cancel_preview(cache: State<'_, MusicPreviewCache>) -> String {
+    cache.cancel()
 }
 
 // ---------------------------------------------------------------- status (Configurações → Status)
@@ -580,21 +708,19 @@ pub fn metadata_download(
     secrets: State<'_, Secrets>,
     game_ids: Value,
 ) -> AppResult<usize> {
-    let ids = if game_ids.is_null() {
+    let (metadata_ids, music_only_ids) = if game_ids.is_null() {
         let has_igdb = credentials::read_metadata_credentials(&state.db(), &secrets).igdb.is_some();
-        let mut ids = library::list_games_needing_metadata(&state.db(), has_igdb)?;
-        if music::get_config(&state.db()).auto_download {
-            for id in library::list_games_needing_music(&state.db())? {
-                if !ids.contains(&id) {
-                    ids.push(id);
-                }
-            }
-        }
-        ids
+        let ids = library::list_games_needing_metadata(&state.db(), has_igdb)?;
+        let music = prepare_missing_music(&state)?.into_iter().filter(|id| !ids.contains(id)).collect();
+        (ids, music)
     } else {
-        to_id_list(&game_ids, state.language())?
+        let ids = to_id_list(&game_ids, state.language())?;
+        for id in &ids {
+            music_search::retry_missing(&state.db(), *id)?;
+        }
+        (ids, Vec::new())
     };
-    Ok(service.queue.enqueue(&ids))
+    Ok(service.queue.enqueue_metadata_and_music(&metadata_ids, &music_only_ids))
 }
 
 #[tauri::command]
@@ -694,4 +820,31 @@ pub fn updates_set_auto_check(state: State<'_, AppState>, updates: State<'_, Upd
     let enabled = to_bool(&enabled, state.language())?;
     updates.set_auto_check(enabled);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, mpsc};
+    use std::time::Duration;
+
+    #[test]
+    fn preparar_musicas_ausentes_nao_adquire_o_mesmo_banco_duas_vezes() {
+        let db = crate::test_support::memory_database();
+        db.execute(
+            "INSERT INTO games(id,title,status_id,added_at,theme_music_checked_at) VALUES(1,'Jogo',1,'2026-01-01','legado')",
+            [],
+        )
+        .unwrap();
+        let state = Arc::new(AppState::new(db, Language::En));
+        let worker_state = Arc::clone(&state);
+        let (sent, received) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            sent.send(prepare_missing_music(&worker_state)).unwrap();
+        });
+        let ids = received.recv_timeout(Duration::from_secs(5)).expect("a preparação local não pode travar o banco").unwrap();
+        assert_eq!(ids, [1]);
+        worker.join().unwrap();
+        assert!(state.database().try_lock().is_ok());
+    }
 }

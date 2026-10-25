@@ -57,7 +57,7 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 - **Modo Grade**: capas inteiras centralizadas em áreas iguais 2:3, com fundo neutro nas sobras de imagens de formatos diferentes. A grade se ajusta ao tamanho da janela, com o status numa faixa abaixo da área de cada capa e um painel lateral de detalhes ao clicar em um jogo.
 - **Capas inteiras**: Grade, Detalhes e painel lateral preservam a proporção original de cada imagem, sem cortes, distorções ou preenchimento desfocado.
 - **Trailers e vídeos de fundo**: com o IGDB configurado, o Playtrove baixa um trailer do YouTube junto dos metadados de cada jogo, em até 720p e 100 MiB, e prepara as ferramentas necessárias na primeira utilização. Ele toca sem som, em repetição, no modo Detalhes, com a imagem de fundo como reserva; com movimento reduzido, começa pausado. Pelo menu **Mais**, escolha um MP4 ou WebM local com prioridade sobre o trailer, remova e desative os vídeos automáticos ou escolha **Usar trailer automático** para reativá-los. O arquivo local original permanece intacto.
-- **Música tema por jogo**: a faixa salva do jogo selecionado toca offline, em repetição, nos modos Detalhes, Grade, Lista e Kanban, com controles de volume e tocar/pausar. O volume muda suavemente ao trocar a seleção, e a música pausa com a janela inativa, um jogo em execução ou ao sair da Biblioteca. A busca no YouTube pode acontecer automaticamente para jogos novos e junto dos downloads de metadados; **Configurações → Geral** controla a reprodução, o volume e as buscas automáticas de música independentemente dos metadados, e **Buscar músicas que faltam** coloca as faixas pendentes na fila. A busca é conservadora, então alguns jogos podem ficar sem resultado. Pelo menu **Mais**, escolha um MP3, M4A ou WAV local de até 32 MiB, remova sua cópia interna e desative a música automática para aquele jogo, ou escolha **Usar música automática** para reativar a busca. Escolhas manuais são preservadas, e os arquivos originais permanecem intactos. Se a reprodução automática for bloqueada, clique em tocar para liberar o áudio.
+- **Música tema por jogo**: a faixa salva toca offline, em repetição, nos modos Detalhes, Grade, Lista e Kanban, com volume e tocar/pausar. A troca de jogo tem transição suave, e o áudio pausa com a janela inativa, um jogo em execução ou ao sair da Biblioteca. **Configurações → Geral** controla reprodução e volume; **Metadados** reúne busca automática e download das trilhas. A busca aceita variações do nome e nomes próprios de faixas da soundtrack; uma recomendação forte pode ser baixada automaticamente. Depois dos demais metadados, **Revisar músicas** permite ouvir as candidatas e escolher, ou ajustar a busca pelo nome do jogo ou da música. A audição é carregada somente ao clicar, e a escolha fica salva com prioridade manual. A recomendação é uma estimativa, e a busca pode terminar sem resultado; novas tentativas são explícitas. O menu **Mais** também permite buscar outra faixa ou importar MP3, M4A ou WAV de até 32 MiB. Remover apaga só a cópia interna e desativa o automático daquele jogo; os arquivos originais permanecem intactos. Se a reprodução automática for bloqueada, clique em tocar para liberar o áudio.
 - **Avaliação**: pelo menu **Mais**, dê a sua nota (de meia a cinco estrelas) e marque a dificuldade em pimentas (também com meia); no mesmo menu, escreva a sua análise do jogo. A nota e a dificuldade aparecem ao lado do botão **Jogar**, e a análise, em cima da descrição.
 - **Modo Lista**: uma linha por jogo, com o nome, o status, a plataforma, a biblioteca, o tempo jogado, a nota, a dificuldade e as conquistas.
 - **Modo Kanban**: um quadro com uma coluna para cada status (Planejo jogar, Jogando, Zerado, Platinado...), todas visíveis de uma vez. Para mudar o status de um jogo, é só arrastá-lo para outra coluna.
@@ -131,9 +131,13 @@ Capturas com uma biblioteca de demonstração.
     </td>
   </tr>
   <tr>
-    <td colspan="2">
-      <img src="docs/screenshots/pt-BR/music.png" alt="Configurações da música tema: reprodução, volume e busca automática">
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/music.png" alt="Configurações da música tema: reprodução e volume">
       <p align="center"><sub>Configurações da música tema</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/music-review.png" alt="Opções da soundtrack com controles para ouvir, escolher e pesquisar">
+      <p align="center"><sub>Ouvir e escolher a soundtrack</sub></p>
     </td>
   </tr>
 </table>

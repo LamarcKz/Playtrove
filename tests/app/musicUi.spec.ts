@@ -16,9 +16,10 @@ test("preferências musicais acessíveis nos dois idiomas e sem erros na tela", 
       }
       const group = session.page.getByRole("group", { name: language === "en" ? "Theme music" : "Música tema", exact: true })
       await expect(group).toBeVisible()
-      await expect(group.getByRole("checkbox")).toHaveCount(2)
+      await expect(group.getByRole("checkbox")).toHaveCount(1)
       await expect(group.getByRole("slider")).toHaveValue("20")
-      await expect(group.getByRole("button")).toBeEnabled()
+      const acquisition = session.page.getByRole("group", { name: language === "en" ? "Game soundtracks" : "Músicas dos jogos", exact: true })
+      await expect(acquisition.getByRole("checkbox")).toBeChecked()
       const box = await group.boundingBox()
       expect(box!.x).toBeGreaterThanOrEqual(0)
       expect(box!.x + box!.width).toBeLessThanOrEqual(1280)

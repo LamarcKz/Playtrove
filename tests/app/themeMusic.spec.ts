@@ -36,7 +36,11 @@ async function playing() {
   if (await audio().evaluate((element: HTMLAudioElement) => element.paused)) {
     await session.page.getByRole("button", { name: "Tocar música tema", exact: true }).click()
   }
-  await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => !element.paused && element.currentTime > 0)).toBe(true)
+  await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => ({
+    playing: !element.paused && element.currentTime > 0,
+    paused: element.paused, currentTime: element.currentTime, readyState: element.readyState,
+    error: element.error?.message ?? null, hidden: document.hidden, focused: document.hasFocus(),
+  }))).toMatchObject({ playing: true })
 }
 
 function silentWav() {
@@ -166,20 +170,20 @@ test("busca automática baixa M4A sintético e escolha manual impede substituiç
   })
   automaticBytes = Buffer.from(encoded, "base64")
   server.setTheme(title, automaticBytes)
-  const initialRequests = server.requests.filter((path) => path.startsWith("GET /themes/")).length
+  const initialRequests = server.requests.filter((path) => path.startsWith("GET /theme-search")).length
   await session.page.evaluate((id) => window.api.metadata.download([id]), id)
   await idle()
   expect((await game()).themeMusicUrl).toBe(manualUrl)
-  expect(server.requests.filter((path) => path.startsWith("GET /themes/"))).toHaveLength(initialRequests)
+  expect(server.requests.filter((path) => path.startsWith("GET /theme-search"))).toHaveLength(initialRequests)
   await action("Usar música automática")
   await idle()
   await expect.poll(async () => (await game()).themeMusicUrl).toMatch(/\.m4a$/)
   expect((await game()).themeMusicCheckedAt).not.toBeNull()
   await playing()
-  const requests = server.requests.filter((path) => path.startsWith("GET /themes/")).length
+  const requests = server.requests.filter((path) => path.startsWith("GET /theme-search")).length
   await session.page.evaluate((id) => window.api.metadata.download([id]), id)
   await idle()
-  expect(server.requests.filter((path) => path.startsWith("GET /themes/"))).toHaveLength(requests)
+  expect(server.requests.filter((path) => path.startsWith("GET /theme-search"))).toHaveLength(requests)
 })
 
 test("remoção desativa buscas e pedido explícito funciona com automático global desligado", async () => {
