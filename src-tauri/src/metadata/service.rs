@@ -37,6 +37,15 @@ pub struct MetadataService {
 }
 
 impl MetadataService {
+    /// O áudio também pode ser consultado explicitamente, sem chaves dos outros serviços.
+    pub fn theme_downloader(&self, images: &ImagesDir) -> Option<Arc<dyn ThemeDownloader>> {
+        match test_mode().metadata_server.as_deref() {
+            Some(base) => Some(Arc::new(crate::test_hooks::TestThemeDownloader::new(base))),
+            None if crate::test_hooks::active() => None,
+            None => Some(Arc::new(YoutubeThemeDownloader::new(images.0.parent().unwrap_or(&images.0).join("tools")))),
+        }
+    }
+
     pub fn new(app: AppHandle) -> MetadataService {
         // Os testes do app trocam os serviços por um servidor de mentira (nunca no app de verdade).
         let endpoints = test_mode().metadata_server.as_deref().map_or_else(MetadataEndpoints::real, MetadataEndpoints::test);
@@ -81,11 +90,7 @@ impl MetadataService {
                 None => Arc::new(YoutubeDownloader::new(images.0.parent().unwrap_or(&images.0).join("tools"))),
             }
         });
-        let theme_downloader: Option<Arc<dyn ThemeDownloader>> = match test_mode().metadata_server.as_deref() {
-            Some(base) => Some(Arc::new(crate::test_hooks::TestThemeDownloader::new(base))),
-            None if crate::test_hooks::active() => None,
-            None => Some(Arc::new(YoutubeThemeDownloader::new(images.0.parent().unwrap_or(&images.0).join("tools")))),
-        };
+        let theme_downloader = self.theme_downloader(images);
         MetadataServices {
             fetch: Arc::clone(&self.fetch),
             endpoints: self.endpoints.clone(),

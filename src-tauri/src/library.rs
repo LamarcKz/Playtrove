@@ -439,14 +439,25 @@ pub fn list_games_needing_metadata(db: &Connection, include_videos: bool) -> rus
     Ok(rows.into_iter().map(|(id, _)| id).collect())
 }
 
-/// Jogos no modo automático cuja consulta de música ainda não foi concluída, em ordem alfabética.
-pub fn list_games_needing_music(db: &Connection) -> rusqlite::Result<Vec<i64>> {
+/// Músicas automáticas ausentes; escolhas manuais, desativadas e arquivos existentes são preservados.
+pub fn list_games_without_music(db: &Connection) -> rusqlite::Result<Vec<i64>> {
     let mut rows: Vec<(i64, String)> = db
-        .prepare("SELECT id, title FROM games WHERE theme_music_mode = 'auto' AND theme_music_checked_at IS NULL")?
+        .prepare("SELECT id, title FROM games WHERE theme_music_mode = 'auto' AND theme_music IS NULL")?
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
         .collect::<rusqlite::Result<_>>()?;
     rows.sort_by(|a, b| compare_titles(&a.1, &b.1));
     Ok(rows.into_iter().map(|(id, _)| id).collect())
+}
+
+/// Busca ainda necessária, incluindo ausências do algoritmo antigo, sem repetir revisões pendentes.
+pub fn list_games_needing_music(db: &Connection) -> rusqlite::Result<Vec<i64>> {
+    let mut ids = Vec::new();
+    for id in list_games_without_music(db)? {
+        if crate::music_search::needs_search(db, id)? {
+            ids.push(id);
+        }
+    }
+    Ok(ids)
 }
 
 // ---------------------------------------------------------------- status
@@ -722,7 +733,7 @@ mod tests {
     }
 
     #[test]
-    fn musicas_pendentes_incluem_somente_automaticos_sem_consulta_concluida() {
+    fn musicas_pendentes_preservam_faixas_e_reabrem_ausencia_legada() {
         let db = library_database();
         let second = add_game(&db, "B");
         let first = add_game(&db, "Á");
@@ -733,7 +744,8 @@ mod tests {
         db.execute("UPDATE games SET theme_music_checked_at = '2026-01-01' WHERE id = ?1", [checked]).unwrap();
         db.execute("UPDATE games SET theme_music_mode = 'disabled' WHERE id = ?1", [disabled]).unwrap();
         db.execute("UPDATE games SET theme_music_mode = 'manual' WHERE id = ?1", [manual]).unwrap();
-        assert_eq!(list_games_needing_music(&db).unwrap(), [first, second]);
+        assert_eq!(list_games_without_music(&db).unwrap(), [second, checked]);
+        assert_eq!(list_games_needing_music(&db).unwrap(), [second, checked]);
     }
 
     #[test]

@@ -13,7 +13,7 @@ const DEFAULT_STATUSES: [&str; 9] =
 
 type Migration = fn(&Transaction) -> rusqlite::Result<()>;
 
-const MIGRATIONS: [Migration; 11] = [
+const MIGRATIONS: [Migration; 12] = [
     // 1: status, jogos, emuladores, pastas de ROMs e configurações.
     |db| {
         db.execute_batch(
@@ -201,6 +201,30 @@ const MIGRATIONS: [Migration; 11] = [
                CHECK(theme_music_mode IN ('auto', 'manual', 'disabled'));
              ALTER TABLE games ADD COLUMN theme_music_checked_at TEXT;
              ALTER TABLE games ADD COLUMN theme_music_revision INTEGER NOT NULL DEFAULT 0;",
+        )
+    },
+    // 12: revisões pendentes e procedência da faixa, separadas dos dados do jogo.
+    |db| {
+        db.execute_batch(
+            "CREATE TABLE music_searches (
+            game_id INTEGER PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+            generation TEXT NOT NULL, revision INTEGER NOT NULL, version INTEGER NOT NULL, attempt_generation TEXT,
+            query TEXT NOT NULL, state TEXT NOT NULL
+                CHECK(state IN ('searching','needsChoice','notFound','failed','installed')),
+            candidates TEXT NOT NULL DEFAULT '[]', error TEXT
+        );
+        CREATE TABLE music_sources (
+            game_id INTEGER PRIMARY KEY REFERENCES games(id) ON DELETE CASCADE,
+            revision INTEGER NOT NULL, origin TEXT NOT NULL CHECK(origin IN ('automatic','choice')),
+            video_id TEXT NOT NULL, title TEXT NOT NULL, channel TEXT
+        );
+        CREATE TRIGGER invalidate_music_search AFTER UPDATE OF theme_music_revision ON games
+        WHEN NEW.theme_music_revision != OLD.theme_music_revision BEGIN
+            DELETE FROM music_searches WHERE game_id = NEW.id;
+            DELETE FROM music_sources WHERE game_id = NEW.id AND NEW.theme_music IS NOT OLD.theme_music;
+            UPDATE music_sources SET revision = NEW.theme_music_revision
+                WHERE game_id = NEW.id AND NEW.theme_music IS OLD.theme_music;
+        END;",
         )
     },
 ];
@@ -433,5 +457,25 @@ mod tests {
         run_migrations(&mut db).unwrap();
         let genres: String = db.query_row("SELECT genres FROM games", [], |row| row.get(0)).unwrap();
         assert_eq!(genres, r#"["Racing","Simulator","Outro",3]"#);
+    }
+    #[test]
+    fn a_migracao_12_preserva_musica_e_cria_revisoes_persistentes() {
+        let mut db = Connection::open_in_memory().unwrap();
+        for migration in &MIGRATIONS[..11] {
+            let transaction = db.transaction().unwrap();
+            migration(&transaction).unwrap();
+            transaction.commit().unwrap();
+        }
+        db.pragma_update(None, "user_version", 11).unwrap();
+        db.execute_batch("INSERT INTO games (id,title,status_id,added_at,theme_music,theme_music_mode,theme_music_revision) VALUES (1,'Jogo',1,'2026-01-01','theme-music-1.mp3','manual',7)").unwrap();
+        run_migrations(&mut db).unwrap();
+        assert!(db.prepare("SELECT generation, revision, version, candidates FROM music_searches").is_ok());
+        assert!(db.prepare("SELECT origin, video_id, title, channel FROM music_sources").is_ok());
+        let state: (String, String, i64) = db
+            .query_row("SELECT theme_music,theme_music_mode,theme_music_revision FROM games", [], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+            })
+            .unwrap();
+        assert_eq!(state, ("theme-music-1.mp3".into(), "manual".into(), 7));
     }
 }

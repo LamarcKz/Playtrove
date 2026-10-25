@@ -50,7 +50,7 @@ test("Configurações → Metadados: as três fontes, e só duas pedem chave", a
   await expect(page.locator('section[aria-label="libretro-thumbnails"]')).toContainText("Não precisa de chave.")
   await expect(card("IGDB").getByLabel("Não configurado", { exact: true })).toBeVisible()
   await expect(card("SteamGridDB").getByLabel("Não configurado", { exact: true })).toBeVisible()
-  await expect(page.getByText("12 jogos ainda sem metadados.")).toBeVisible()
+  await expect(page.getByText("12 jogos com metadados, trailers ou músicas para buscar.")).toBeVisible()
   // Sem chave nenhuma já dá para baixar: as capas do libretro-thumbnails não pedem chave.
   await expect(page.getByRole("button", { name: "Baixar metadados", exact: true })).toBeEnabled()
 })
@@ -94,7 +94,7 @@ test("baixar os metadados dos jogos que ainda não têm", async () => {
   await expect(
     toast(page, "Metadados baixados para 2 jogos", "Não encontrados: Cavaleiros de Pixel, Cidadela Sombria")
   ).toBeVisible({ timeout: 20_000 })
-  await expect(page.getByText("Todos os jogos já têm metadados.")).toBeVisible()
+  await expect(page.getByText("12 jogos com metadados, trailers ou músicas para buscar.")).toBeVisible()
 })
 
 test("modo Detalhes: ícone na lista, capa acima do nome, fundo, descrição e detalhes", async () => {

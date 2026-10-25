@@ -7,7 +7,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, PoisonError};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use chrono::Utc;
 use percent_encoding::percent_decode_str;
 use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -15,7 +14,6 @@ use tauri::http::header::{ACCEPT_RANGES, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_
 use tauri::http::{Method, Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
-use crate::dates::iso;
 use crate::errors::{AppError, AppResult};
 use crate::i18n::Language;
 use crate::images::ImagesDir;
@@ -84,24 +82,12 @@ pub fn theme_music_url(game_id: i64, filename: &str) -> Option<String> {
     (game_id > 0).then(|| format!("http://{MUSIC_PROTOCOL}.localhost/{game_id}/{filename}"))
 }
 
-struct MusicState {
-    filename: Option<String>,
-    mode: String,
-    checked_at: Option<String>,
-    revision: i64,
+fn current_state(db: &Connection, language: Language, game_id: i64) -> AppResult<Option<String>> {
+    db.query_row("SELECT theme_music FROM games WHERE id = ?1", [game_id], |row| row.get(0))
+        .optional()
+        .map_err(|_| AppError::text(language, "errors.themeMusicRead", &[]))?
+        .ok_or_else(|| AppError::text(language, "errors.gameNotFound", &[]))
 }
-
-fn current_state(db: &Connection, language: Language, game_id: i64) -> AppResult<MusicState> {
-    db.query_row(
-        "SELECT theme_music, theme_music_mode, theme_music_checked_at, theme_music_revision FROM games WHERE id = ?1",
-        [game_id],
-        |row| Ok(MusicState { filename: row.get(0)?, mode: row.get(1)?, checked_at: row.get(2)?, revision: row.get(3)? }),
-    )
-    .optional()
-    .map_err(|_| AppError::text(language, "errors.themeMusicRead", &[]))?
-    .ok_or_else(|| AppError::text(language, "errors.gameNotFound", &[]))
-}
-
 fn valid_signature(signature: &[u8], extension: &str) -> bool {
     match extension {
         "m4a" => {
@@ -122,7 +108,7 @@ fn valid_signature(signature: &[u8], extension: &str) -> bool {
     }
 }
 
-fn valid_music_file(path: &Path, extension: &str) -> bool {
+pub(crate) fn valid_music_file(path: &Path, extension: &str) -> bool {
     (|| -> std::io::Result<bool> {
         let mut file = File::open(path)?;
         let metadata = file.metadata()?;
@@ -136,7 +122,7 @@ fn valid_music_file(path: &Path, extension: &str) -> bool {
     .unwrap_or(false)
 }
 
-fn internal_directory(images_dir: &Path, game_id: i64) -> std::io::Result<PathBuf> {
+pub(crate) fn internal_directory(images_dir: &Path, game_id: i64) -> std::io::Result<PathBuf> {
     let directory = images_dir.join(game_id.to_string());
     std::fs::create_dir_all(&directory)?;
     let root = images_dir.canonicalize()?;
@@ -147,7 +133,7 @@ fn internal_directory(images_dir: &Path, game_id: i64) -> std::io::Result<PathBu
     Ok(directory)
 }
 
-fn new_filename(extension: &str) -> String {
+pub(crate) fn new_filename(extension: &str) -> String {
     let stamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
     let sequence = NEXT_MUSIC.fetch_add(1, Ordering::Relaxed);
     format!("theme-music-{stamp}-{sequence}.{extension}")
@@ -198,7 +184,7 @@ pub fn pick_theme_music(
     }
     let saved = (|| -> AppResult<Option<String>> {
         let db = db.lock().unwrap_or_else(PoisonError::into_inner);
-        let previous = current_state(&db, language, game_id)?.filename;
+        let previous = current_state(&db, language, game_id)?;
         db.execute(
             "UPDATE games SET theme_music = ?1, theme_music_mode = 'manual', theme_music_checked_at = NULL,
             theme_music_revision = theme_music_revision + 1 WHERE id = ?2",
@@ -223,7 +209,7 @@ pub fn pick_theme_music(
 pub fn remove_theme_music(db: &Mutex<Connection>, language: Language, images_dir: &Path, game_id: i64) -> AppResult<()> {
     let previous = {
         let db = db.lock().unwrap_or_else(PoisonError::into_inner);
-        let previous = current_state(&db, language, game_id)?.filename;
+        let previous = current_state(&db, language, game_id)?;
         db.execute(
             "UPDATE games SET theme_music = NULL, theme_music_mode = 'disabled', theme_music_checked_at = NULL,
             theme_music_revision = theme_music_revision + 1 WHERE id = ?1",
@@ -248,66 +234,6 @@ pub fn use_automatic_theme_music(db: &Connection, language: Language, game_id: i
     Ok(())
 }
 
-/// O downloader retorna false quando não encontra música. Falhas preservam o arquivo e permitem repetir.
-pub fn download_automatic_theme_music(
-    db: &Mutex<Connection>,
-    language: Language,
-    images_dir: &Path,
-    game_id: i64,
-    download: impl FnOnce(&Path) -> Result<bool, String>,
-) -> AppResult<bool> {
-    let original = current_state(&db.lock().unwrap_or_else(PoisonError::into_inner), language, game_id)?;
-    if original.mode != "auto" || original.checked_at.is_some() {
-        return Ok(false);
-    }
-    let error = || AppError::text(language, "errors.themeMusicDownloadFailed", &[]);
-    let directory = internal_directory(images_dir, game_id).map_err(|_| error())?;
-    let filename = new_filename("m4a");
-    let target = directory.join(&filename);
-    let found = match download(&target) {
-        Ok(found) => found,
-        Err(_) => {
-            let _ = std::fs::remove_file(&target);
-            return Err(error());
-        }
-    };
-    if found && (music_file(images_dir, game_id, &filename).as_ref() != Some(&target) || !valid_music_file(&target, "m4a")) {
-        let _ = std::fs::remove_file(&target);
-        return Err(error());
-    }
-    let saved = (|| -> AppResult<bool> {
-        let db = db.lock().unwrap_or_else(PoisonError::into_inner);
-        let checked = iso(Utc::now());
-        // Até uma passagem manual -> automático invalida o trabalho anterior. A consulta concluída
-        // também impede um segundo download concorrente de substituir o primeiro que terminou.
-        let changed = if found {
-            db.execute(
-                "UPDATE games SET theme_music = ?1, theme_music_checked_at = ?2 WHERE id = ?3
-                AND theme_music_mode = 'auto' AND theme_music_revision = ?4 AND theme_music_checked_at IS NULL",
-                (&filename, &checked, game_id, original.revision),
-            )
-        } else {
-            db.execute(
-                "UPDATE games SET theme_music_checked_at = ?1 WHERE id = ?2
-                AND theme_music_mode = 'auto' AND theme_music_revision = ?3 AND theme_music_checked_at IS NULL",
-                (&checked, game_id, original.revision),
-            )
-        }
-        .map_err(|_| error())?;
-        Ok(changed == 1)
-    })();
-    match saved {
-        Ok(true) if found => {
-            remove_internal_file(images_dir, game_id, original.filename.as_deref());
-            Ok(true)
-        }
-        result => {
-            let _ = std::fs::remove_file(&target);
-            result.map(|_| false)
-        }
-    }
-}
-
 /// Caminhos canônicos restringem leitura e remoção à pasta interna do jogo.
 fn music_file(root: &Path, game_id: i64, filename: &str) -> Option<PathBuf> {
     if game_id <= 0 {
@@ -320,7 +246,7 @@ fn music_file(root: &Path, game_id: i64, filename: &str) -> Option<PathBuf> {
     (file.parent() == Some(parent.as_path()) && file.is_file()).then_some(file)
 }
 
-fn remove_internal_file(root: &Path, game_id: i64, filename: Option<&str>) {
+pub(crate) fn remove_internal_file(root: &Path, game_id: i64, filename: Option<&str>) {
     if let Some(file) = filename.and_then(|filename| music_file(root, game_id, filename)) {
         let _ = std::fs::remove_file(file);
     }
@@ -355,7 +281,7 @@ fn byte_range(range: &str, length: u64) -> Option<(u64, u64)> {
     Some((start, end.min(start.saturating_add(MAX_CHUNK - 1))))
 }
 
-fn empty_response(status: StatusCode) -> Response<Vec<u8>> {
+pub(crate) fn empty_response(status: StatusCode) -> Response<Vec<u8>> {
     Response::builder().status(status).body(Vec::new()).unwrap()
 }
 
@@ -378,6 +304,13 @@ fn music_response(root: &Path, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
         Some("mp3") => "audio/mpeg",
         _ => "audio/wav",
     };
+    file_response(&path, mime, request)
+}
+
+pub(crate) fn file_response(path: &Path, mime: &str, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
+    if request.method() != Method::GET && request.method() != Method::HEAD {
+        return Response::builder().status(StatusCode::METHOD_NOT_ALLOWED).header("Allow", "GET, HEAD").body(Vec::new()).unwrap();
+    }
     let mut file = match File::open(path) {
         Ok(file) => file,
         Err(_) => return empty_response(StatusCode::NOT_FOUND),
@@ -445,11 +378,6 @@ mod tests {
                 Ok((row.get(0)?, row.get(1)?, row.get(2)?))
             })
             .unwrap()
-    }
-
-    fn save(path: &Path) -> Result<bool, String> {
-        std::fs::write(path, M4A).map_err(|error| error.to_string())?;
-        Ok(true)
     }
 
     fn request(root: &Path, method: &str, path: &str, range: Option<&str>) -> Response<Vec<u8>> {
@@ -547,74 +475,6 @@ mod tests {
         assert!(pick_theme_music(&db, Language::En, &root, 99, None).is_err());
         assert!(remove_theme_music(&db, Language::En, &root, 99).is_err());
         assert_eq!(std::fs::read_dir(root.join("12")).unwrap().count(), 1);
-    }
-
-    #[test]
-    fn automatico_registra_sucesso_e_ausencia_sem_repetir_consulta_concluida() {
-        let db = database();
-        let root = temp_folder("musica-automatico");
-        assert!(download_automatic_theme_music(&db, Language::En, &root, 12, save).unwrap());
-        let (filename, mode, checked) = stored(&db);
-        assert_eq!(mode, "auto");
-        assert!(checked.is_some());
-        let filename = filename.unwrap();
-        assert_eq!(std::fs::read(root.join("12").join(&filename)).unwrap(), M4A);
-        assert!(!download_automatic_theme_music(&db, Language::En, &root, 12, |_| panic!("consulta concluída")).unwrap());
-        use_automatic_theme_music(&db.lock().unwrap(), Language::En, 12).unwrap();
-        assert_eq!(stored(&db), (Some(filename.clone()), "auto".into(), None));
-        assert!(!download_automatic_theme_music(&db, Language::En, &root, 12, |_| Ok(false)).unwrap());
-        assert!(stored(&db).2.is_some());
-        assert_eq!(stored(&db).0, Some(filename));
-    }
-
-    #[test]
-    fn falha_automatica_conserva_anterior_para_nova_tentativa() {
-        let db = database();
-        let root = temp_folder("musica-falha");
-        download_automatic_theme_music(&db, Language::En, &root, 12, save).unwrap();
-        use_automatic_theme_music(&db.lock().unwrap(), Language::En, 12).unwrap();
-        let previous = stored(&db);
-        for valid in [false, true] {
-            assert!(
-                download_automatic_theme_music(&db, Language::En, &root, 12, |path| {
-                    std::fs::write(path, b"parcial").unwrap();
-                    if valid { Ok(true) } else { Err("falha interna com caminho".into()) }
-                })
-                .is_err()
-            );
-            assert_eq!(stored(&db), previous);
-            assert_eq!(std::fs::read_dir(root.join("12")).unwrap().count(), 1);
-        }
-    }
-
-    #[test]
-    fn download_antigo_nao_sobrepoe_escolha_manual_nem_reativacao_posterior() {
-        let db = database();
-        let root = temp_folder("musica-corrida");
-        let source = root.join("manual.mp3");
-        std::fs::write(&source, MP3).unwrap();
-        assert!(
-            !download_automatic_theme_music(&db, Language::En, &root, 12, |path| {
-                pick_theme_music(&db, Language::En, &root, 12, Some(&source)).unwrap();
-                save(path)
-            })
-            .unwrap()
-        );
-        assert_eq!(stored(&db).1, "manual");
-        assert!(!download_automatic_theme_music(&db, Language::En, &root, 12, |_| panic!("manual tem prioridade")).unwrap());
-        use_automatic_theme_music(&db.lock().unwrap(), Language::En, 12).unwrap();
-        let previous = stored(&db).0;
-        assert!(
-            !download_automatic_theme_music(&db, Language::En, &root, 12, |path| {
-                remove_theme_music(&db, Language::En, &root, 12).unwrap();
-                use_automatic_theme_music(&db.lock().unwrap(), Language::En, 12).unwrap();
-                save(path)
-            })
-            .unwrap()
-        );
-        assert_eq!(stored(&db), (None, "auto".into(), None));
-        assert!(!root.join("12").join(previous.unwrap()).exists());
-        assert_eq!(std::fs::read_dir(root.join("12")).unwrap().count(), 0);
     }
 
     #[test]

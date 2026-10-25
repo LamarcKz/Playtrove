@@ -110,7 +110,9 @@
         "ra_games": "jogos do RetroAchievements",
         "achievements": "conquistas",
         "trophy_sets": "conjuntos de troféus do RPCS3",
-        "trophies": "troféus do RPCS3"
+        "trophies": "troféus do RPCS3",
+        "music_searches": "buscas e opções de músicas",
+        "music_sources": "origens das músicas"
       },
       "effects": {
         "statuses": "os status voltaram ao padrão (os jogos com um status que sumiu foram para o de jogo novo)",
@@ -123,7 +125,9 @@
         "ra_games": "as conquistas vão ser buscadas de novo no RetroAchievements",
         "achievements": "as conquistas vão ser buscadas de novo no RetroAchievements",
         "trophy_sets": "os troféus vão ser lidos de novo do RPCS3",
-        "trophies": "os troféus vão ser lidos de novo do RPCS3"
+        "trophies": "os troféus vão ser lidos de novo do RPCS3",
+        "music_searches": "as consultas de músicas precisam ser repetidas; os arquivos de música permanecem",
+        "music_sources": "as informações de origem das músicas foram perdidas; os arquivos de música permanecem"
       }
     }
   },
@@ -238,7 +242,9 @@
         "ra_games": "RetroAchievements games",
         "achievements": "achievements",
         "trophy_sets": "RPCS3 trophy sets",
-        "trophies": "RPCS3 trophies"
+        "trophies": "RPCS3 trophies",
+        "music_searches": "music searches and choices",
+        "music_sources": "music sources"
       },
       "effects": {
         "statuses": "the statuses went back to the default ones (games whose status disappeared went to the new-game status)",
@@ -251,7 +257,9 @@
         "ra_games": "the achievements will be fetched from RetroAchievements again",
         "achievements": "the achievements will be fetched from RetroAchievements again",
         "trophy_sets": "the trophies will be read from RPCS3 again",
-        "trophies": "the trophies will be read from RPCS3 again"
+        "trophies": "the trophies will be read from RPCS3 again",
+        "music_searches": "music searches need to be repeated; saved music files remain",
+        "music_sources": "music source information was lost; saved music files remain"
       }
     }
   }

@@ -3,6 +3,8 @@ import { CircleStar, Download, FolderOpen, Music2, Music3, NotebookPen, Star, St
 import type { Game } from "@shared/types"
 import { RatingDialog } from "@/components/RatingDialog"
 import { ReviewDialog } from "@/components/ReviewDialog"
+import { MusicReviewDialog } from "@/components/MusicReviewDialog"
+import { useMetadataProgress } from "@/hooks/useMetadataProgress"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +29,8 @@ interface GameActionsMenuProps {
 export function GameActionsMenu({ game, children }: GameActionsMenuProps) {
   const { t } = useI18n()
   const toast = useToast()
-  const [dialog, setDialog] = useState<"rating" | "review" | null>(null)
+  const [dialog, setDialog] = useState<"rating" | "review" | "music" | null>(null)
+  const progress = useMetadataProgress()
   const closeDialog = (open: boolean) => !open && setDialog(null)
 
   /** Roda uma ação; se der errado, avisa com o motivo. */
@@ -97,6 +100,10 @@ export function GameActionsMenu({ game, children }: GameActionsMenuProps) {
             <Music2 />
             {t.actions.pickThemeMusic}
           </DropdownMenuItem>
+          <DropdownMenuItem disabled={progress?.running !== false} onSelect={() => setDialog("music")}>
+            <Music3 />
+            {t.music.searchAnother}
+          </DropdownMenuItem>
           {(game.themeMusicMode !== "auto" || !game.themeMusicUrl) && (
             <DropdownMenuItem
               onSelect={() => void run(t.actions.themeMusicError, () => window.api.games.useAutomaticThemeMusic(game.id))}
@@ -125,6 +132,7 @@ export function GameActionsMenu({ game, children }: GameActionsMenuProps) {
       </DropdownMenu>
       <RatingDialog game={game} open={dialog === "rating"} onOpenChange={closeDialog} />
       <ReviewDialog game={game} open={dialog === "review"} onOpenChange={closeDialog} />
+      <MusicReviewDialog gameId={game.id} gameTitle={game.title} open={dialog === "music"} onOpenChange={closeDialog} />
     </>
   )
 }

@@ -4,10 +4,15 @@ import type { Game, MetadataConfig } from "@shared/types"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ServiceCard } from "@/components/ServiceCard"
+import { MusicReviewList } from "@/components/MusicReviewPanel"
 import { useI18n } from "@/hooks/useI18n"
 import { useMetadataProgress } from "@/hooks/useMetadataProgress"
 import { useToast } from "@/hooks/useToast"
+import { useMusicConfig } from "@/hooks/useMusicConfig"
+import { useMusicReviews } from "@/hooks/useMusicReviews"
 import { errorMessage } from "@/lib/errors"
+import { needsMusicDownload } from "@/lib/musicReview"
+import { missingMusicCount } from "@/lib/musicReviewsLoader"
 
 interface MetadataSettingsProps {
   /** Os jogos, para contar quantos ainda não têm metadados. */
@@ -24,6 +29,9 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
   const progress = useMetadataProgress()
   const toast = useToast()
   const autoDownloadId = useId()
+  const automaticMusicId = useId()
+  const { config: musicConfig, changeConfig: changeMusicConfig } = useMusicConfig()
+  const musicReviews = useMusicReviews()
 
   useEffect(() => {
     let active = true
@@ -39,7 +47,8 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
   const needsTrailer = (game: Game) => config.igdb && game.backgroundVideoMode === "auto"
     && game.backgroundVideoUrl === null && game.backgroundVideoCheckedAt === null
   const missingTrailers = games.filter(needsTrailer).length
-  const missing = games.filter((game) => game.metadataUpdatedAt === null || needsTrailer(game)).length
+  const missingMusic = missingMusicCount(games, musicReviews)
+  const missing = missingMusic === null ? null : games.filter((game) => game.metadataUpdatedAt === null || needsTrailer(game) || needsMusicDownload(game, musicReviews.reviews!)).length
   const running = progress?.running ?? false
 
   /** Baixa para os jogos sem metadados ou, com `all`, de novo para todos (ex.: para pegar capas novas). */
@@ -96,6 +105,18 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
 
       <p className="text-xs leading-relaxed text-muted-foreground">{t.metadata.trailersHint}</p>
 
+      <div role="group" aria-label={t.music.acquisition} className="flex min-w-0 flex-col gap-3 rounded-xl border bg-card p-4">
+        <p className="text-sm font-medium">{t.music.acquisition}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t.music.acquisitionHint}</p>
+        {musicConfig && <label htmlFor={automaticMusicId} className="flex cursor-pointer items-start gap-3 text-sm">
+          <Checkbox id={automaticMusicId} checked={musicConfig.autoDownload} onCheckedChange={(value) => changeMusicConfig({ autoDownload: value === true })} />
+          {t.music.autoDownload}
+        </label>}
+        <p className="text-xs leading-relaxed text-muted-foreground">{t.music.toolsHint}</p>
+        {missingMusic !== null && missingMusic > 0 && <p className="text-sm text-muted-foreground">{t.music.missing(missingMusic)}</p>}
+        <MusicReviewList state={musicReviews} onRetry={musicReviews.refresh} />
+      </div>
+
       <div className="flex min-w-0 flex-col gap-4 rounded-xl border bg-card p-4">
         <label htmlFor={autoDownloadId} className="flex cursor-pointer items-start gap-3 text-sm">
           <Checkbox
@@ -111,8 +132,10 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
         </label>
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
           <p className="text-sm text-muted-foreground">
-            {missing === 0 ? t.metadata.allHaveMetadata
-              : missingTrailers > 0 ? t.metadata.missingWithTrailers(t.common.games(missing))
+            {missing === null ? musicReviews.error ? t.music.reviewLoadError : t.music.loadingReviews
+              : missing === 0 ? t.metadata.allHaveMetadata
+              : missingMusic! > 0 ? t.metadata.missingWithMusic(t.common.games(missing))
+                : missingTrailers > 0 ? t.metadata.missingWithTrailers(t.common.games(missing))
                 : t.metadata.missing(t.common.games(missing))}
           </p>
           <div className="flex flex-wrap gap-2">
@@ -124,7 +147,7 @@ export function MetadataSettings({ games }: MetadataSettingsProps) {
             >
               {t.metadata.redownload}
             </Button>
-            <Button disabled={missing === 0 || running} onClick={() => void download()}>
+            <Button disabled={missing === null || missing === 0 || running} onClick={() => void download()}>
               {running ? <LoaderCircle className="animate-spin" /> : <Download />}
               {running && progress
                 ? t.metadata.downloading(Math.min(progress.done + 1, progress.total), progress.total)

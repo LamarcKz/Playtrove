@@ -37,6 +37,7 @@ pub struct MetadataServices {
 pub struct MetadataDownload {
     pub found: bool,
     pub warnings: Vec<String>,
+    pub needs_music_choice: bool,
 }
 
 /// O banco, só durante as leituras e gravações (os pedidos pela internet acontecem sem ele).
@@ -158,13 +159,17 @@ pub fn download_game_metadata_with_music(
             .map_err(|error| MetadataError::Skip(error.to_string()))?;
     }
     let music = if music_requested || crate::music::get_config(&lock(db)).auto_download {
-        download_theme(db, language, game_id, services, &game.title, game.platform.as_deref())
+        download_theme(db, language, game_id, services)
     } else {
-        MetadataDownload { found: false, warnings: Vec::new() }
+        MetadataDownload { found: false, warnings: Vec::new(), needs_music_choice: false }
     };
     warnings.extend(music.warnings);
     let music_found = music.found;
-    Ok(MetadataDownload { found: igdb_game.is_some() || sgdb_id.is_some() || found_on_libretro || music_found, warnings })
+    Ok(MetadataDownload {
+        found: igdb_game.is_some() || sgdb_id.is_some() || found_on_libretro || music_found,
+        warnings,
+        needs_music_choice: music.needs_music_choice,
+    })
 }
 
 /// Um pedido explícito de música não refaz as imagens ou os demais metadados.
@@ -174,24 +179,18 @@ pub fn download_game_music(
     game_id: i64,
     services: &MetadataServices,
 ) -> Result<MetadataDownload, MetadataError> {
-    let game = get_metadata_target(&lock(db), language, game_id).map_err(|error| MetadataError::Skip(error.to_string()))?;
-    Ok(download_theme(db, language, game_id, services, &game.title, game.platform.as_deref()))
+    get_metadata_target(&lock(db), language, game_id).map_err(|error| MetadataError::Skip(error.to_string()))?;
+    Ok(download_theme(db, language, game_id, services))
 }
 
-fn download_theme(
-    db: &Mutex<Connection>,
-    language: Language,
-    game_id: i64,
-    services: &MetadataServices,
-    title: &str,
-    platform: Option<&str>,
-) -> MetadataDownload {
-    let mut result = MetadataDownload { found: false, warnings: Vec::new() };
+fn download_theme(db: &Mutex<Connection>, language: Language, game_id: i64, services: &MetadataServices) -> MetadataDownload {
+    let mut result = MetadataDownload { found: false, warnings: Vec::new(), needs_music_choice: false };
     if let Some(downloader) = &services.theme_downloader {
-        match crate::music::download_automatic_theme_music(db, language, &services.images_dir, game_id, |path| {
-            downloader.download(title, platform, path)
-        }) {
-            Ok(found) => result.found = found,
+        match crate::music_search::search_automatic(db, language, &services.images_dir, downloader.as_ref(), game_id) {
+            Ok(outcome) => {
+                result.found = outcome.found;
+                result.needs_music_choice = outcome.needs_choice;
+            }
             Err(error) => result.warnings.push(error.to_string()),
         }
     }
@@ -338,17 +337,40 @@ pub mod tests {
     }
 
     impl ThemeDownloader for FakeThemeDownloader {
-        fn download(&self, title: &str, platform: Option<&str>, path: &Path) -> Result<bool, String> {
+        fn search(
+            &self,
+            title: &str,
+            platform: Option<&str>,
+            _query: Option<&str>,
+        ) -> Result<super::super::theme_downloader::ThemeSearchResult, String> {
+            use super::super::theme_downloader::{ThemeCandidate, ThemeSearchResult};
             assert_eq!(title, "Salto Estelar");
             assert_eq!(platform, Some("PlayStation 2"));
             self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             if self.failure {
                 return Err("detalhe interno do downloader".into());
             }
-            if self.found {
-                std::fs::write(path, b"\0\0\0\x18ftypM4A \0\0\0\0M4A isomconteudo").unwrap();
+            Ok(ThemeSearchResult {
+                candidates: if self.found {
+                    vec![ThemeCandidate {
+                        video_id: "Theme000001".into(),
+                        title: "Salto Estelar OST".into(),
+                        channel: None,
+                        duration: Some(60.0),
+                        view_count: None,
+                    }]
+                } else {
+                    Vec::new()
+                },
+                automatic_video_id: self.found.then(|| "Theme000001".into()),
+            })
+        }
+
+        fn download_video(&self, _id: &str, path: &Path, cancel: &std::sync::atomic::AtomicBool) -> Result<(), String> {
+            if cancel.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err("cancelado".into());
             }
-            Ok(self.found)
+            std::fs::write(path, b"\0\0\0\x18ftypM4A \0\0\0\0M4A isomconteudo").map_err(|error| error.to_string())
         }
     }
 

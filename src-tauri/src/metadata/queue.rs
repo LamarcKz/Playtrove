@@ -84,19 +84,42 @@ impl MetadataQueue {
         self.enqueue_inner(game_ids, true)
     }
 
+    /// Pedido explícito: registra a leva inteira antes de iniciar o trabalho.
+    pub fn enqueue_metadata_and_music(&self, metadata_ids: &[i64], music_only_ids: &[i64]) -> usize {
+        self.enqueue_tasks(
+            metadata_ids
+                .iter()
+                .map(|id| PendingDownload { id: *id, metadata: true, music: true })
+                .chain(music_only_ids.iter().map(|id| PendingDownload { id: *id, metadata: false, music: true })),
+        )
+    }
+
     fn enqueue_inner(&self, game_ids: &[i64], music_requested: bool) -> usize {
+        self.enqueue_tasks(game_ids.iter().map(|id| PendingDownload {
+            id: *id,
+            metadata: !music_requested,
+            music: music_requested,
+        }))
+    }
+
+    fn enqueue_tasks(&self, tasks: impl Iterator<Item = PendingDownload>) -> usize {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
         let mut fresh: Vec<PendingDownload> = Vec::new();
-        for id in game_ids {
-            let existing = state.pending.iter_mut().chain(fresh.iter_mut()).find(|task| task.id == *id);
-            if let Some(task) = existing {
-                task.metadata |= !music_requested;
-                task.music |= music_requested;
+        for mut task in tasks {
+            if let Some(current) = state.current.filter(|current| current.id == task.id) {
+                task.metadata &= !current.metadata;
+                task.music &= !current.music;
+            }
+            if !task.metadata && !task.music {
                 continue;
             }
-            if state.current.is_none_or(|task| task.id != *id || if music_requested { !task.music } else { !task.metadata }) {
-                fresh.push(PendingDownload { id: *id, metadata: !music_requested, music: music_requested });
+            let existing = state.pending.iter_mut().chain(fresh.iter_mut()).find(|pending| pending.id == task.id);
+            if let Some(pending) = existing {
+                pending.metadata |= task.metadata;
+                pending.music |= task.music;
+                continue;
             }
+            fresh.push(task);
         }
         if fresh.is_empty() {
             return 0;
@@ -174,7 +197,11 @@ fn run(state: &Mutex<QueueState>, context: &dyn QueueContext, delay: Duration) {
             Ok(download) => {
                 let name = title.clone();
                 update(state, context, |state| {
-                    if download.found { state.progress.found += 1 } else { state.progress.not_found.push(name) }
+                    if download.found {
+                        state.progress.found += 1;
+                    } else if !download.needs_music_choice {
+                        state.progress.not_found.push(name);
+                    }
                 });
                 update(state, context, |state| {
                     state.progress.errors.extend(download.warnings.into_iter().map(|warning| format!("{title}: {warning}")))
@@ -317,6 +344,28 @@ mod tests {
         assert_eq!(state.pending.len(), 1);
         assert!(state.pending[0].metadata && state.pending[0].music);
         assert_eq!(state.progress.total, 1);
+    }
+
+    #[test]
+    fn leva_explicita_inclui_musica_sem_repetir_metadados_para_quem_so_precisa_do_audio() {
+        let queue = queue_already_running(PendingDownload { id: 1, metadata: false, music: true });
+        assert_eq!(queue.enqueue_metadata_and_music(&[2, 3], &[3, 4]), 3);
+        let state = queue.state.lock().unwrap();
+        assert_eq!(
+            state.pending.iter().map(|task| (task.id, task.metadata, task.music)).collect::<Vec<_>>(),
+            vec![(2, true, true), (3, true, true), (4, false, true)]
+        );
+        assert_eq!(state.progress.total, 3);
+    }
+
+    #[test]
+    fn pedido_explicito_durante_metadados_ativos_enfileira_so_o_tipo_que_faltava() {
+        let queue = queue_already_running(PendingDownload { id: 1, metadata: true, music: false });
+        assert_eq!(queue.enqueue_metadata_and_music(&[1], &[]), 1);
+        assert_eq!(queue.enqueue_metadata_and_music(&[1], &[]), 0);
+        let state = queue.state.lock().unwrap();
+        assert_eq!(state.pending.len(), 1);
+        assert!(!state.pending[0].metadata && state.pending[0].music);
     }
 
     #[test]

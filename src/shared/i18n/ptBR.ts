@@ -179,6 +179,34 @@ export const ptBR = {
   },
 
   music: {
+    acquisition: "Músicas dos jogos",
+    acquisitionHint: "Busca uma faixa marcante da trilha sonora. Boas recomendações são salvas automaticamente; as demais ficam para você ouvir e escolher depois dos metadados.",
+    missing: (count: number) => `${count} ${count === 1 ? "jogo precisa" : "jogos precisam"} de uma busca de música.`,
+    review: "Revisar músicas",
+    reviewCount: (count: number) => `${count} ${count === 1 ? "música para escolher" : "músicas para escolher"}`,
+    reviewHint: "Ouça as opções e escolha uma faixa. Agora não mantém as escolhas pendentes.",
+    chooseTitle: (game: string) => `Música de ${game}`,
+    searchAnother: "Buscar outra música…",
+    searchLabel: "Nome do jogo ou da música",
+    search: "Buscar músicas",
+    searching: "Buscando músicas…",
+    listen: "Ouvir",
+    stopPreview: "Pausar prévia",
+    loadingPreview: "Preparando prévia…",
+    use: "Usar esta música",
+    saving: "Salvando música…",
+    saved: "Música salva",
+    later: "Agora não",
+    more: "Mostrar mais opções",
+    import: "Importar arquivo local…",
+    notFound: "Nenhuma música encontrada. Tente outro nome ou importe um arquivo local.",
+    failed: "A busca falhou. Você pode tentar novamente ou importar um arquivo.",
+    noResults: "Sem resultado ou com erro",
+    pending: "A escolha ficará disponível quando todos os metadados terminarem.",
+    previewHint: "A prévia usa o volume atual, mesmo com a música ambiente desligada.",
+    reviewLoadError: "Não deu para carregar as músicas pendentes",
+    loadingReviews: "Conferindo músicas pendentes…",
+    retryReviews: "Tentar carregar novamente",
     title: "Música tema",
     enabled: "Tocar músicas tema na Biblioteca",
     autoDownload: "Buscar músicas automaticamente para jogos novos",
@@ -426,6 +454,7 @@ export const ptBR = {
   },
 
   metadata: {
+    missingWithMusic: (games: string) => `${games} com metadados, trailers ou músicas para buscar.`,
     intro:
       "A capa dos jogos de emulador vem do libretro-thumbnails, que não pede chave. A descrição, os gêneros, a desenvolvedora, a publicadora e o lançamento vêm do IGDB, e o fundo (mais a capa dos jogos que o libretro-thumbnails não tiver) vem do SteamGridDB. Esses dois são gratuitos, mas cada um pede uma chave, que você cria uma vez só. O ícone de cada jogo na lista é um pedaço da capa.",
     alwaysOn: "Sempre ligado",
@@ -682,6 +711,8 @@ export const ptBR = {
       achievements: "conquistas",
       trophy_sets: "conjuntos de troféus do RPCS3",
       trophies: "troféus do RPCS3",
+      music_searches: "buscas e opções de músicas",
+      music_sources: "origens das músicas",
     },
     /** O que acontece com cada tabela que não deu para recuperar. */
     effects: {
@@ -696,6 +727,8 @@ export const ptBR = {
       achievements: "as conquistas vão ser buscadas de novo no RetroAchievements",
       trophy_sets: "os troféus vão ser lidos de novo do RPCS3",
       trophies: "os troféus vão ser lidos de novo do RPCS3",
+      music_searches: "as consultas de músicas precisam ser repetidas; os arquivos de música permanecem",
+      music_sources: "as informações de origem das músicas foram perdidas; os arquivos de música permanecem",
     },
   },
 }

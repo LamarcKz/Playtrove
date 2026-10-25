@@ -6,6 +6,7 @@ use std::io::{Read, Write};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
@@ -36,8 +37,30 @@ pub(super) fn run_limited(
     deadline: Instant,
     limit: u64,
 ) -> Result<(), String> {
+    run_limited_cancelable(executable, args, runtime, output, deadline, limit, &AtomicBool::new(false))
+}
+
+pub(super) fn run_limited_cancelable(
+    executable: &Path,
+    args: &[OsString],
+    runtime: &Path,
+    output: File,
+    deadline: Instant,
+    limit: u64,
+    cancel: &AtomicBool,
+) -> Result<(), String> {
+    if cancel.load(Ordering::Acquire) {
+        return Err("download de mídia cancelado".into());
+    }
     let runtime = RuntimeDirectory::new(runtime)?;
-    run_with_environment(executable, args, &runtime.path, &environment(&runtime.path), output, deadline, limit)
+    run_with_environment_cancelable(
+        executable,
+        args,
+        &runtime.path,
+        &environment(&runtime.path),
+        output,
+        ProcessControl { deadline, limit, cancel },
+    )
 }
 
 struct RuntimeDirectory {
@@ -117,15 +140,44 @@ fn environment(runtime: &Path) -> Vec<(OsString, OsString)> {
     values
 }
 
+#[cfg(test)]
 fn run_with_environment(
     executable: &Path,
     args: &[OsString],
     runtime: &Path,
     environment: &[(OsString, OsString)],
-    mut output: File,
+    output: File,
     deadline: Instant,
     limit: u64,
 ) -> Result<(), String> {
+    run_with_environment_cancelable(
+        executable,
+        args,
+        runtime,
+        environment,
+        output,
+        ProcessControl { deadline, limit, cancel: &AtomicBool::new(false) },
+    )
+}
+
+struct ProcessControl<'a> {
+    deadline: Instant,
+    limit: u64,
+    cancel: &'a AtomicBool,
+}
+
+fn run_with_environment_cancelable(
+    executable: &Path,
+    args: &[OsString],
+    runtime: &Path,
+    environment: &[(OsString, OsString)],
+    mut output: File,
+    control: ProcessControl<'_>,
+) -> Result<(), String> {
+    let ProcessControl { deadline, limit, cancel } = control;
+    if cancel.load(Ordering::Acquire) {
+        return Err("download de mídia cancelado".into());
+    }
     if !executable.is_absolute() || !runtime.is_absolute() || Instant::now() >= deadline {
         return Err("processo de trailer inválido ou tempo esgotado".into());
     }
@@ -220,6 +272,9 @@ fn run_with_environment(
     });
     let mut transferred = false;
     let result = loop {
+        if cancel.load(Ordering::Acquire) {
+            break Err("download de mídia cancelado".into());
+        }
         if let Ok(result) = receiver.try_recv() {
             match result {
                 Ok(()) => transferred = true,
@@ -422,6 +477,80 @@ mod tests {
                 assert_eq!(status, WAIT_OBJECT_0);
             }
         }
+    }
+
+    #[test]
+    fn cancelamento_encerra_processo_e_descendente_antes_do_prazo() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Threading::{OpenProcess, PROCESS_SYNCHRONIZE};
+
+        let root = temp_folder("tema-cancela-arvore");
+        let marker = root.join("descendente.pid");
+        let mut env = environment(&root);
+        env.push((FIXTURE_MODE.into(), "tree".into()));
+        env.push((FIXTURE_MARKER.into(), marker.as_os_str().to_owned()));
+        let cancel = AtomicBool::new(false);
+        let start = Instant::now();
+        let result = std::thread::scope(|scope| {
+            scope.spawn(|| {
+                while !marker.exists() && start.elapsed() < Duration::from_secs(8) {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                cancel.store(true, Ordering::Release);
+            });
+            run_with_environment_cancelable(
+                &std::env::current_exe().unwrap(),
+                &fixture_args(),
+                &root,
+                &env,
+                File::create(root.join("saida.bin")).unwrap(),
+                ProcessControl { deadline: start + Duration::from_secs(30), limit: 4096, cancel: &cancel },
+            )
+        });
+        assert_eq!(result.unwrap_err(), "download de mídia cancelado");
+        assert!(start.elapsed() < Duration::from_secs(15));
+        let pid: u32 = std::fs::read_to_string(marker).expect("o descendente chegou a iniciar").parse().unwrap();
+        // SAFETY: consulta somente o processo sintético identificado na pasta temporária.
+        unsafe {
+            if let Ok(handle) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+                let state = WaitForSingleObject(handle, 1000);
+                let _ = CloseHandle(handle);
+                assert_eq!(state, WAIT_OBJECT_0);
+            }
+        }
+    }
+
+    #[test]
+    fn cancelamento_remove_extracao_temporaria_sem_esperar_timeout() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        let root = temp_folder("tema-cancela-runtime");
+        let runtime = root.join("runtime");
+        let target = root.join("saida.bin");
+        let name = concat!(module_path!(), "::runtime_fixture").split_once("::").unwrap().1;
+        let args = ["--exact", name, "--nocapture"].into_iter().map(OsString::from).collect::<Vec<_>>();
+        let cancel = AtomicBool::new(false);
+        let start = Instant::now();
+        let result = std::thread::scope(|scope| {
+            scope.spawn(|| {
+                while std::fs::metadata(&target).map_or(0, |file| file.len()) == 0 && start.elapsed() < Duration::from_secs(8) {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                cancel.store(true, Ordering::Release);
+            });
+            run_limited_cancelable(
+                &std::env::current_exe().unwrap(),
+                &args,
+                &runtime,
+                File::create(&target).unwrap(),
+                start + Duration::from_secs(30),
+                4096,
+                &cancel,
+            )
+        });
+        assert_eq!(result.unwrap_err(), "download de mídia cancelado");
+        assert!(String::from_utf8_lossy(&std::fs::read(target).unwrap()).contains("extracao criada"));
+        assert_eq!(std::fs::read_dir(runtime).unwrap().count(), 0);
     }
 
     #[test]

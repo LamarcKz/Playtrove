@@ -15,6 +15,8 @@ import type {
   MetadataConfig,
   MetadataProgress,
   MusicConfig,
+  MusicReview,
+  MusicPreview,
   RetroArchCore,
   RomFolder,
   ScanResult,
@@ -113,6 +115,12 @@ export interface AppApi {
     useAutomaticThemeMusic: (gameId: number) => Promise<void>
   }
   music: {
+    getReviews: () => Promise<MusicReview[]>
+    search: (gameId: number, query?: string) => Promise<MusicReview>
+    preview: (gameId: number, generation: string, videoId: string, operationId?: string) => Promise<MusicPreview>
+    choose: (gameId: number, generation: string, videoId: string, operationId?: string) => Promise<void>
+    /** Revoga operações anteriores e devolve a autorização para a próxima. */
+    cancelPreview: () => Promise<string>
     getConfig: () => Promise<MusicConfig>
     setConfig: (config: MusicConfig) => Promise<MusicConfig>
     onConfigChange: (callback: (config: MusicConfig) => void) => () => void

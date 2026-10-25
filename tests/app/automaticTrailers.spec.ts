@@ -141,7 +141,8 @@ test("jogos antigos sem trailer verificado entram no download de faltantes", asy
   await download.click()
   await expect.poll(async () => (await game()).backgroundVideoUrl).not.toBeNull()
   expect((await game()).backgroundVideoCheckedAt).not.toBeNull()
-  await expect(session.page.getByText("Todos os jogos já têm metadados.")).toBeVisible()
+  // O trailer foi preenchido; as músicas sem resultado continuam disponíveis para nova tentativa.
+  await expect(session.page.getByText("12 jogos com metadados, trailers ou músicas para buscar.")).toBeVisible()
 })
 
 test("jogo novo recebe o trailer sozinho durante a varredura de ROMs", async () => {
