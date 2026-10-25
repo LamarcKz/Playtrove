@@ -58,6 +58,11 @@ export interface Game {
   backgroundVideoMode: "auto" | "manual" | "disabled"
   /** Última busca concluída de trailer, inclusive quando não há vídeo disponível. */
   backgroundVideoCheckedAt: string | null
+  /** Música tema copiada para os dados do app, ou null quando não há faixa. */
+  themeMusicUrl: string | null
+  themeMusicMode: "auto" | "manual" | "disabled"
+  /** Última busca automática concluída, inclusive quando não encontrou uma faixa. */
+  themeMusicCheckedAt: string | null
   /** Quando os metadados foram baixados pela última vez (ISO), ou null se nunca. */
   metadataUpdatedAt: string | null
   /** Minha nota, de 1 a 10 em meias estrelas (9 = quatro e meia), ou null se ainda não avaliei. */
@@ -166,6 +171,13 @@ export interface MetadataConfig {
   /** O SteamGridDB (capa, ícone e fundo) tem a chave salva. */
   steamGridDb: boolean
   /** Baixar sozinho os metadados dos jogos novos, quando uma pasta de ROMs é procurada. */
+  autoDownload: boolean
+}
+
+/** Reprodução e busca de músicas tema na biblioteca. O volume vai de 0 a 100. */
+export interface MusicConfig {
+  enabled: boolean
+  volume: number
   autoDownload: boolean
 }
 

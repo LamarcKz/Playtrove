@@ -182,6 +182,7 @@ export interface FakeMetadataServer {
   unlockAchievement: (id: number) => void
   /** Trailer sintético opcional; null simula um vídeo indisponível. */
   setTrailer: (gameTitle: string, videoId: string, bytes: Buffer | null) => void
+  setTheme: (gameTitle: string, bytes: Buffer | null) => void
   close: () => Promise<void>
 }
 
@@ -189,9 +190,10 @@ export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
   const requests: string[] = []
   const ra = createRaState()
   const trailers = new Map<string, { id: string; bytes: Buffer | null }>()
+  const themes = new Map<string, Buffer | null>()
   const server = createServer((request, response) => {
     requests.push(`${request.method} ${request.url}`)
-    void handle(request, response, base, ra, trailers).catch(() => send(response, 500, { erro: "falhou" }))
+    void handle(request, response, base, ra, trailers, themes).catch(() => send(response, 500, { erro: "falhou" }))
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -200,6 +202,7 @@ export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
     requests,
     unlockAchievement: (id) => void ra.unlock(id),
     setTrailer: (gameTitle, videoId, bytes) => { trailers.set(gameTitle.toLowerCase(), { id: videoId, bytes }) },
+    setTheme: (gameTitle, bytes) => { themes.set(gameTitle.toLowerCase(), bytes) },
     close: () => new Promise((resolve) => server.close(() => resolve())),
   }
 }
@@ -209,11 +212,21 @@ async function handle(
   response: ServerResponse,
   base: string,
   ra: RaState,
-  trailers: Map<string, { id: string; bytes: Buffer | null }>
+  trailers: Map<string, { id: string; bytes: Buffer | null }>,
+  themes: Map<string, Buffer | null>
 ): Promise<void> {
   const url = new URL(request.url ?? "/", base)
   const path = url.pathname
   const body = await readBody(request)
+
+  const themePath = /^\/themes\/(.+)\.m4a$/.exec(path)
+  if (themePath) {
+    const bytes = themes.get(decodeURIComponent(themePath[1]).toLowerCase())
+    if (!bytes) return send(response, 404, { erro: "música indisponível" })
+    response.writeHead(200, { "content-type": "audio/mp4", "content-length": bytes.length })
+    response.end(bytes)
+    return
+  }
 
   const trailerPath = /^\/trailers\/([A-Za-z0-9_-]{11})\.mp4$/.exec(path)
   if (trailerPath) {

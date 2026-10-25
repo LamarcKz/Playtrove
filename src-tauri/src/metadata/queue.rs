@@ -11,7 +11,7 @@ use std::time::Duration;
 use rusqlite::Connection;
 use serde::Serialize;
 
-use super::download::{MetadataServices, download_game_metadata, lock};
+use super::download::{MetadataServices, download_game_metadata, download_game_metadata_with_music, download_game_music, lock};
 use super::http::MetadataError;
 use crate::i18n::{Language, text};
 use crate::library::get_metadata_target;
@@ -49,10 +49,17 @@ pub trait QueueContext: Send + Sync + 'static {
 
 #[derive(Default)]
 struct QueueState {
-    pending: VecDeque<i64>,
+    pending: VecDeque<PendingDownload>,
     /// Jogo sendo processado agora (pedir ele de novo no meio do download não repete o trabalho).
-    current: Option<i64>,
+    current: Option<PendingDownload>,
     progress: MetadataProgress,
+}
+
+#[derive(Clone, Copy)]
+struct PendingDownload {
+    id: i64,
+    metadata: bool,
+    music: bool,
 }
 
 pub struct MetadataQueue {
@@ -69,11 +76,26 @@ impl MetadataQueue {
 
     /// Coloca jogos na fila (os que já estão nela não entram de novo). Devolve quantos entraram.
     pub fn enqueue(&self, game_ids: &[i64]) -> usize {
+        self.enqueue_inner(game_ids, false)
+    }
+
+    /// Pedido explícito de música: funciona mesmo com o download automático global desligado.
+    pub fn enqueue_music(&self, game_ids: &[i64]) -> usize {
+        self.enqueue_inner(game_ids, true)
+    }
+
+    fn enqueue_inner(&self, game_ids: &[i64], music_requested: bool) -> usize {
         let mut state = self.state.lock().unwrap_or_else(PoisonError::into_inner);
-        let mut fresh: Vec<i64> = Vec::new();
+        let mut fresh: Vec<PendingDownload> = Vec::new();
         for id in game_ids {
-            if !fresh.contains(id) && !state.pending.contains(id) && state.current != Some(*id) {
-                fresh.push(*id);
+            let existing = state.pending.iter_mut().chain(fresh.iter_mut()).find(|task| task.id == *id);
+            if let Some(task) = existing {
+                task.metadata |= !music_requested;
+                task.music |= music_requested;
+                continue;
+            }
+            if state.current.is_none_or(|task| task.id != *id || if music_requested { !task.music } else { !task.metadata }) {
+                fresh.push(PendingDownload { id: *id, metadata: !music_requested, music: music_requested });
             }
         }
         if fresh.is_empty() {
@@ -124,12 +146,13 @@ fn run(state: &Mutex<QueueState>, context: &dyn QueueContext, delay: Duration) {
     };
 
     loop {
-        let game_id = {
+        let task = {
             let mut state = state.lock().unwrap_or_else(PoisonError::into_inner);
-            let Some(id) = state.pending.pop_front() else { break };
-            state.current = Some(id);
-            id
+            let Some(task) = state.pending.pop_front() else { break };
+            state.current = Some(task);
+            task
         };
+        let game_id = task.id;
         let mut title = text(language, "errors.gameFallback", &[&game_id.to_string()]);
         // Numa linha só, para a trava do banco ser solta antes do download (que usa o banco de novo).
         let target = get_metadata_target(&lock(context.database()), language, game_id);
@@ -137,7 +160,15 @@ fn run(state: &Mutex<QueueState>, context: &dyn QueueContext, delay: Duration) {
             title = target.title;
             let current = title.clone();
             update(state, context, |state| state.progress.current = Some(current));
-            download_game_metadata(context.database(), language, game_id, &services)
+            if task.metadata {
+                if task.music {
+                    download_game_metadata_with_music(context.database(), language, game_id, &services, true)
+                } else {
+                    download_game_metadata(context.database(), language, game_id, &services)
+                }
+            } else {
+                download_game_music(context.database(), language, game_id, &services)
+            }
         });
         match result {
             Ok(download) => {
@@ -245,6 +276,47 @@ mod tests {
             core: None,
         };
         add_emulated_game(db, Language::PtBr, &game).unwrap().unwrap()
+    }
+
+    fn queue_already_running(current: PendingDownload) -> MetadataQueue {
+        let (finished, _) = channel();
+        let context = Arc::new(TestContext {
+            db: Mutex::new(crate::test_support::memory_database()),
+            services: Mutex::new(None),
+            updates: Mutex::default(),
+            games_updated: Mutex::default(),
+            finished: Mutex::new(finished),
+        });
+        let queue = MetadataQueue::new(context, Duration::ZERO);
+        {
+            let mut state = queue.state.lock().unwrap();
+            state.current = Some(current);
+            state.progress.running = true;
+        }
+        queue
+    }
+
+    #[test]
+    fn pedido_de_metadados_nao_e_descartado_enquanto_o_mesmo_jogo_busca_apenas_musica() {
+        let queue = queue_already_running(PendingDownload { id: 1, metadata: false, music: true });
+        assert_eq!(queue.enqueue(&[1]), 1);
+        assert_eq!(queue.enqueue(&[1]), 0);
+        let state = queue.state.lock().unwrap();
+        assert_eq!(state.pending.len(), 1);
+        assert!(state.pending[0].metadata);
+        assert!(!state.pending[0].music);
+    }
+
+    #[test]
+    fn pedidos_pendentes_sao_unidos_sem_perder_metadados_ou_duplicar_o_total() {
+        let queue = queue_already_running(PendingDownload { id: 1, metadata: true, music: false });
+        assert_eq!(queue.enqueue(&[2]), 1);
+        assert_eq!(queue.enqueue_music(&[2]), 0);
+        assert_eq!(queue.enqueue(&[2]), 0);
+        let state = queue.state.lock().unwrap();
+        assert_eq!(state.pending.len(), 1);
+        assert!(state.pending[0].metadata && state.pending[0].music);
+        assert_eq!(state.progress.total, 1);
     }
 
     #[test]

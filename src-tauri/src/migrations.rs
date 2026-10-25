@@ -13,7 +13,7 @@ const DEFAULT_STATUSES: [&str; 9] =
 
 type Migration = fn(&Transaction) -> rusqlite::Result<()>;
 
-const MIGRATIONS: [Migration; 10] = [
+const MIGRATIONS: [Migration; 11] = [
     // 1: status, jogos, emuladores, pastas de ROMs e configurações.
     |db| {
         db.execute_batch(
@@ -191,6 +191,16 @@ const MIGRATIONS: [Migration; 10] = [
         CHECK (background_video_mode IN ('auto', 'manual', 'disabled'));
         ALTER TABLE games ADD COLUMN background_video_checked_at TEXT;
         UPDATE games SET background_video_mode = 'manual' WHERE background_video IS NOT NULL;",
+        )
+    },
+    // 11: música tema local ou automática; a revisão invalida downloads iniciados antes de uma escolha.
+    |db| {
+        db.execute_batch(
+            "ALTER TABLE games ADD COLUMN theme_music TEXT;
+             ALTER TABLE games ADD COLUMN theme_music_mode TEXT NOT NULL DEFAULT 'auto'
+               CHECK(theme_music_mode IN ('auto', 'manual', 'disabled'));
+             ALTER TABLE games ADD COLUMN theme_music_checked_at TEXT;
+             ALTER TABLE games ADD COLUMN theme_music_revision INTEGER NOT NULL DEFAULT 0;",
         )
     },
 ];
@@ -374,6 +384,34 @@ mod tests {
         assert_eq!(
             db.query_row("SELECT background_video_mode FROM games WHERE id = 1", [], |row| row.get::<_, String>(0)).unwrap(),
             "manual"
+        );
+    }
+
+    #[test]
+    fn a_migracao_11_preserva_o_jogo_e_habilita_musica_sem_consulta_anterior() {
+        let mut db = Connection::open_in_memory().unwrap();
+        for migration in &MIGRATIONS[..10] {
+            let transaction = db.transaction().unwrap();
+            migration(&transaction).unwrap();
+            transaction.commit().unwrap();
+        }
+        db.pragma_update(None, "user_version", 10).unwrap();
+        db.execute("INSERT INTO games (title, status_id, added_at) VALUES ('Jogo', 1, '2026-01-01')", []).unwrap();
+        run_migrations(&mut db).unwrap();
+        let state: (String, Option<String>, String, Option<String>, i64) = db
+            .query_row(
+                "SELECT title, theme_music, theme_music_mode, theme_music_checked_at, theme_music_revision FROM games",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .unwrap();
+        assert_eq!(state, ("Jogo".into(), None, "auto".into(), None, 0));
+        assert!(db.execute("UPDATE games SET theme_music_mode = 'outro'", []).is_err());
+        db.execute("UPDATE games SET theme_music = 'theme-music-1.mp3', theme_music_mode = 'manual'", []).unwrap();
+        run_migrations(&mut db).unwrap();
+        assert_eq!(
+            db.query_row("SELECT theme_music FROM games", [], |row| row.get::<_, String>(0)).unwrap(),
+            "theme-music-1.mp3"
         );
     }
 

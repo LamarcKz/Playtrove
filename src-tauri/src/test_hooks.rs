@@ -11,6 +11,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, LogicalSize, Manager, State, WebviewWindow};
 
+use crate::metadata::theme_downloader::ThemeDownloader;
 use crate::metadata::trailer_downloader::TrailerDownloader;
 use crate::test_mode::test_mode;
 
@@ -42,6 +43,48 @@ impl TrailerDownloader for TestTrailerDownloader {
             return Err(error());
         }
         Ok(())
+    }
+}
+
+/// Servidor local dos testes: nunca prepara nem executa ferramentas de áudio reais.
+pub struct TestThemeDownloader {
+    base: String,
+}
+
+impl TestThemeDownloader {
+    pub fn new(base: &str) -> Self {
+        Self { base: base.trim_end_matches('/').to_string() }
+    }
+}
+
+impl ThemeDownloader for TestThemeDownloader {
+    fn download(&self, title: &str, _platform: Option<&str>, destination: &std::path::Path) -> Result<bool, String> {
+        use std::io::Read;
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .http_status_as_error(false)
+            .timeout_global(Some(std::time::Duration::from_secs(20)))
+            .build()
+            .into();
+        let encoded = percent_encoding::utf8_percent_encode(title, percent_encoding::NON_ALPHANUMERIC);
+        let mut response =
+            agent.get(&format!("{}/themes/{encoded}.m4a", self.base)).call().map_err(|_| "falha no tema de testes")?;
+        if response.status() == 404 {
+            return Ok(false);
+        }
+        if response.status() != 200 {
+            return Err("falha no tema de testes".into());
+        }
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(destination)
+            .map_err(|_| "falha ao gravar tema de testes")?;
+        let mut reader = response.body_mut().as_reader();
+        std::io::copy(&mut (&mut reader).take(32 * 1024 * 1024), &mut file).map_err(|_| "falha ao receber tema de testes")?;
+        if reader.read(&mut [0; 1]).map_err(|_| "falha ao receber tema de testes")? != 0 {
+            return Err("tema de testes grande demais".into());
+        }
+        Ok(true)
     }
 }
 

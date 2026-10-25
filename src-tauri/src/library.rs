@@ -18,6 +18,7 @@ use crate::emulators::EmulatorId;
 use crate::errors::{AppError, AppResult};
 use crate::i18n::{LANGUAGES, Language, status_preset_name};
 use crate::images::{ImageKind, image_url};
+use crate::music::theme_music_url;
 use crate::settings::{get_setting, set_setting};
 use crate::videos::video_url;
 
@@ -68,6 +69,9 @@ struct Game {
     background_video_url: Option<String>,
     background_video_mode: String,
     background_video_checked_at: Option<String>,
+    theme_music_url: Option<String>,
+    theme_music_mode: String,
+    theme_music_checked_at: Option<String>,
     metadata_updated_at: Option<String>,
     rating: Option<i64>,
     difficulty: Option<i64>,
@@ -89,7 +93,8 @@ fn list_games(db: &Connection) -> rusqlite::Result<Vec<Game>> {
         "SELECT id, title, status_id, favorite, playtime_seconds, last_played_at, added_at, platform, library,
                 rom_path, emulator_id, description, genres, developer, publisher, release_date, cover_image,
                 background_image, metadata_updated_at, emulator_playtime_seconds, emulator_last_played_at,
-                rating, difficulty, review, background_video, background_video_mode, background_video_checked_at
+                rating, difficulty, review, background_video, background_video_mode, background_video_checked_at,
+                theme_music, theme_music_mode, theme_music_checked_at
          FROM games",
     )?;
     let mut games = query
@@ -123,6 +128,9 @@ fn list_games(db: &Connection) -> rusqlite::Result<Vec<Game>> {
                 background_video_url: row.get::<_, Option<String>>("background_video")?.and_then(|file| video_url(id, &file)),
                 background_video_mode: row.get("background_video_mode")?,
                 background_video_checked_at: row.get("background_video_checked_at")?,
+                theme_music_url: row.get::<_, Option<String>>("theme_music")?.and_then(|file| theme_music_url(id, &file)),
+                theme_music_mode: row.get("theme_music_mode")?,
+                theme_music_checked_at: row.get("theme_music_checked_at")?,
                 rating: row.get("rating")?,
                 difficulty: row.get("difficulty")?,
                 review: row.get("review")?,
@@ -431,6 +439,16 @@ pub fn list_games_needing_metadata(db: &Connection, include_videos: bool) -> rus
     Ok(rows.into_iter().map(|(id, _)| id).collect())
 }
 
+/// Jogos no modo automático cuja consulta de música ainda não foi concluída, em ordem alfabética.
+pub fn list_games_needing_music(db: &Connection) -> rusqlite::Result<Vec<i64>> {
+    let mut rows: Vec<(i64, String)> = db
+        .prepare("SELECT id, title FROM games WHERE theme_music_mode = 'auto' AND theme_music_checked_at IS NULL")?
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .collect::<rusqlite::Result<_>>()?;
+    rows.sort_by(|a, b| compare_titles(&a.1, &b.1));
+    Ok(rows.into_iter().map(|(id, _)| id).collect())
+}
+
 // ---------------------------------------------------------------- status
 
 /// Tamanho máximo do nome de um status (em caracteres, como a tela conta).
@@ -686,6 +704,36 @@ mod tests {
             format!("http://playtrove-video.localhost/{id}/background-video-10-1.mp4")
         );
         assert_eq!(snapshot["games"][0]["backgroundUrl"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn musica_tema_tem_endereco_e_estado_sem_depender_dos_metadados() {
+        let db = library_database();
+        let id = add_game(&db, "Jogo");
+        let snapshot = serde_json::to_value(get_library(&db, Language::En).unwrap()).unwrap();
+        assert_eq!(snapshot["games"][0].get("themeMusicUrl"), Some(&serde_json::Value::Null));
+        assert_eq!(snapshot["games"][0].get("themeMusicMode"), Some(&serde_json::json!("auto")));
+        assert_eq!(snapshot["games"][0].get("themeMusicCheckedAt"), Some(&serde_json::Value::Null));
+        db.execute("UPDATE games SET theme_music = 'theme-music-10-1.mp3', theme_music_mode = 'manual' WHERE id = ?1", [id])
+            .unwrap();
+        let snapshot = serde_json::to_value(get_library(&db, Language::En).unwrap()).unwrap();
+        assert_eq!(snapshot["games"][0]["themeMusicUrl"], format!("http://playtrove-music.localhost/{id}/theme-music-10-1.mp3"));
+        assert_eq!(snapshot["games"][0]["themeMusicMode"], "manual");
+    }
+
+    #[test]
+    fn musicas_pendentes_incluem_somente_automaticos_sem_consulta_concluida() {
+        let db = library_database();
+        let second = add_game(&db, "B");
+        let first = add_game(&db, "Á");
+        let checked = add_game(&db, "C");
+        let disabled = add_game(&db, "D");
+        let manual = add_game(&db, "E");
+        db.execute("UPDATE games SET theme_music = 'theme-music-1.m4a' WHERE id = ?1", [first]).unwrap();
+        db.execute("UPDATE games SET theme_music_checked_at = '2026-01-01' WHERE id = ?1", [checked]).unwrap();
+        db.execute("UPDATE games SET theme_music_mode = 'disabled' WHERE id = ?1", [disabled]).unwrap();
+        db.execute("UPDATE games SET theme_music_mode = 'manual' WHERE id = ?1", [manual]).unwrap();
+        assert_eq!(list_games_needing_music(&db).unwrap(), [first, second]);
     }
 
     #[test]

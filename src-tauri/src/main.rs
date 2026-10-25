@@ -19,6 +19,7 @@ mod library;
 mod links;
 mod metadata;
 mod migrations;
+mod music;
 mod playtime_sync;
 mod rom_scanner;
 mod sample_games;
@@ -58,6 +59,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .register_asynchronous_uri_scheme_protocol(images::IMAGE_PROTOCOL, images::handle_request)
         .register_asynchronous_uri_scheme_protocol(videos::VIDEO_PROTOCOL, videos::handle_request)
+        .register_asynchronous_uri_scheme_protocol(music::MUSIC_PROTOCOL, music::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
             // idioma (o escolhido ou o do Windows).
@@ -113,6 +115,12 @@ fn main() {
             commands::games_pick_background_video,
             commands::games_remove_background_video,
             commands::games_use_automatic_background_video,
+            commands::games_pick_theme_music,
+            commands::games_remove_theme_music,
+            commands::games_use_automatic_theme_music,
+            commands::music_get_config,
+            commands::music_set_config,
+            commands::music_download,
             commands::games_play,
             commands::games_get_running,
             commands::games_show_rom,

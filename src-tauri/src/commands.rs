@@ -27,6 +27,7 @@ use crate::links;
 use crate::metadata::credentials::{self, MetadataConfig};
 use crate::metadata::queue::MetadataProgress;
 use crate::metadata::service::MetadataService;
+use crate::music::{self, MusicConfig};
 use crate::playtime_sync::{AFTER_GAME_DELAY, PlaytimeSync};
 use crate::rom_scanner::{self, RomFolder, ScanResult};
 use crate::secrets::Secrets;
@@ -229,6 +230,83 @@ pub fn games_use_automatic_background_video(
     Ok(())
 }
 
+#[tauri::command(async)]
+pub fn games_pick_theme_music(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<()> {
+    let language = state.language();
+    let game_id = to_id(&game_id, language)?;
+    library::get_metadata_target(&state.db(), language, game_id)?;
+    let picked = if test_hooks::active() {
+        app.state::<TestHooks>().take_open_dialog()
+    } else {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(text(language, "dialogs.pickThemeMusic", &[]))
+            .add_filter(text(language, "dialogs.themeMusicFiles", &[]), &["m4a", "mp3", "wav"])
+            .blocking_pick_file()
+            .and_then(|file| file.into_path().ok())
+    };
+    if music::pick_theme_music(state.database(), language, &images.0, game_id, picked.as_deref())? {
+        notify_library_changed(&app);
+    }
+    Ok(())
+}
+
+#[tauri::command(async)]
+pub fn games_remove_theme_music(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<()> {
+    music::remove_theme_music(state.database(), state.language(), &images.0, to_id(&game_id, state.language())?)?;
+    notify_library_changed(&app);
+    Ok(())
+}
+
+#[tauri::command(async)]
+pub fn games_use_automatic_theme_music(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    game_id: Value,
+) -> AppResult<()> {
+    let id = to_id(&game_id, state.language())?;
+    music::use_automatic_theme_music(&state.db(), state.language(), id)?;
+    notify_library_changed(&app);
+    service.queue.enqueue_music(&[id]);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn music_get_config(state: State<'_, AppState>) -> MusicConfig {
+    music::get_config(&state.db())
+}
+
+#[tauri::command]
+pub fn music_set_config(app: AppHandle, state: State<'_, AppState>, config: Value) -> AppResult<MusicConfig> {
+    let invalid = || AppError::text(state.language(), "errors.invalidMusicConfig", &[]);
+    let enabled = config.get("enabled").and_then(Value::as_bool).ok_or_else(invalid)?;
+    let auto_download = config.get("autoDownload").and_then(Value::as_bool).ok_or_else(invalid)?;
+    let volume = config.get("volume").and_then(Value::as_u64).filter(|volume| *volume <= 100).ok_or_else(invalid)? as u8;
+    let config = MusicConfig { enabled, volume, auto_download };
+    music::set_config(&state.db(), &config)?;
+    let _ = app.emit("music:config", &config);
+    Ok(config)
+}
+
+/// Busca somente os temas ainda pendentes; as cópias manuais e desativadas ficam preservadas.
+#[tauri::command]
+pub fn music_download(state: State<'_, AppState>, service: State<'_, MetadataService>) -> AppResult<usize> {
+    Ok(service.queue.enqueue_music(&library::list_games_needing_music(&state.db())?))
+}
+
 // ---------------------------------------------------------------- status (Configurações → Status)
 
 #[tauri::command]
@@ -425,6 +503,9 @@ pub fn rom_folders_scan(app: AppHandle, state: State<'_, AppState>, id: Value) -
         // Os jogos novos já ganham os metadados, se o usuário deixou (Configurações → Metadados).
         if credentials::auto_download(&state.db()) {
             app.state::<MetadataService>().queue.enqueue(&result.added_ids);
+        } else if music::get_config(&state.db()).auto_download && (!test_hooks::active() || test_mode().metadata_server.is_some())
+        {
+            app.state::<MetadataService>().queue.enqueue_music(&result.added_ids);
         }
         app.state::<PlaytimeSync>().run();
         app.state::<AchievementsService>().read_trophies();
@@ -501,7 +582,15 @@ pub fn metadata_download(
 ) -> AppResult<usize> {
     let ids = if game_ids.is_null() {
         let has_igdb = credentials::read_metadata_credentials(&state.db(), &secrets).igdb.is_some();
-        library::list_games_needing_metadata(&state.db(), has_igdb)?
+        let mut ids = library::list_games_needing_metadata(&state.db(), has_igdb)?;
+        if music::get_config(&state.db()).auto_download {
+            for id in library::list_games_needing_music(&state.db())? {
+                if !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+        }
+        ids
     } else {
         to_id_list(&game_ids, state.language())?
     };
