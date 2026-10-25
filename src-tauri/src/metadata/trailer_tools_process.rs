@@ -25,8 +25,19 @@ use windows::Win32::System::Threading::{
 use windows::core::{PCWSTR, PWSTR};
 
 pub(super) fn run(executable: &Path, args: &[OsString], runtime: &Path, output: File, deadline: Instant) -> Result<(), String> {
+    run_limited(executable, args, runtime, output, deadline, super::MAX_VIDEO_BYTES)
+}
+
+pub(super) fn run_limited(
+    executable: &Path,
+    args: &[OsString],
+    runtime: &Path,
+    output: File,
+    deadline: Instant,
+    limit: u64,
+) -> Result<(), String> {
     let runtime = RuntimeDirectory::new(runtime)?;
-    run_with_environment(executable, args, &runtime.path, &environment(&runtime.path), output, deadline, super::MAX_VIDEO_BYTES)
+    run_with_environment(executable, args, &runtime.path, &environment(&runtime.path), output, deadline, limit)
 }
 
 struct RuntimeDirectory {
@@ -432,6 +443,30 @@ mod tests {
             .is_err()
         );
         assert!(String::from_utf8_lossy(&std::fs::read(target).unwrap()).contains("extracao criada"));
+        assert_eq!(std::fs::read_dir(runtime).unwrap().count(), 0);
+    }
+
+    #[test]
+    fn limite_customizado_para_a_musica_interrompe_a_saida_e_limpa_o_runtime() {
+        let root = temp_folder("tema-processo-limite");
+        let runtime = root.join("runtime");
+        let target = root.join("saida.bin");
+        let name = concat!(module_path!(), "::runtime_fixture").split_once("::").unwrap().1;
+        let args = ["--exact", name, "--nocapture"].into_iter().map(OsString::from).collect::<Vec<_>>();
+        let start = Instant::now();
+        assert!(
+            run_limited(
+                &std::env::current_exe().unwrap(),
+                &args,
+                &runtime,
+                File::create(&target).unwrap(),
+                start + Duration::from_secs(10),
+                8
+            )
+            .is_err()
+        );
+        assert_eq!(std::fs::metadata(target).unwrap().len(), 8);
+        assert!(start.elapsed() < Duration::from_secs(10));
         assert_eq!(std::fs::read_dir(runtime).unwrap().count(), 0);
     }
 

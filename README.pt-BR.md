@@ -57,6 +57,7 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 - **Modo Grade**: capas inteiras centralizadas em áreas iguais 2:3, com fundo neutro nas sobras de imagens de formatos diferentes. A grade se ajusta ao tamanho da janela, com o status numa faixa abaixo da área de cada capa e um painel lateral de detalhes ao clicar em um jogo.
 - **Capas inteiras**: Grade, Detalhes e painel lateral preservam a proporção original de cada imagem, sem cortes, distorções ou preenchimento desfocado.
 - **Trailers e vídeos de fundo**: com o IGDB configurado, o Playtrove baixa um trailer do YouTube junto dos metadados de cada jogo, em até 720p e 100 MiB, e prepara as ferramentas necessárias na primeira utilização. Ele toca sem som, em repetição, no modo Detalhes, com a imagem de fundo como reserva; com movimento reduzido, começa pausado. Pelo menu **Mais**, escolha um MP4 ou WebM local com prioridade sobre o trailer, remova e desative os vídeos automáticos ou escolha **Usar trailer automático** para reativá-los. O arquivo local original permanece intacto.
+- **Música tema por jogo**: a faixa salva do jogo selecionado toca offline, em repetição, nos modos Detalhes, Grade, Lista e Kanban, com controles de volume e tocar/pausar. O volume muda suavemente ao trocar a seleção, e a música pausa com a janela inativa, um jogo em execução ou ao sair da Biblioteca. A busca no YouTube pode acontecer automaticamente para jogos novos e junto dos downloads de metadados; **Configurações → Geral** controla a reprodução, o volume e as buscas automáticas de música independentemente dos metadados, e **Buscar músicas que faltam** coloca as faixas pendentes na fila. A busca é conservadora, então alguns jogos podem ficar sem resultado. Pelo menu **Mais**, escolha um MP3, M4A ou WAV local de até 32 MiB, remova sua cópia interna e desative a música automática para aquele jogo, ou escolha **Usar música automática** para reativar a busca. Escolhas manuais são preservadas, e os arquivos originais permanecem intactos. Se a reprodução automática for bloqueada, clique em tocar para liberar o áudio.
 - **Avaliação**: pelo menu **Mais**, dê a sua nota (de meia a cinco estrelas) e marque a dificuldade em pimentas (também com meia); no mesmo menu, escreva a sua análise do jogo. A nota e a dificuldade aparecem ao lado do botão **Jogar**, e a análise, em cima da descrição.
 - **Modo Lista**: uma linha por jogo, com o nome, o status, a plataforma, a biblioteca, o tempo jogado, a nota, a dificuldade e as conquistas.
 - **Modo Kanban**: um quadro com uma coluna para cada status (Planejo jogar, Jogando, Zerado, Platinado...), todas visíveis de uma vez. Para mudar o status de um jogo, é só arrastá-lo para outra coluna.
@@ -129,6 +130,12 @@ Capturas com uma biblioteca de demonstração.
       <p align="center"><sub>Configurações → Status</sub></p>
     </td>
   </tr>
+  <tr>
+    <td colspan="2">
+      <img src="docs/screenshots/pt-BR/music.png" alt="Configurações da música tema: reprodução, volume e busca automática">
+      <p align="center"><sub>Configurações da música tema</sub></p>
+    </td>
+  </tr>
 </table>
 
 ## Download
@@ -147,7 +154,7 @@ As novidades de cada versão ficam na mesma página. Os números seguem o [Versi
 
 ## Privacidade
 
-O Playtrove não coleta nada sobre você. A biblioteca, as notas e as análises ficam num banco de dados no seu computador, e as chaves das APIs são trancadas pelo Windows. O app usa a internet para baixar os metadados e as imagens dos jogos (IGDB, SteamGridDB e libretro-thumbnails), os trailers (YouTube) e suas ferramentas (releases oficiais no GitHub), para ler as suas conquistas (RetroAchievements, se você colocar a sua conta) e para conferir no GitHub se há versão nova (dá para desligar em Configurações → Sobre).
+O Playtrove não coleta nada sobre você. A biblioteca, as notas e as análises ficam num banco de dados no seu computador, e as chaves das APIs são trancadas pelo Windows. O app usa a internet para baixar os metadados e as imagens dos jogos (IGDB, SteamGridDB e libretro-thumbnails), os trailers e as músicas tema (YouTube) e suas ferramentas (releases oficiais no GitHub), para ler as suas conquistas (RetroAchievements, se você colocar a sua conta) e para conferir no GitHub se há versão nova (dá para desligar em Configurações → Sobre).
 
 ## Bugs e ideias
 
@@ -201,7 +208,7 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 - O visual é inspirado no [Playnite](https://playnite.link/), um projeto independente, sem ligação com este.
 - Os ícones vêm do [Lucide](https://lucide.dev/) (licença ISC).
 - Os metadados dos jogos vêm do [IGDB](https://www.igdb.com/) (da Twitch); as capas, do [libretro-thumbnails](https://thumbnails.libretro.com/), o acervo da comunidade do [RetroArch](https://www.retroarch.com/); e as artes de fundo (e as capas que faltarem), do [SteamGridDB](https://www.steamgriddb.com/), feitas pela comunidade.
-- O download de trailers usa [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [Deno](https://github.com/denoland/deno), baixados das releases oficiais e verificados antes do uso.
+- O download de trailers e músicas tema usa [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [Deno](https://github.com/denoland/deno), baixados das releases oficiais e verificados antes do uso.
 - As conquistas vêm do [RetroAchievements](https://retroachievements.org/), um projeto da comunidade, sem ligação com este.
 - Os nomes de jogos, consoles e serviços pertencem aos seus donos. PlayStation e DualSense são marcas da Sony Interactive Entertainment; o Playtrove não tem ligação com a Sony nem com os serviços acima.
 

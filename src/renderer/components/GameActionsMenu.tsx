@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react"
-import { CircleStar, Download, FolderOpen, NotebookPen, Star, StarOff, Video, VideoOff } from "lucide-react"
+import { CircleStar, Download, FolderOpen, Music2, Music3, NotebookPen, Star, StarOff, Video, VideoOff, VolumeX } from "lucide-react"
 import type { Game } from "@shared/types"
 import { RatingDialog } from "@/components/RatingDialog"
 import { ReviewDialog } from "@/components/ReviewDialog"
@@ -88,6 +88,29 @@ export function GameActionsMenu({ game, children }: GameActionsMenuProps) {
             >
               <VideoOff />
               {game.backgroundVideoUrl ? t.actions.removeBackgroundVideo : t.actions.disableAutomaticBackgroundVideo}
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => void run(t.actions.themeMusicError, () => window.api.games.pickThemeMusic(game.id))}
+          >
+            <Music2 />
+            {t.actions.pickThemeMusic}
+          </DropdownMenuItem>
+          {(game.themeMusicMode !== "auto" || !game.themeMusicUrl) && (
+            <DropdownMenuItem
+              onSelect={() => void run(t.actions.themeMusicError, () => window.api.games.useAutomaticThemeMusic(game.id))}
+            >
+              <Music3 />
+              {game.themeMusicMode === "auto" ? t.actions.findThemeMusic : t.actions.useAutomaticThemeMusic}
+            </DropdownMenuItem>
+          )}
+          {game.themeMusicUrl && (
+            <DropdownMenuItem
+              onSelect={() => void run(t.actions.themeMusicError, () => window.api.games.removeThemeMusic(game.id))}
+            >
+              <VolumeX />
+              {t.actions.removeThemeMusic}
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />

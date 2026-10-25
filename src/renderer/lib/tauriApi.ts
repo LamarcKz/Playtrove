@@ -51,6 +51,15 @@ export function createTauriApi(): AppApi {
       pickBackgroundVideo: (gameId) => invoke("games_pick_background_video", { gameId }),
       removeBackgroundVideo: (gameId) => invoke("games_remove_background_video", { gameId }),
       useAutomaticBackgroundVideo: (gameId) => invoke("games_use_automatic_background_video", { gameId }),
+      pickThemeMusic: (gameId) => invoke("games_pick_theme_music", { gameId }),
+      removeThemeMusic: (gameId) => invoke("games_remove_theme_music", { gameId }),
+      useAutomaticThemeMusic: (gameId) => invoke("games_use_automatic_theme_music", { gameId }),
+    },
+    music: {
+      getConfig: () => invoke("music_get_config"),
+      setConfig: (config) => invoke("music_set_config", { config }),
+      onConfigChange: (callback) => subscribe(EVENTS.musicConfig, callback),
+      download: () => invoke("music_download"),
     },
     metadata: {
       getConfig: () => invoke("metadata_get_config"),

@@ -9,6 +9,7 @@ import { GameGrid } from "@/components/GameGrid"
 import { GameKanban } from "@/components/GameKanban"
 import { GameList } from "@/components/GameList"
 import { GameTable } from "@/components/GameTable"
+import { ThemeMusicControls } from "@/components/ThemeMusicControls"
 import type { LibraryView } from "@/components/LibraryTools"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/hooks/useI18n"
@@ -57,7 +58,7 @@ export function LibraryPage({
   onOpenEmulators,
 }: LibraryPageProps) {
   const { t } = useI18n()
-  const [selectedGameId, setSelectedGameId] = useState<number | null>(null)
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(() => allGames[0]?.id ?? null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [lastView, setLastView] = useState(view)
   const statuses = useStatuses()
@@ -70,6 +71,9 @@ export function LibraryPage({
 
   const games = filterGames(allGames, searchQuery, filters)
   const selectedGame = games.find((game) => game.id === selectedGameId)
+  const musicGame = selectedGame ?? (view === "details" ? games[0] : undefined)
+  // A seleção implícita dos Detalhes também acompanha a música ao trocar de modo.
+  if (view === "details" && musicGame && musicGame.id !== selectedGameId) setSelectedGameId(musicGame.id)
   const selectGame = (game: Game) => {
     setSelectedGameId(game.id)
     setDetailsOpen(true)
@@ -148,7 +152,10 @@ export function LibraryPage({
 
   return (
     <div className="flex h-full">
-      <div className="relative flex min-w-0 flex-1">{content}</div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {allGames.length > 0 && <ThemeMusicControls game={musicGame} />}
+        <div className="relative flex min-h-0 flex-1">{content}</div>
+      </div>
       {filtersOpen && (
         <FilterPanel games={allGames} filters={filters} onFiltersChange={onFiltersChange} onClose={onCloseFilters} />
       )}

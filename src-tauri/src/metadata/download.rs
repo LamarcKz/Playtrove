@@ -13,6 +13,7 @@ use super::igdb::{IgdbGame, IgdbSession, igdb_image_url, igdb_platform_id, prefe
 use super::libretro::libretro_boxart_url;
 use super::matching::{pick_best_match, search_term_for};
 use super::steam_grid_db::SteamGridDbSession;
+use super::theme_downloader::ThemeDownloader;
 use super::trailer_downloader::TrailerDownloader;
 use crate::dates::iso;
 use crate::i18n::Language;
@@ -30,6 +31,7 @@ pub struct MetadataServices {
     /// Pasta das imagens dos jogos (uma subpasta por jogo).
     pub images_dir: PathBuf,
     pub trailer_downloader: Option<Arc<dyn TrailerDownloader>>,
+    pub theme_downloader: Option<Arc<dyn ThemeDownloader>>,
 }
 
 pub struct MetadataDownload {
@@ -55,6 +57,16 @@ pub fn download_game_metadata(
     language: Language,
     game_id: i64,
     services: &MetadataServices,
+) -> Result<MetadataDownload, MetadataError> {
+    download_game_metadata_with_music(db, language, game_id, services, false)
+}
+
+pub fn download_game_metadata_with_music(
+    db: &Mutex<Connection>,
+    language: Language,
+    game_id: i64,
+    services: &MetadataServices,
+    music_requested: bool,
 ) -> Result<MetadataDownload, MetadataError> {
     let game = get_metadata_target(&lock(db), language, game_id).map_err(|error| MetadataError::Skip(error.to_string()))?;
     let term = search_term_for(&game.title);
@@ -145,7 +157,45 @@ pub fn download_game_metadata(
         mark_background_video_checked(&lock(db), game_id, checked_at.as_deref())
             .map_err(|error| MetadataError::Skip(error.to_string()))?;
     }
-    Ok(MetadataDownload { found: igdb_game.is_some() || sgdb_id.is_some() || found_on_libretro, warnings })
+    let music = if music_requested || crate::music::get_config(&lock(db)).auto_download {
+        download_theme(db, language, game_id, services, &game.title, game.platform.as_deref())
+    } else {
+        MetadataDownload { found: false, warnings: Vec::new() }
+    };
+    warnings.extend(music.warnings);
+    let music_found = music.found;
+    Ok(MetadataDownload { found: igdb_game.is_some() || sgdb_id.is_some() || found_on_libretro || music_found, warnings })
+}
+
+/// Um pedido explícito de música não refaz as imagens ou os demais metadados.
+pub fn download_game_music(
+    db: &Mutex<Connection>,
+    language: Language,
+    game_id: i64,
+    services: &MetadataServices,
+) -> Result<MetadataDownload, MetadataError> {
+    let game = get_metadata_target(&lock(db), language, game_id).map_err(|error| MetadataError::Skip(error.to_string()))?;
+    Ok(download_theme(db, language, game_id, services, &game.title, game.platform.as_deref()))
+}
+
+fn download_theme(
+    db: &Mutex<Connection>,
+    language: Language,
+    game_id: i64,
+    services: &MetadataServices,
+    title: &str,
+    platform: Option<&str>,
+) -> MetadataDownload {
+    let mut result = MetadataDownload { found: false, warnings: Vec::new() };
+    if let Some(downloader) = &services.theme_downloader {
+        match crate::music::download_automatic_theme_music(db, language, &services.images_dir, game_id, |path| {
+            downloader.download(title, platform, path)
+        }) {
+            Ok(found) => result.found = found,
+            Err(error) => result.warnings.push(error.to_string()),
+        }
+    }
+    result
 }
 
 /// Baixa uma imagem e guarda na pasta do jogo. Se não der (link quebrado, não é imagem, grande demais),
@@ -236,6 +286,7 @@ pub mod tests {
             endpoints: endpoints(),
             images_dir: images_dir.to_path_buf(),
             trailer_downloader: None,
+            theme_downloader: None,
             igdb: (only != Some("sgdb"))
                 .then(|| Arc::new(IgdbSession::new(Arc::clone(&shared), endpoints(), credentials(), Language::PtBr))),
             steam_grid_db: (only != Some("igdb"))
@@ -278,6 +329,82 @@ pub mod tests {
 
     pub struct FakeTrailerDownloader {
         pub failure: bool,
+    }
+
+    struct FakeThemeDownloader {
+        calls: std::sync::atomic::AtomicUsize,
+        found: bool,
+        failure: bool,
+    }
+
+    impl ThemeDownloader for FakeThemeDownloader {
+        fn download(&self, title: &str, platform: Option<&str>, path: &Path) -> Result<bool, String> {
+            assert_eq!(title, "Salto Estelar");
+            assert_eq!(platform, Some("PlayStation 2"));
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            if self.failure {
+                return Err("detalhe interno do downloader".into());
+            }
+            if self.found {
+                std::fs::write(path, b"\0\0\0\x18ftypM4A \0\0\0\0M4A isomconteudo").unwrap();
+            }
+            Ok(self.found)
+        }
+    }
+
+    #[test]
+    fn pedido_explicito_busca_apenas_musica_mesmo_com_automatico_desligado() {
+        let (db, id) = database_with_game("Salto Estelar");
+        crate::music::set_config(&lock(&db), &crate::music::MusicConfig { enabled: true, volume: 20, auto_download: false })
+            .unwrap();
+        let fetch = services_world(vec![]);
+        let downloader = Arc::new(FakeThemeDownloader { calls: 0.into(), found: true, failure: false });
+        let mut services = make_services(Arc::clone(&fetch), &temp_folder("tema-explicito"), None);
+        services.igdb = None;
+        services.steam_grid_db = None;
+        services.theme_downloader = Some(downloader.clone());
+        let result = download_game_music(&db, Language::PtBr, id, &services).unwrap();
+        assert!(result.found);
+        assert!(result.warnings.is_empty());
+        assert!(field(&db, "theme_music").is_some());
+        assert_eq!(field(&db, "metadata_updated_at"), None);
+        assert!(fetch.urls().is_empty());
+        assert_eq!(downloader.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn ausencia_de_tema_e_lembrada_e_configuracao_desligada_nao_busca() {
+        let (db, id) = database_with_game("Salto Estelar");
+        let downloader = Arc::new(FakeThemeDownloader { calls: 0.into(), found: false, failure: false });
+        let mut services = make_services(services_world(vec![]), &temp_folder("tema-ausente"), None);
+        services.theme_downloader = Some(downloader.clone());
+        crate::music::set_config(&lock(&db), &crate::music::MusicConfig { enabled: true, volume: 20, auto_download: false })
+            .unwrap();
+        download_game_metadata(&db, Language::PtBr, id, &services).unwrap();
+        assert_eq!(downloader.calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert_eq!(field(&db, "theme_music_checked_at"), None);
+        for _ in 0..2 {
+            download_game_music(&db, Language::PtBr, id, &services).unwrap();
+        }
+        assert!(field(&db, "theme_music_checked_at").is_some());
+        assert_eq!(field(&db, "theme_music"), None);
+        assert_eq!(downloader.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    #[test]
+    fn erro_no_tema_nao_apaga_metadados_nem_impede_nova_tentativa() {
+        let (db, id) = database_with_game("Salto Estelar");
+        let mut services = make_services(services_world(vec![]), &temp_folder("tema-falha"), None);
+        let downloader = Arc::new(FakeThemeDownloader { calls: 0.into(), found: false, failure: true });
+        services.theme_downloader = Some(downloader.clone());
+        let result = download_game_metadata_with_music(&db, Language::PtBr, id, &services, true).unwrap();
+        assert!(result.found);
+        assert_eq!(result.warnings.len(), 1);
+        assert_eq!(downloader.calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(!result.warnings[0].contains("detalhe interno"));
+        assert!(field(&db, "description").is_some());
+        assert!(field(&db, "cover_image").is_some());
+        assert_eq!(field(&db, "theme_music_checked_at"), None);
     }
 
     impl TrailerDownloader for FakeTrailerDownloader {

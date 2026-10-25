@@ -6,6 +6,7 @@ import { AchievementsSettings } from "@/components/AchievementsSettings"
 import { AppLogo } from "@/components/AppLogo"
 import { ContentPage } from "@/components/ContentPage"
 import { MetadataSettings } from "@/components/MetadataSettings"
+import { MusicSettings } from "@/components/MusicSettings"
 import { StatusSettings } from "@/components/StatusSettings"
 import { UpdateSettings } from "@/components/UpdateSettings"
 import { Button } from "@/components/ui/button"
@@ -31,7 +32,10 @@ export function SettingsPage({ games, rules }: SettingsPageProps) {
       <div className="grid items-start gap-6 @[70rem]/content:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           <SettingsSection title={t.settings.general}>
-            <LanguageSetting />
+            <div className="flex flex-col gap-4">
+              <LanguageSetting />
+              <MusicSettings />
+            </div>
           </SettingsSection>
 
           <SettingsSection title={t.settings.statuses}>

@@ -14,6 +14,7 @@ import type {
   LibrarySnapshot,
   MetadataConfig,
   MetadataProgress,
+  MusicConfig,
   RetroArchCore,
   RomFolder,
   ScanResult,
@@ -32,6 +33,8 @@ export const EVENTS = {
   gamesRunning: "games:running",
   /** O andamento dos downloads de metadados. */
   metadataProgress: "metadata:progress",
+  /** As preferências de música tema foram salvas. */
+  musicConfig: "music:config",
   /** Começou ou terminou a atualização das conquistas. */
   achievementsStatus: "achievements:status",
   /** Conquistas novas desbloqueadas (para o aviso). */
@@ -103,6 +106,18 @@ export interface AppApi {
     removeBackgroundVideo: (gameId: number) => Promise<void>
     /** Volta a buscar o trailer automaticamente, preservando o arquivo original de vídeos manuais. */
     useAutomaticBackgroundVideo: (gameId: number) => Promise<void>
+    /** Importa uma faixa local com prioridade sobre a busca automática. */
+    pickThemeMusic: (gameId: number) => Promise<void>
+    /** Remove a cópia interna e desativa a busca automática deste jogo. */
+    removeThemeMusic: (gameId: number) => Promise<void>
+    useAutomaticThemeMusic: (gameId: number) => Promise<void>
+  }
+  music: {
+    getConfig: () => Promise<MusicConfig>
+    setConfig: (config: MusicConfig) => Promise<MusicConfig>
+    onConfigChange: (callback: (config: MusicConfig) => void) => () => void
+    /** Enfileira a busca das músicas automáticas ainda não consultadas. */
+    download: () => Promise<number>
   }
   metadata: {
     getConfig: () => Promise<MetadataConfig>
