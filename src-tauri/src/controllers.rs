@@ -3,10 +3,12 @@
 //! números seguem o driver oficial desses controles no Linux (hid-playstation).
 
 use std::ffi::CString;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::controller_input::{ControllerButton, ControllerInputSnapshot, InputState, parse_input};
+use crate::test_mode::test_mode;
 use hidapi::{BusType, HidApi, HidDevice};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
@@ -123,133 +125,352 @@ pub fn parse_battery(connection: Connection, report_id: u8, data: &[u8]) -> Opti
     }
 }
 
-/// Lê a bateria do controle: abre, espera um relatório completo e fecha. O controle fica aberto só por um
-/// instante porque ele manda de 250 a 600 relatórios por segundo, e ouvir todos o tempo todo gastaria
-/// processamento à toa (inclusive enquanto você joga).
-fn read_battery(api: &HidApi, path: &CString, connection: Connection) -> Option<BatteryReading> {
-    let device = api.open_path(path).ok()?;
-    let mut reading = wait_for_battery(&device, connection, Duration::from_millis(500));
-    // Nenhum relatório completo: é o Bluetooth no modo simples. Pedir a configuração muda o modo.
-    for report_id in FULL_MODE_FEATURE_REPORTS {
-        if reading.is_some() {
-            break;
+/// A leitura usa esperas curtas para ceder ao input. O handle é fechado antes da negociação de modo:
+/// get_feature_report no backend Windows não oferece timeout e nunca pode prender o leitor de entrada.
+fn read_battery(api: &HidApi, item: &Tracked, shared: &Shared) -> Option<BatteryReading> {
+    let sample = || {
+        let _owner = item.reader.try_lock().ok()?;
+        if battery_cancelled(shared, item.controller.key) {
+            return None;
         }
-        let mut feature = [0u8; 256];
-        feature[0] = report_id;
-        let _ = device.get_feature_report(&mut feature);
-        reading = wait_for_battery(&device, connection, Duration::from_secs(1));
+        let device = api.open_path(&item.path).ok()?;
+        wait_for_battery(&device, item, shared, Duration::from_millis(500))
+    };
+    let mut reading = sample();
+    if item.controller.connection == Connection::Bluetooth {
+        for report_id in FULL_MODE_FEATURE_REPORTS {
+            if reading.is_some() || battery_cancelled(shared, item.controller.key) {
+                break;
+            }
+            // Este handle só pede configuração; não tem uma leitura de input pendente no driver.
+            let device = api.open_path(&item.path).ok()?;
+            let mut feature = [0u8; 256];
+            feature[0] = report_id;
+            let _ = device.get_feature_report(&mut feature);
+            drop(device);
+            reading = sample();
+        }
     }
     reading
 }
 
-/// Espera o primeiro relatório completo do controle, por no máximo `timeout`.
-fn wait_for_battery(device: &HidDevice, connection: Connection, timeout: Duration) -> Option<BatteryReading> {
+fn wait_for_battery(device: &HidDevice, item: &Tracked, shared: &Shared, timeout: Duration) -> Option<BatteryReading> {
     let deadline = Instant::now() + timeout;
     let mut buffer = [0u8; 128];
-    loop {
-        let left = deadline.saturating_duration_since(Instant::now());
-        if left.is_zero() {
-            return None;
-        }
-        // O primeiro byte é o id do relatório; os dados vêm depois.
-        let read = device.read_timeout(&mut buffer, left.as_millis() as i32).ok()?;
+    while Instant::now() < deadline && !battery_cancelled(shared, item.controller.key) {
+        let read = device.read_timeout(&mut buffer, 20).ok()?;
         if read > 0
-            && let Some(reading) = parse_battery(connection, buffer[0], &buffer[1..read])
+            && let Some(reading) = parse_battery(item.controller.connection, buffer[0], &buffer[1..read])
         {
             return Some(reading);
         }
     }
+    None
 }
 
-/// Um controle acompanhado: o caminho dele no Windows, o que a tela mostra e quando a bateria foi lida.
+/// O acesso de leitura é exclusivo por aparelho; a bateria cede em até uma espera de 20 ms.
+#[derive(Clone)]
 struct Tracked {
     path: CString,
     controller: ConnectedController,
+    input_supported: bool,
+    reader: Arc<Mutex<()>>,
     read_at: Option<Instant>,
 }
 
-/// Os controles conectados agora, acompanhados numa linha de execução à parte.
-pub struct Controllers(Arc<Mutex<Vec<ConnectedController>>>);
+struct Found {
+    path: CString,
+    name: &'static str,
+    connection: Connection,
+    input_supported: bool,
+}
 
-impl Controllers {
-    /// Começa a acompanhar: os controles aparecem e somem sozinhos ao conectar e desconectar, e a bateria
-    /// é lida de novo a cada 5 segundos.
-    pub fn start(app: AppHandle) -> Controllers {
-        let shared = Arc::new(Mutex::new(Vec::new()));
-        let published = Arc::clone(&shared);
-        thread::spawn(move || {
-            // A lista de aparelhos é montada a cada volta, só com os controles reconhecidos.
-            HidApi::disable_device_discovery();
-            let Ok(mut api) = HidApi::new() else { return };
-            let mut tracked: Vec<Tracked> = Vec::new();
-            let mut next_key = 1;
-            loop {
-                if update(&mut api, &mut tracked, &mut next_key) {
-                    let list: Vec<ConnectedController> = tracked.iter().map(|item| item.controller.clone()).collect();
-                    *published.lock().unwrap_or_else(PoisonError::into_inner) = list.clone();
-                    let _ = app.emit(CONTROLLERS_CHANGED_EVENT, list);
-                }
-                thread::sleep(SCAN_INTERVAL);
-            }
-        });
-        Controllers(shared)
-    }
+struct ServiceState {
+    tracked: Vec<Tracked>,
+    next_key: u32,
+    input: InputState,
+}
 
-    pub fn list(&self) -> Vec<ConnectedController> {
-        self.0.lock().unwrap_or_else(PoisonError::into_inner).clone()
+impl Default for ServiceState {
+    fn default() -> Self {
+        Self { tracked: Vec::new(), next_key: 1, input: InputState::default() }
     }
 }
 
-/// Procura os controles, tira os que desconectaram, põe os novos e lê a bateria dos que estão na hora.
-/// Devolve se algo mudou.
-fn update(api: &mut HidApi, tracked: &mut Vec<Tracked>, next_key: &mut u32) -> bool {
-    let mut found: Vec<(CString, &'static str, Connection)> = Vec::new();
-    if api.reset_devices().is_ok() {
-        for model in &SUPPORTED_CONTROLLERS {
-            let _ = api.add_devices(model.vendor_id, model.product_id);
-        }
-        for device in api.device_list() {
-            let model = SUPPORTED_CONTROLLERS
-                .iter()
-                .find(|model| model.vendor_id == device.vendor_id() && model.product_id == device.product_id());
-            // O mesmo controle pode aparecer mais de uma vez (uma por coleção do aparelho).
-            if let Some(model) = model
-                && !found.iter().any(|(path, ..)| path.as_c_str() == device.path())
-            {
-                found.push((device.path().to_owned(), model.name, connection_of(device.bus_type())));
+#[derive(Default)]
+struct Shared {
+    state: Mutex<ServiceState>,
+    wake: Condvar,
+}
+
+impl Shared {
+    fn lock(&self) -> MutexGuard<'_, ServiceState> {
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn wait(&self, duration: Duration) {
+        let _ = self.wake.wait_timeout(self.lock(), duration).unwrap_or_else(PoisonError::into_inner);
+    }
+}
+
+const INPUT_EVENT: &str = "controllers:input";
+
+/// Descoberta, bateria econômica e input opt-in são independentes. Só uma fonte lê input por aparelho.
+pub struct Controllers {
+    shared: Arc<Shared>,
+    app: AppHandle,
+}
+
+fn hardware_allowed() -> bool {
+    !cfg!(test) && test_mode().data_dir.is_none()
+}
+
+impl Controllers {
+    pub fn start(app: AppHandle) -> Controllers {
+        let shared = Arc::new(Shared::default());
+        if hardware_allowed() {
+            HidApi::disable_device_discovery();
+            for worker in [scan_worker, battery_worker, input_worker] {
+                let shared = Arc::clone(&shared);
+                let app = app.clone();
+                thread::spawn(move || worker(shared, app));
             }
         }
+        Controllers { shared, app }
     }
 
-    let before = tracked.len();
-    tracked.retain(|item| found.iter().any(|(path, ..)| *path == item.path));
-    let mut changed = tracked.len() != before;
-    for (path, name, connection) in found {
-        if !tracked.iter().any(|item| item.path == path) {
-            tracked.push(Tracked {
-                path,
-                controller: ConnectedController { key: *next_key, name, connection, battery: None },
+    pub fn list(&self) -> Vec<ConnectedController> {
+        controller_list(&self.shared.lock())
+    }
+
+    pub fn input(&self) -> ControllerInputSnapshot {
+        self.shared.lock().input.snapshot.clone()
+    }
+
+    pub fn set_input_enabled(&self, enabled: bool) {
+        let mut state = self.shared.lock();
+        if state.input.set_enabled(enabled) {
+            let _ = self.app.emit(INPUT_EVENT, state.input.snapshot.clone());
+            self.shared.wake.notify_all();
+        }
+    }
+
+    /// Disponível somente no app de testes; segue a mesma neutralidade e geração do leitor físico.
+    pub fn inject_test_input(&self, connected: bool, buttons: Vec<ControllerButton>) -> ControllerInputSnapshot {
+        if !cfg!(debug_assertions) || test_mode().data_dir.is_none() {
+            return self.input();
+        }
+        let mut state = self.shared.lock();
+        let changed = state.input.select(connected.then_some(1));
+        let changed = state.input.observe(buttons) || changed;
+        let snapshot = state.input.snapshot.clone();
+        if changed {
+            let _ = self.app.emit(INPUT_EVENT, snapshot.clone());
+        }
+        snapshot
+    }
+}
+
+fn controller_list(state: &ServiceState) -> Vec<ConnectedController> {
+    state.tracked.iter().map(|item| item.controller.clone()).collect()
+}
+
+fn scan_worker(shared: Arc<Shared>, app: AppHandle) {
+    let Ok(mut api) = HidApi::new() else { return };
+    loop {
+        if let Some(found) = discover(&mut api) {
+            let mut state = shared.lock();
+            let sequence = state.input.snapshot.sequence;
+            if reconcile(&mut state, found) {
+                let _ = app.emit(CONTROLLERS_CHANGED_EVENT, controller_list(&state));
+                shared.wake.notify_all();
+            }
+            if state.input.snapshot.sequence != sequence {
+                let _ = app.emit(INPUT_EVENT, state.input.snapshot.clone());
+            }
+        }
+        thread::sleep(SCAN_INTERVAL);
+    }
+}
+
+fn discover(api: &mut HidApi) -> Option<Vec<Found>> {
+    api.reset_devices().ok()?;
+    for model in &SUPPORTED_CONTROLLERS {
+        let _ = api.add_devices(model.vendor_id, model.product_id);
+    }
+    let mut found = Vec::new();
+    for device in api.device_list() {
+        if let Some(model) = SUPPORTED_CONTROLLERS
+            .iter()
+            .find(|model| model.vendor_id == device.vendor_id() && model.product_id == device.product_id())
+            && !found.iter().any(|item: &Found| item.path.as_c_str() == device.path())
+        {
+            found.push(Found {
+                path: device.path().to_owned(),
+                name: model.name,
+                connection: connection_of(device.bus_type()),
+                // Edge continua aparecendo com bateria; sua entrada não foi validada nesta entrega.
+                input_supported: model.product_id == 0x0ce6 && device.usage_page() == 1 && device.usage() == 5,
+            });
+        }
+    }
+    Some(found)
+}
+
+fn reconcile(state: &mut ServiceState, found: Vec<Found>) -> bool {
+    let before = state.tracked.len();
+    state.tracked.retain(|item| found.iter().any(|new| new.path == item.path && new.connection == item.controller.connection));
+    let mut changed = state.tracked.len() != before;
+    for item in found {
+        if !state.tracked.iter().any(|old| old.path == item.path) {
+            state.tracked.push(Tracked {
+                path: item.path,
+                controller: ConnectedController {
+                    key: state.next_key,
+                    name: item.name,
+                    connection: item.connection,
+                    battery: None,
+                },
+                input_supported: item.input_supported,
+                reader: Arc::new(Mutex::new(())),
                 read_at: None,
             });
-            *next_key += 1;
+            state.next_key += 1;
             changed = true;
         }
     }
-
-    for item in tracked.iter_mut() {
-        if item.read_at.is_some_and(|read_at| read_at.elapsed() < REFRESH_INTERVAL) {
-            continue;
-        }
-        item.read_at = Some(Instant::now());
-        let battery = read_battery(api, &item.path, item.controller.connection);
-        if battery.is_some() && battery != item.controller.battery {
-            item.controller.battery = battery;
-            changed = true;
-        }
+    if let Some(key) = state.input.snapshot.controller_key
+        && !state.tracked.iter().any(|item| item.controller.key == key && item.input_supported)
+    {
+        state.input.select(None);
     }
     changed
 }
 
+fn input_target_key(state: &ServiceState) -> Option<u32> {
+    if !state.input.enabled {
+        return None;
+    }
+    state.tracked.iter().find(|item| item.input_supported).map(|item| item.controller.key)
+}
+
+fn battery_cancelled(shared: &Shared, key: u32) -> bool {
+    let state = shared.lock();
+    !state.tracked.iter().any(|item| item.controller.key == key) || input_target_key(&state) == Some(key)
+}
+fn battery_worker(shared: Arc<Shared>, app: AppHandle) {
+    let Ok(api) = HidApi::new() else { return };
+    loop {
+        let due = {
+            let mut state = shared.lock();
+            let input_key = input_target_key(&state);
+            state
+                .tracked
+                .iter_mut()
+                .find(|item| {
+                    Some(item.controller.key) != input_key && item.read_at.is_none_or(|at| at.elapsed() >= REFRESH_INTERVAL)
+                })
+                .map(|item| {
+                    item.read_at = Some(Instant::now());
+                    item.clone()
+                })
+        };
+        if let Some(item) = due {
+            if let Some(reading) = read_battery(&api, &item, &shared) {
+                publish_battery(&shared, &app, item.controller.key, reading);
+            }
+        } else {
+            shared.wait(Duration::from_millis(100));
+        }
+    }
+}
+
+fn publish_battery(shared: &Shared, app: &AppHandle, key: u32, reading: BatteryReading) {
+    let mut state = shared.lock();
+    if let Some(item) = state.tracked.iter_mut().find(|item| item.controller.key == key)
+        && item.controller.battery != Some(reading)
+    {
+        item.controller.battery = Some(reading);
+        item.read_at = Some(Instant::now());
+        let _ = app.emit(CONTROLLERS_CHANGED_EVENT, controller_list(&state));
+    }
+}
+
+fn input_worker(shared: Arc<Shared>, app: AppHandle) {
+    let Ok(api) = HidApi::new() else { return };
+    loop {
+        let target = {
+            let state = shared.lock();
+            input_target_key(&state).and_then(|key| state.tracked.iter().find(|item| item.controller.key == key).cloned())
+        };
+        if let Some(item) = target {
+            read_input(&api, &shared, &app, &item);
+        }
+        shared.wait(Duration::from_millis(100));
+    }
+}
+
+fn read_input(api: &HidApi, shared: &Shared, app: &AppHandle, item: &Tracked) {
+    let expected_generation = shared.lock().input.snapshot.generation;
+    // A leitura econômica libera este acesso ao perceber a ativação; nunca espera um feature report.
+    let _owner = item.reader.lock().unwrap_or_else(PoisonError::into_inner);
+    let Ok(device) = api.open_path(&item.path) else { return };
+    let generation = {
+        let mut state = shared.lock();
+        if !state.input.enabled
+            || state.input.snapshot.generation != expected_generation
+            || !state.tracked.iter().any(|current| current.controller.key == item.controller.key)
+        {
+            return;
+        }
+        if state.input.select(Some(item.controller.key)) {
+            let _ = app.emit(INPUT_EVENT, state.input.snapshot.clone());
+        }
+        state.input.snapshot.generation
+    };
+    let mut buffer = [0u8; 128];
+    let mut last_report = Instant::now();
+    loop {
+        {
+            let state = shared.lock();
+            if !current_reader(&state, item.controller.key, generation) {
+                break;
+            }
+        }
+        let Ok(read) = device.read_timeout(&mut buffer, 20) else { break };
+        let Some(buttons) = parse_input(item.controller.connection, &buffer[..read]) else {
+            if last_report.elapsed() >= Duration::from_millis(500) {
+                break;
+            }
+            continue;
+        };
+        last_report = Instant::now();
+        // Uma resposta que chegou após desativar/trocar de geração nunca volta para a interface.
+        {
+            let mut state = shared.lock();
+            if !current_reader(&state, item.controller.key, generation) {
+                break;
+            }
+            if state.input.observe(buttons) {
+                let _ = app.emit(INPUT_EVENT, state.input.snapshot.clone());
+            }
+        }
+        if let Some(reading) = parse_battery(item.controller.connection, buffer[0], &buffer[1..read]) {
+            publish_battery(shared, app, item.controller.key, reading);
+        }
+    }
+    let mut state = shared.lock();
+    if current_reader(&state, item.controller.key, generation) && state.input.select(None) {
+        let _ = app.emit(INPUT_EVENT, state.input.snapshot.clone());
+    }
+}
+
+fn current_reader(state: &ServiceState, key: u32, generation: u64) -> bool {
+    state.input.enabled
+        && state.input.snapshot.generation == generation
+        && state.input.snapshot.controller_key == Some(key)
+        && state.tracked.iter().any(|item| item.controller.key == key)
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,5 +546,72 @@ mod tests {
         assert_eq!(json["connection"], "bluetooth");
         assert_eq!(json["battery"]["state"], "full");
         assert_eq!(json["battery"]["percent"], 95);
+    }
+    fn found(path: &str, input_supported: bool) -> Found {
+        Found {
+            path: CString::new(path).unwrap(),
+            name: if input_supported { "DualSense" } else { "DualSense Edge" },
+            connection: Connection::Usb,
+            input_supported,
+        }
+    }
+
+    #[test]
+    fn descoberta_preserva_bateria_e_chave_mas_reconexao_ganha_nova_chave() {
+        let mut state = ServiceState::default();
+        assert!(reconcile(&mut state, vec![found("controle-a", true), found("controle-b", false)]));
+        let key = state.tracked[0].controller.key;
+        state.tracked[0].controller.battery = battery(Some(75), BatteryState::Charging);
+        assert!(!reconcile(&mut state, vec![found("controle-a", true), found("controle-b", false)]));
+        assert_eq!(state.tracked[0].controller.key, key);
+        assert_eq!(state.tracked[0].controller.battery, battery(Some(75), BatteryState::Charging));
+        state.input.set_enabled(true);
+        state.input.select(Some(key));
+        let generation = state.input.snapshot.generation;
+        assert!(reconcile(&mut state, vec![found("controle-b", false)]));
+        assert_eq!(state.input.snapshot.controller_key, None);
+        assert!(state.input.snapshot.generation > generation);
+        assert!(reconcile(&mut state, vec![found("controle-a", true), found("controle-b", false)]));
+        assert!(state.tracked.iter().find(|item| item.input_supported).unwrap().controller.key > key);
+        assert_eq!(controller_list(&state).len(), 2);
+    }
+
+    #[test]
+    fn pacote_tardio_de_uma_geracao_anterior_nao_pode_ser_publicado() {
+        let mut state = ServiceState::default();
+        reconcile(&mut state, vec![found("controle", true)]);
+        state.input.set_enabled(true);
+        state.input.select(Some(1));
+        let generation = state.input.snapshot.generation;
+        assert!(current_reader(&state, 1, generation));
+        state.input.set_enabled(false);
+        assert!(!current_reader(&state, 1, generation));
+        state.input.set_enabled(true);
+        state.input.select(Some(1));
+        assert!(!current_reader(&state, 1, generation));
+        assert!(current_reader(&state, 1, state.input.snapshot.generation));
+        reconcile(&mut state, vec![]);
+        assert!(!current_reader(&state, 1, state.input.snapshot.generation));
+    }
+
+    #[test]
+    fn testes_nunca_inicializam_hid_real_e_edge_continua_so_com_indicador() {
+        assert!(!hardware_allowed());
+        let mut state = ServiceState::default();
+        reconcile(&mut state, vec![found("edge-sintetico", false)]);
+        assert!(state.tracked.iter().all(|item| !item.input_supported));
+        assert_eq!(controller_list(&state)[0].name, "DualSense Edge");
+    }
+    #[test]
+    fn entrada_pausa_so_a_amostra_do_controle_escolhido_preservando_bateria_edge() {
+        let shared = Shared::default();
+        {
+            let mut state = shared.lock();
+            reconcile(&mut state, vec![found("regular", true), found("edge", false), found("regular-b", true)]);
+            state.input.set_enabled(true);
+        }
+        assert!(battery_cancelled(&shared, 1));
+        assert!(!battery_cancelled(&shared, 2));
+        assert!(!battery_cancelled(&shared, 3));
     }
 }

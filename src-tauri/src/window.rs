@@ -2,13 +2,15 @@
 //! maximizada e com o idioma e a marca DEV no endereço.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use serde::Serialize;
 use tauri::window::Color;
 use tauri::{AppHandle, Emitter, Manager, Url, WebviewUrl, WebviewWindow, WebviewWindowBuilder, WindowEvent};
 
+use crate::controllers::Controllers;
 use crate::i18n::Language;
+use crate::state::AppState;
 use crate::test_mode::test_mode;
 
 const MAIN_WINDOW: &str = "main";
@@ -24,10 +26,30 @@ const BACKGROUND_COLOR: Color = Color(0x12, 0x16, 0x1d, 0xff);
 const WEBVIEW_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
 
 /// O que a interface sabe da janela.
-#[derive(Clone, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WindowState {
     pub is_maximized: bool,
+    pub is_fullscreen: bool,
+    pub is_focused: bool,
+}
+
+impl WindowState {
+    fn signature(&self) -> u8 {
+        u8::from(self.is_maximized) | (u8::from(self.is_fullscreen) << 1) | (u8::from(self.is_focused) << 2)
+    }
+}
+
+/// Deduplica maximização, tela cheia e foco nativo; eventos intermediários de uma transição não chegam à interface.
+struct WindowStateTracker {
+    last: AtomicU8,
+    transitioning: AtomicBool,
+}
+
+impl Default for WindowStateTracker {
+    fn default() -> Self {
+        Self { last: AtomicU8::new(8), transitioning: AtomicBool::new(false) }
+    }
 }
 
 /// A marca DEV (no título da janela e no logo) em tudo o que roda o código em desenvolvimento: o modo
@@ -64,6 +86,8 @@ fn restored_size(app: &AppHandle) -> (f64, f64) {
 /// (`webview_folder`): o app de verdade, o modo de desenvolvimento e os testes ficam cada um com a sua.
 /// Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
 pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: PathBuf) -> tauri::Result<WebviewWindow> {
+    app.manage(WindowStateTracker::default());
+    let start_fullscreen = crate::fullscreen::get_config(&app.state::<AppState>().db()).start_on_launch;
     let mut query = format!("lang={}", language.id());
     if let Some(mark) = dev_mark() {
         query.push_str(&format!("&dev={mark}"));
@@ -88,6 +112,13 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
     }
     let window = builder.build()?;
     send_state_changes(&window);
+    if start_fullscreen {
+        if let Err(error) = set_fullscreen(&window, true) {
+            eprintln!("não foi possível iniciar em tela cheia: {error}");
+        }
+    } else {
+        reconcile_state(&window)?;
+    }
     Ok(window)
 }
 
@@ -110,20 +141,63 @@ fn is_app_url(url: &Url) -> bool {
     }
 }
 
-/// Avisa a interface sempre que a janela maximizar ou restaurar (pelo botão, pelo duplo clique na
-/// barra do topo ou pelo Windows). O estado de partida fica em aberto: logo depois de criada, a janela
-/// ainda não terminou de maximizar, e o primeiro tamanho de verdade sempre vira aviso.
+/// No Windows, o foco pode estar no HWND filho do WebView2 enquanto o getter do Tao consulta o pai.
+/// A janela de primeiro plano identifica o app ativo sem confundir essa transferência interna.
+pub fn has_input_focus(window: &WebviewWindow) -> tauri::Result<bool> {
+    let hwnd = window.hwnd()?;
+    // SAFETY: consulta somente o identificador da janela ativa, sem alterar foco ou acessar seu conteúdo.
+    Ok(unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() == hwnd })
+}
+/// Consulta o estado nativo e publica mudanças de maximização, tela cheia ou foco na própria janela.
+pub fn reconcile_state(window: &WebviewWindow) -> tauri::Result<WindowState> {
+    let state = WindowState {
+        is_maximized: window.is_maximized()?,
+        is_fullscreen: window.is_fullscreen()?,
+        is_focused: has_input_focus(window)?,
+    };
+    if !state.is_fullscreen {
+        window.state::<Controllers>().set_input_enabled(false);
+    }
+    let tracker = window.state::<WindowStateTracker>();
+    let signature = state.signature();
+    if !tracker.transitioning.load(Ordering::Acquire) && tracker.last.swap(signature, Ordering::Relaxed) != signature {
+        let _ = window.emit(WINDOW_STATE_EVENT, &state);
+    }
+    Ok(state)
+}
+
+/// O Tauri/Windows guarda o WINDOWPLACEMENT ao entrar e o restaura ao sair, incluindo o retângulo
+/// restaurado e o estado maximizado. Não redimensionamos por cima desse estado nativo.
+pub fn set_fullscreen(window: &WebviewWindow, enabled: bool) -> tauri::Result<WindowState> {
+    let previous = window.is_fullscreen()?;
+    if previous == enabled {
+        return reconcile_state(window);
+    }
+    window.state::<Controllers>().set_input_enabled(false);
+    let tracker = window.state::<WindowStateTracker>();
+    tracker.transitioning.store(true, Ordering::Release);
+    let result = window.set_fullscreen(enabled);
+    if result.is_err() {
+        let _ = window.set_fullscreen(previous);
+    }
+    tracker.transitioning.store(false, Ordering::Release);
+    let reconciled = reconcile_state(window);
+    result?;
+    reconciled
+}
+
+/// Mudanças pelo Windows também reconciliam tela cheia. Perder foco interrompe a leitura rápida;
+/// voltar exige uma nova habilitação da interface e um estado neutro no serviço de controles.
 fn send_state_changes(window: &WebviewWindow) {
-    const UNKNOWN: u8 = 2;
-    let last = AtomicU8::new(UNKNOWN);
     let handle = window.clone();
     window.on_window_event(move |event| {
-        if !matches!(event, WindowEvent::Resized(_)) {
-            return;
+        if matches!(event, WindowEvent::Destroyed)
+            || (matches!(event, WindowEvent::Focused(false)) && !has_input_focus(&handle).unwrap_or(false))
+        {
+            handle.state::<Controllers>().set_input_enabled(false);
         }
-        let Ok(is_maximized) = handle.is_maximized() else { return };
-        if last.swap(u8::from(is_maximized), Ordering::Relaxed) != u8::from(is_maximized) {
-            let _ = handle.emit(WINDOW_STATE_EVENT, WindowState { is_maximized });
+        if matches!(event, WindowEvent::Resized(_) | WindowEvent::Moved(_) | WindowEvent::Focused(_)) {
+            let _ = reconcile_state(&handle);
         }
     });
 }
@@ -131,6 +205,26 @@ fn send_state_changes(window: &WebviewWindow) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn contrato_de_janela_inclui_modo_e_foco_nativos() {
+        let state = WindowState { is_maximized: true, is_fullscreen: false, is_focused: true };
+        assert_eq!(
+            serde_json::to_value(&state).unwrap(),
+            serde_json::json!({ "isMaximized": true, "isFullscreen": false, "isFocused": true })
+        );
+        let mut signatures = Vec::new();
+        for is_maximized in [false, true] {
+            for is_fullscreen in [false, true] {
+                for is_focused in [false, true] {
+                    signatures.push(WindowState { is_maximized, is_fullscreen, is_focused }.signature());
+                }
+            }
+        }
+        signatures.sort();
+        signatures.dedup();
+        assert_eq!(signatures.len(), 8);
+    }
 
     #[test]
     fn a_janela_so_abre_o_endereco_da_interface() {

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { Joystick, Library, SearchX } from "lucide-react"
 import type { Game } from "@shared/types"
 import { EmptyState } from "@/components/EmptyState"
@@ -17,6 +17,8 @@ import { useStatuses } from "@/hooks/useStatuses"
 import { EMPTY_FILTERS, filterGames, hasActiveFilters, type LibraryFilters } from "@/lib/filters"
 
 interface LibraryPageProps {
+  active?: boolean
+  onSelectedId?: (id: number | null) => void
   /** Todos os jogos da biblioteca (vindos do banco de dados). */
   games: Game[]
   /** Texto digitado na busca da barra do topo. */
@@ -48,6 +50,8 @@ interface LibraryPageProps {
  */
 export function LibraryPage({
   games: allGames,
+  active = true,
+  onSelectedId,
   searchQuery,
   filters,
   onFiltersChange,
@@ -62,6 +66,7 @@ export function LibraryPage({
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [lastView, setLastView] = useState(view)
   const statuses = useStatuses()
+  useEffect(() => { onSelectedId?.(selectedGameId) }, [selectedGameId, onSelectedId])
 
   // Trocar de modo mostra só a biblioteca: o painel de detalhes fecha, e o jogo continua destacado.
   if (view !== lastView) {
@@ -153,8 +158,8 @@ export function LibraryPage({
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        {allGames.length > 0 && <LibraryThemeMusic game={musicGame} />}
-        <div className="relative flex min-h-0 flex-1">{content}</div>
+        {active && allGames.length > 0 && <LibraryThemeMusic game={musicGame} />}
+        <div className="relative flex min-h-0 flex-1">{active && content}</div>
       </div>
       {filtersOpen && (
         <FilterPanel games={allGames} filters={filters} onFiltersChange={onFiltersChange} onClose={onCloseFilters} />

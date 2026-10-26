@@ -43,7 +43,7 @@
 
 Quem joga no PC acaba com os jogos espalhados: parte na Steam, parte na GOG, alguns em emuladores e outros instalados em pastas avulsas, cada um com seu próprio launcher. O **Playtrove** reúne tudo em uma interface só: todos os jogos do computador no mesmo lugar, com capa, informações e tempo jogado, prontos para abrir com um clique.
 
-O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: uma moldura escura com as ferramentas no topo, um menu de ícones à esquerda e a biblioteca no centro. A biblioteca fica guardada no próprio computador, em um banco de dados local, sem conta e sem depender de internet.
+O visual desktop segue a linha do [Playnite](https://playnite.link/): uma moldura escura com as ferramentas no topo, um menu de ícones à esquerda e a biblioteca no centro. A apresentação em tela cheia acrescenta uma biblioteca horizontal de capas e os detalhes Signature de cada jogo. A biblioteca fica guardada no próprio computador, em um banco de dados local, sem conta e sem depender de internet.
 
 > [!NOTE]
 > O projeto ainda está em construção. Por enquanto, os jogos entram pelos emuladores (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin e Azahar); Steam, GOG e outras lojas estão no [roadmap](#roadmap).
@@ -54,10 +54,11 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 - **Jogar**: abre o jogo no emulador, com as configurações dele (o RetroArch abre maximizado em janela, a não ser que esteja em tela cheia), e conta sozinho o tempo jogado e a última vez jogado. O tempo que os próprios emuladores registram também entra na biblioteca, então o que foi jogado abrindo o emulador direto aparece do mesmo jeito.
 - **Metadados e imagens**: a capa vem do [libretro-thumbnails](https://thumbnails.libretro.com/) (a mesma do RetroArch, sem precisar de chave) e, quando falta, do [SteamGridDB](https://www.steamgriddb.com/), que também dá a arte de fundo; a descrição, os gêneros, a desenvolvedora, a publicadora e a data de lançamento vêm do [IGDB](https://www.igdb.com/). As duas chaves são gratuitas, e o app explica como criar cada uma.
 - **Modo Detalhes**: a visão principal da biblioteca. À esquerda fica a lista de jogos, com os ícones. À direita aparecem a arte de fundo, a capa acima do título, os botões **Jogar** e **Mais**, os detalhes e a descrição.
+- **Tela cheia**: entre pela barra do topo para navegar pela biblioteca horizontal de capas e abrir os detalhes Signature dos jogos. Alterne entre Todos, Recentes e Favoritos ou busque por título na biblioteca inteira. Navegue com DualSense por USB ou Bluetooth, teclado ou mouse; a validação física do controle ainda está pendente. Um teclado virtual atende à busca e às análises, incluindo acentos e pontuação. Favorito, status, nota, dificuldade, análise e conquistas usam a mesma biblioteca do desktop. A tela cheia limita a abertura a um jogo por vez, e fechá-lo devolve aos seus detalhes. Sair da tela cheia restaura a janela e a seleção do desktop. **Configurações → Geral** e as preferências da tela cheia oferecem inicialização opcional nesse modo e controles próprios de reprodução/volume da música; os vídeos de fundo tocam sem som nos detalhes. Mídia e navegação por controle pausam com a janela inativa ou um jogo em execução. A configuração de emuladores e pastas de ROMs continua no desktop.
 - **Modo Grade**: capas inteiras centralizadas em áreas iguais 2:3, com fundo neutro nas sobras de imagens de formatos diferentes. A grade se ajusta ao tamanho da janela, com o status numa faixa abaixo da área de cada capa e um painel lateral de detalhes ao clicar em um jogo.
 - **Capas inteiras**: Grade, Detalhes e painel lateral preservam a proporção original de cada imagem, sem cortes, distorções ou preenchimento desfocado.
 - **Trailers e vídeos de fundo**: com o IGDB configurado, o Playtrove baixa um trailer do YouTube junto dos metadados de cada jogo, em até 720p e 100 MiB, e prepara as ferramentas necessárias na primeira utilização. Ele toca sem som, em repetição, no modo Detalhes, com a imagem de fundo como reserva; com movimento reduzido, começa pausado. Pelo menu **Mais**, escolha um MP4 ou WebM local com prioridade sobre o trailer, remova e desative os vídeos automáticos ou escolha **Usar trailer automático** para reativá-los. O arquivo local original permanece intacto.
-- **Música tema por jogo**: a faixa salva toca offline, em repetição, nos modos Detalhes, Grade, Lista e Kanban. A troca de jogo tem transição suave, e o áudio pausa com a janela inativa, um jogo em execução ou ao sair da Biblioteca. Os controles de reprodução e volume ficam somente em **Configurações → Geral**; **Metadados** reúne busca automática e download das trilhas. A busca aceita variações do nome e nomes próprios de faixas da soundtrack; uma recomendação forte pode ser baixada automaticamente. Depois dos demais metadados, **Revisar músicas** permite ouvir as candidatas e escolher, ou ajustar a busca pelo nome do jogo ou da música. A audição é carregada somente ao clicar, e a escolha fica salva com prioridade manual. A recomendação é uma estimativa, e a busca pode terminar sem resultado; novas tentativas são explícitas. O menu **Mais** também permite buscar outra faixa ou importar MP3, M4A ou WAV de até 32 MiB. Remover apaga só a cópia interna e desativa o automático daquele jogo; os arquivos originais permanecem intactos. Se a reprodução automática for bloqueada, clique ou pressione uma tecla na Biblioteca para liberar o áudio.
+- **Música tema por jogo**: a faixa salva toca offline, em repetição, nos modos Detalhes, Grade, Lista e Kanban do desktop. A troca de jogo tem transição suave, e o áudio pausa com a janela inativa, um jogo em execução ou ao sair da Biblioteca. Os controles de reprodução e volume do desktop ficam em **Configurações → Geral**, separados das preferências de áudio da tela cheia; **Metadados** reúne busca automática e download das trilhas. A busca aceita variações do nome e nomes próprios de faixas da soundtrack; uma recomendação forte pode ser baixada automaticamente. Depois dos demais metadados, **Revisar músicas** permite ouvir as candidatas e escolher, ou ajustar a busca pelo nome do jogo ou da música. A audição é carregada somente ao clicar, e a escolha fica salva com prioridade manual. A recomendação é uma estimativa, e a busca pode terminar sem resultado; novas tentativas são explícitas. O menu **Mais** também permite buscar outra faixa ou importar MP3, M4A ou WAV de até 32 MiB. Remover apaga só a cópia interna e desativa o automático daquele jogo; os arquivos originais permanecem intactos. Se a reprodução automática for bloqueada, clique ou pressione uma tecla na Biblioteca para liberar o áudio.
 - **Avaliação**: pelo menu **Mais**, dê a sua nota (de meia a cinco estrelas) e marque a dificuldade em pimentas (também com meia); no mesmo menu, escreva a sua análise do jogo. A nota e a dificuldade aparecem ao lado do botão **Jogar**, e a análise, em cima da descrição.
 - **Modo Lista**: uma linha por jogo, com o nome, o status, a plataforma, a biblioteca, o tempo jogado, a nota, a dificuldade e as conquistas.
 - **Modo Kanban**: um quadro com uma coluna para cada status (Planejo jogar, Jogando, Zerado, Platinado...), todas visíveis de uma vez. Para mudar o status de um jogo, é só arrastá-lo para outra coluna.
@@ -80,6 +81,16 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 Capturas com uma biblioteca de demonstração.
 
 <table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-library.png" alt="Biblioteca em tela cheia com uma faixa horizontal de capas">
+      <p align="center"><sub>Biblioteca em tela cheia</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-details.png" alt="Detalhes Signature de um jogo em tela cheia">
+      <p align="center"><sub>Detalhes Signature em tela cheia</sub></p>
+    </td>
+  </tr>
   <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-kanban.png" alt="A biblioteca no modo Kanban, com uma coluna para cada status">
@@ -192,6 +203,7 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 
 ## Roadmap
 
+- Hub e configuração completa em tela cheia, perfis, outros layouts e temas, ferramentas e conectores
 - Importação de jogos da Steam, da GOG e de pastas de jogos do computador
 - Mais emuladores
 - Editar as informações de um jogo e escolher outra capa

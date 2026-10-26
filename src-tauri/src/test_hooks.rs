@@ -208,6 +208,8 @@ pub fn test_opened(hooks: State<'_, TestHooks>) -> Vec<String> {
 pub struct TestWindow {
     title: String,
     maximized: bool,
+    fullscreen: bool,
+    foreground: bool,
     size: [f64; 2],
     work_area: [f64; 2],
 }
@@ -225,11 +227,24 @@ pub fn test_window(window: WebviewWindow) -> Option<TestWindow> {
     Some(TestWindow {
         title: window.title().ok()?,
         maximized: window.is_maximized().ok()?,
+        fullscreen: window.is_fullscreen().ok()?,
+        foreground: crate::window::has_input_focus(&window).ok()?,
         size: [size.width.round(), size.height.round()],
         work_area: [area.width.round(), area.height.round()],
     })
 }
 
+/// Ativa somente a própria janela dos testes. CDP pode focar o DOM sem ativar a janela no Windows.
+#[tauri::command]
+pub fn test_focus_window(window: WebviewWindow) -> crate::errors::AppResult<Option<TestWindow>> {
+    if !active() {
+        return Ok(None);
+    }
+    window.unminimize()?;
+    window.show()?;
+    window.set_focus()?;
+    Ok(test_window(window))
+}
 /// Tira a janela do maximizado e deixa a área da página com este tamanho (os testes usam 1280×800).
 #[tauri::command]
 pub fn test_set_window_size(window: WebviewWindow, width: Value, height: Value) {
@@ -266,4 +281,21 @@ pub fn test_release_image(hooks: State<'_, TestHooks>, path: Value) {
         image.released = true;
     }
     hooks.image_released.notify_all();
+}
+
+/// Injeta somente estados sintéticos na pasta de testes; nunca acessa um controle real.
+#[tauri::command]
+pub fn test_controller_input(
+    state: State<'_, crate::state::AppState>,
+    controllers: State<'_, crate::controllers::Controllers>,
+    connected: Value,
+    buttons: Value,
+) -> crate::errors::AppResult<Option<crate::controller_input::ControllerInputSnapshot>> {
+    if !active() {
+        return Ok(None);
+    }
+    let connected = crate::validation::to_bool(&connected, state.language())?;
+    let buttons = serde_json::from_value::<Vec<crate::controller_input::ControllerButton>>(buttons)
+        .map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))?;
+    Ok(Some(controllers.inject_test_input(connected, buttons)))
 }

@@ -43,7 +43,7 @@
 
 PC gamers end up with their games scattered everywhere: some on Steam, some on GOG, a few in emulators and others installed in random folders, each with its own launcher. **Playtrove** brings them together in one place, with cover art, details and playtime, ready to launch with one click.
 
-The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame with the tools at the top, an icon menu on the left and your library in the middle. Your library is stored on your own computer, in a local database, with no account and no internet required.
+The desktop look follows [Playnite](https://playnite.link/): a dark frame with the tools at the top, an icon menu on the left and your library in the middle. A fullscreen presentation adds a horizontal cover library and Signature game details. Your library is stored on your own computer, in a local database, with no account and no internet required.
 
 > [!NOTE]
 > Playtrove is still being built. For now, games come in through emulators (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin and Azahar); Steam, GOG and other stores are on the [roadmap](#roadmap).
@@ -54,10 +54,11 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 - **Play**: opens the game in its emulator, with the emulator's own settings (RetroArch opens maximized in a window, unless it is set to fullscreen), and keeps track of playtime and when you last played. Time recorded by the emulators themselves counts too, so games you started straight from the emulator show up the same way.
 - **Metadata and images**: covers come from [libretro-thumbnails](https://thumbnails.libretro.com/) (the same ones RetroArch uses, no key needed) and, when one is missing, from [SteamGridDB](https://www.steamgriddb.com/), which also provides the background art; description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
 - **Details view**: the main library view. Your games are listed on the left, with icons. On the right: the background art, the cover above the title, the **Play** and **More** buttons, the details and the description.
+- **Fullscreen**: enter from the top bar to browse a horizontal cover library and open Signature game details. Switch between All, Recent and Favorites, or search your entire library by title. Navigate with a DualSense over USB or Bluetooth, a keyboard or a mouse; physical controller validation is still pending. A virtual keyboard handles search and reviews, including accents and punctuation. Favorites, status, rating, difficulty, reviews and achievements use the same library as the desktop. Launching is limited to one game at a time in fullscreen, and closing it returns to its details. Leaving fullscreen restores the desktop window and its selection. **Settings → General** and fullscreen preferences offer optional fullscreen startup and separate music playback/volume controls; background videos play silently in game details. Media and controller navigation pause while the window is inactive or a game is running. Emulator and ROM-folder setup remains in the desktop interface.
 - **Grid view**: whole covers centered in matching 2:3 areas, with a neutral background around different image shapes. The grid adapts to the window, with the status on a strip below each cover area and a details panel when you click a game.
 - **Full cover art**: Grid, Details and the side panel preserve each image's original proportions, with no cropping, stretching or blurred filler.
 - **Background trailers and videos**: with IGDB configured, Playtrove downloads a YouTube trailer alongside each game's metadata, up to 720p and 100 MiB, and prepares the required tools on first use. It plays silently on a loop in Details view, with the background image as a fallback; reduced motion starts playback paused. From **More**, choose a local MP4 or WebM to override the trailer, remove it and disable automatic videos, or choose **Use automatic trailer** to restore them. Your original local file stays untouched.
-- **Game theme music**: saved tracks play offline on a loop in Details, Grid, List and Kanban. Tracks fade when the selection changes and pause while the window is inactive, a game is running or you leave the Library. Playback and volume controls are available only in **Settings → General**; **Metadata** brings soundtrack searches and downloads together. Search accepts title variations and named soundtrack tracks; a strong recommendation can be downloaded automatically. After the other metadata finishes, **Review music** lets you listen to candidates and choose, or refine the search by game or track name. Audio loads only when you click to listen, and confirmed choices keep manual priority. Recommendations are estimates and searches can return no match; retries are explicit. **More** also lets you find another track or import a local MP3, M4A or WAV up to 32 MiB. Removing a track deletes only the internal copy and disables automatic music for that game; original files stay untouched. If autoplay is blocked, click or press a key in the Library to enable audio.
+- **Game theme music**: saved tracks play offline on a loop in desktop Details, Grid, List and Kanban. Tracks fade when the selection changes and pause while the window is inactive, a game is running or you leave the Library. Desktop playback and volume controls are in **Settings → General**, separate from fullscreen audio preferences; **Metadata** brings soundtrack searches and downloads together. Search accepts title variations and named soundtrack tracks; a strong recommendation can be downloaded automatically. After the other metadata finishes, **Review music** lets you listen to candidates and choose, or refine the search by game or track name. Audio loads only when you click to listen, and confirmed choices keep manual priority. Recommendations are estimates and searches can return no match; retries are explicit. **More** also lets you find another track or import a local MP3, M4A or WAV up to 32 MiB. Removing a track deletes only the internal copy and disables automatic music for that game; original files stay untouched. If autoplay is blocked, click or press a key in the Library to enable audio.
 - **Ratings**: from the **More** menu, rate a game (half to five stars) and mark its difficulty in peppers (halves too); in the same menu, write your review. The rating and difficulty appear next to **Play**, and the review above the description.
 - **List view**: one row per game, with the name, status, platform, library, playtime, rating, difficulty and achievements.
 - **Kanban view**: a board with one column per status (Plan to play, Playing, Beaten, Platinum...), all visible at once. Drag a game to another column to change its status.
@@ -80,6 +81,16 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 Screenshots use a demonstration library.
 
 <table>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-library.png" alt="Fullscreen library with a horizontal cover rail">
+      <p align="center"><sub>Fullscreen library</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-details.png" alt="Fullscreen Signature game details">
+      <p align="center"><sub>Fullscreen Signature details</sub></p>
+    </td>
+  </tr>
   <tr>
     <td width="50%">
       <img src="docs/screenshots/en/library-kanban.png" alt="The library in Kanban view, with one column per status">
@@ -192,6 +203,7 @@ Want to understand the code? The guide to every folder and file, and where to bu
 
 ## Roadmap
 
+- Fullscreen hub and complete setup, profiles, additional layouts and themes, tools and connectors
 - Import games from Steam, GOG and PC game folders
 - More emulators
 - Edit a game's details and pick another cover
