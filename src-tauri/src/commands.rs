@@ -15,10 +15,12 @@ use crate::achievements::service::AchievementsService;
 use crate::achievements::trophy_icons::trophy_icon_url;
 use crate::achievements::types::{AchievementsConfig, AchievementsOverview, GameAchievements};
 use crate::achievements::{self};
+use crate::controller_input::ControllerInputSnapshot;
 use crate::controllers::{ConnectedController, Controllers};
 use crate::data_folder::is_portable;
 use crate::emulators::{self, EmulatorId, EmulatorInfo, RetroArchCore};
 use crate::errors::{AppError, AppResult};
+use crate::fullscreen::{self, FullscreenConfig};
 use crate::i18n::{Language, save_language, text};
 use crate::images::ImagesDir;
 use crate::launcher::{Launcher, SystemStarter};
@@ -65,6 +67,9 @@ pub fn finish_open_games(app: &AppHandle) {
 }
 
 fn notify_running(app: &AppHandle) {
+    if !app.state::<Launcher>().running().is_empty() {
+        app.state::<Controllers>().set_input_enabled(false);
+    }
     let _ = app.emit(GAMES_RUNNING_EVENT, app.state::<Launcher>().running());
 }
 
@@ -137,7 +142,25 @@ pub fn window_close(window: WebviewWindow) -> AppResult<()> {
 
 #[tauri::command]
 pub fn window_get_state(window: WebviewWindow) -> AppResult<WindowState> {
-    Ok(WindowState { is_maximized: window.is_maximized()? })
+    Ok(crate::window::reconcile_state(&window)?)
+}
+
+/// A apresentação só muda depois da transição nativa bem-sucedida.
+#[tauri::command]
+pub fn window_set_fullscreen(window: WebviewWindow, state: State<'_, AppState>, enabled: Value) -> AppResult<WindowState> {
+    Ok(crate::window::set_fullscreen(&window, to_bool(&enabled, state.language())?)?)
+}
+
+#[tauri::command]
+pub fn fullscreen_get_config(state: State<'_, AppState>) -> FullscreenConfig {
+    fullscreen::get_config(&state.db())
+}
+
+#[tauri::command]
+pub fn fullscreen_set_config(app: AppHandle, state: State<'_, AppState>, patch: Value) -> AppResult<FullscreenConfig> {
+    let config = fullscreen::set_config(&state.db(), &patch, state.language())?;
+    let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
+    Ok(config)
 }
 
 // ---------------------------------------------------------------- biblioteca e jogos
@@ -792,6 +815,27 @@ pub fn achievements_overview(state: State<'_, AppState>, images: State<'_, Image
 #[tauri::command]
 pub fn controllers_list(controllers: State<'_, Controllers>) -> Vec<ConnectedController> {
     controllers.list()
+}
+
+#[tauri::command]
+pub fn controllers_get_input(controllers: State<'_, Controllers>) -> ControllerInputSnapshot {
+    controllers.input()
+}
+
+/// A leitura rápida só é permitida na tela cheia ativa, com foco e sem um jogo em execução.
+#[tauri::command]
+pub fn controllers_set_input_enabled(
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    controllers: State<'_, Controllers>,
+    launcher: State<'_, Launcher>,
+    enabled: Value,
+) -> AppResult<()> {
+    let enabled = to_bool(&enabled, state.language())?;
+    controllers.set_input_enabled(
+        enabled && window.is_fullscreen()? && crate::window::has_input_focus(&window)? && launcher.running().is_empty(),
+    );
+    Ok(())
 }
 
 // ---------------------------------------------------------------- atualização (Configurações → Sobre)

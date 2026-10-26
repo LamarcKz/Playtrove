@@ -34,7 +34,13 @@ export function createTauriApi(): AppApi {
       toggleMaximize: () => void invoke("window_toggle_maximize"),
       close: () => void invoke("window_close"),
       getState: () => invoke("window_get_state"),
+      setFullscreen: (enabled) => invoke("window_set_fullscreen", { enabled }),
       onStateChange: (callback) => subscribe(EVENTS.windowState, callback),
+    },
+    fullscreen: {
+      getConfig: () => invoke("fullscreen_get_config"),
+      setConfig: (patch) => invoke("fullscreen_set_config", { patch }),
+      onConfigChange: (callback) => subscribe(EVENTS.fullscreenConfig, callback),
     },
     library: {
       get: () => invoke("library_get"),
@@ -109,6 +115,9 @@ export function createTauriApi(): AppApi {
     },
     controllers: {
       list: () => invoke("controllers_list"),
+      getInput: () => invoke("controllers_get_input"),
+      setInputEnabled: (enabled) => invoke("controllers_set_input_enabled", { enabled }),
+      onInputChange: (callback) => subscribe(EVENTS.controllersInput, callback),
       onChange: (callback) => subscribe(EVENTS.controllersChanged, callback),
     },
     statuses: {

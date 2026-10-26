@@ -18,6 +18,8 @@ export const TEST_APP = join(ROOT, "src-tauri", "target", "testes", "debug", "Pl
 export interface TestWindow {
   title: string
   maximized: boolean
+  fullscreen: boolean
+  foreground: boolean
   size: [number, number]
   workArea: [number, number]
 }
@@ -45,6 +47,12 @@ export class AppProcess {
 
   window(): Promise<TestWindow> {
     return this.invoke("test_window")
+  }
+
+  /** Ativa somente a janela temporária deste teste, para conferir entrada condicionada ao foco real. */
+  async focus(): Promise<void> {
+    await this.invoke("test_focus_window")
+    await expect.poll(async () => (await this.window()).foreground).toBe(true)
   }
 
   /** Tira do maximizado e deixa a página com este tamanho. */
@@ -197,8 +205,8 @@ export async function launchApp(options: LaunchOptions = {}): Promise<TestApp> {
   const context = browser.contexts()[0]
   const page = context.pages()[0] ?? (await context.waitForEvent("page"))
   const app = new AppProcess(child, browser, page)
-  await page.waitForSelector("nav button")
-  if (!options.maximized) await app.setWindowSize(1280, 800)
+  await page.locator("nav button:visible, [data-testid='fullscreen-shell']:visible").first().waitFor()
+  if (!options.maximized && !(await app.window()).fullscreen) await app.setWindowSize(1280, 800)
   // Espera as fontes: sem isso, o layout ainda muda um pouco e o primeiro arraste pode errar o alvo.
   await page.evaluate(() => document.fonts.ready.then(() => undefined))
   await page.waitForTimeout(300)

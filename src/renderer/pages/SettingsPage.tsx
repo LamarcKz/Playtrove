@@ -11,6 +11,7 @@ import { StatusSettings } from "@/components/StatusSettings"
 import { UpdateSettings } from "@/components/UpdateSettings"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FullscreenPreferences } from "@/fullscreen/FullscreenPreferences"
 import { useI18n } from "@/hooks/useI18n"
 
 interface SettingsPageProps {
@@ -35,6 +36,8 @@ export function SettingsPage({ games, rules }: SettingsPageProps) {
             <div className="flex flex-col gap-4">
               <LanguageSetting />
               <MusicSettings />
+              <h3 className="text-sm font-medium">{t.fullscreen.preferences}</h3>
+              <FullscreenPreferences />
             </div>
           </SettingsSection>
 

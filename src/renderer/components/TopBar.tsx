@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react"
-import { Copy, Minus, Square, X } from "lucide-react"
+import { Copy, Minus, Square, X, Maximize2 } from "lucide-react"
 import { AppLogo } from "@/components/AppLogo"
 import { ControllerIndicator } from "@/components/ControllerIndicator"
 import { MetadataStatus } from "@/components/MetadataStatus"
@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 interface TopBarProps {
   /** Conteúdo do meio da barra, que muda conforme a página (ex.: busca e filtros na Biblioteca). */
   children?: ReactNode
+  onEnterFullscreen?: () => void
+  fullscreenPending?: boolean
 }
 
 /**
@@ -19,7 +21,7 @@ interface TopBarProps {
  * está no logo e no meio da barra).
  * Tem a mesma cor do menu lateral, sem linha entre os dois.
  */
-export function TopBar({ children }: TopBarProps) {
+export function TopBar({ children, onEnterFullscreen, fullscreenPending }: TopBarProps) {
   const { t } = useI18n()
   const { minimize, toggleMaximize, close } = window.api.windowControls
   const isMaximized = useIsMaximized()
@@ -50,6 +52,7 @@ export function TopBar({ children }: TopBarProps) {
       <ControllerIndicator />
 
       <div className="flex h-full">
+        {onEnterFullscreen && <WindowButton label={t.fullscreen.enter} disabled={fullscreenPending} onClick={onEnterFullscreen}><Maximize2 /></WindowButton>}
         <WindowButton label={t.topBar.minimize} onClick={() => minimize()}>
           <Minus />
         </WindowButton>

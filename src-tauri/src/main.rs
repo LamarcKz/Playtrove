@@ -3,6 +3,7 @@
 
 mod achievements;
 mod commands;
+mod controller_input;
 mod controllers;
 mod data_folder;
 mod database;
@@ -12,6 +13,7 @@ mod emulator_playtime;
 mod emulator_window;
 mod emulators;
 mod errors;
+mod fullscreen;
 mod i18n;
 mod images;
 mod launcher;
@@ -112,6 +114,9 @@ fn main() {
             commands::window_toggle_maximize,
             commands::window_close,
             commands::window_get_state,
+            commands::window_set_fullscreen,
+            commands::fullscreen_get_config,
+            commands::fullscreen_set_config,
             commands::library_get,
             commands::games_set_status,
             commands::games_set_favorite,
@@ -160,6 +165,8 @@ fn main() {
             commands::achievements_game,
             commands::achievements_overview,
             commands::controllers_list,
+            commands::controllers_get_input,
+            commands::controllers_set_input_enabled,
             commands::updates_get_status,
             commands::updates_check,
             commands::updates_install,
@@ -167,6 +174,8 @@ fn main() {
             test_hooks::test_mock_open_dialog,
             test_hooks::test_opened,
             test_hooks::test_window,
+            test_hooks::test_focus_window,
+            test_hooks::test_controller_input,
             test_hooks::test_set_window_size,
             test_hooks::test_hold_images,
             test_hooks::test_image_requests,

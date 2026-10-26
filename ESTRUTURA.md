@@ -31,7 +31,9 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `app_get_language` e `app_set_language` | `I18nProvider.tsx` e `SettingsPage.tsx` (Configurações → Geral) | O idioma do app e a troca dele (o Rust guarda a escolha e avisa que a biblioteca mudou, porque o nome dos status padrão muda junto) |
 | `app_open_link` | `ServiceCard.tsx` (Configurações → Metadados e Conquistas) | Abre no navegador uma das páginas de `EXTERNAL_LINKS` (onde criar as chaves e a página de download das versões). A interface manda só o nome; o Rust não abre nenhum outro endereço (`links.rs`) |
 | `app_report_bug` | `SettingsPage.tsx` (Configurações → Sobre) | Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (`links.rs`) |
-| `window_minimize`, `window_toggle_maximize`, `window_close` e `window_get_state` | `TopBar.tsx` (botões da janela) | Minimizar, maximizar/restaurar e fechar a janela, e perguntar se ela está maximizada |
+| `window_minimize`, `window_toggle_maximize`, `window_close` e `window_get_state` | `TopBar.tsx` e `hooks/useFullscreen.ts` | Minimizar, maximizar/restaurar e fechar; consultar `isMaximized`, `isFullscreen` e `isFocused` nativos |
+| `window_set_fullscreen` | `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
+| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, com validação integral do patch e transação |
 | `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
 | `games_set_status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
 | `statuses_create`, `statuses_rename`, `statuses_reorder`, `statuses_remove` e `statuses_set_rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
@@ -52,12 +54,14 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `achievements_game` e `achievements_overview` | `hooks/useAchievements.ts` | As conquistas de um jogo (o cartão dos Detalhes e a janela "Ver todas") e tudo o que a aba Conquistas mostra |
 | `updates_get_status`, `updates_check`, `updates_install` e `updates_set_auto_check` | `hooks/useUpdates.ts`, `UpdateNotice.tsx` e `UpdateSettings.tsx` (Configurações → Sobre) | A atualização do app: a situação, procurar agora, instalar a versão encontrada (baixa, fecha, instala e abre de novo; na portátil, abre a página de download) e ligar ou desligar a procura ao abrir |
 | `controllers_list` | `hooks/useControllers.ts` | Os controles conectados (DualSense), com a bateria |
+| `controllers_get_input` e `controllers_set_input_enabled` | `hooks/useFullscreenInput.ts` | Snapshot de entrada e habilitação opt-in do leitor rápido; o Rust exige tela cheia nativa, foco e nenhum jogo em execução |
 
 E os avisos do Rust para a interface (`EVENTS`, em `src/shared/ipc.ts`):
 
 | Aviso | Quem ouve | Quando chega |
 |---|---|---|
-| `window:state` | `TopBar.tsx` (botão maximizar) | A janela maximizou ou restaurou (pelo botão, por duplo clique na barra ou pelo Win+↑) |
+| `window:state` | `TopBar.tsx`, `hooks/useFullscreen.ts` e `hooks/useFullscreenInput.ts` | Mudaram maximização, tela cheia ou foco nativo da própria janela; o foco considera o HWND em primeiro plano, incluindo o WebView interno |
+| `fullscreen:config` | `hooks/useFullscreen.ts` | Preferências próprias de início, reprodução ou volume da tela cheia mudaram |
 | `library:changed` | `hooks/useLibrary.ts` | Algo mudou na biblioteca: a interface pede os dados de novo |
 | `games:running` | `hooks/useRunningGames.ts` | Um jogo abriu ou fechou |
 | `metadata:progress` | `hooks/useMetadataProgress.ts` | A cada passo da fila de metadados |
@@ -65,6 +69,7 @@ E os avisos do Rust para a interface (`EVENTS`, em `src/shared/ipc.ts`):
 | `achievements:status` e `achievements:unlocked` | `hooks/useAchievements.ts` e `AchievementNotifier.tsx` | Começou ou terminou de atualizar as conquistas, e as conquistas novas (para o aviso no canto) |
 | `updates:status` | `hooks/useUpdates.ts` | A situação da atualização do app mudou |
 | `controllers:changed` | `hooks/useControllers.ts` | Um controle conectou ou desconectou, ou a bateria mudou |
+| `controllers:input` | `hooks/useFullscreenInput.ts` | Mudou o snapshot de botões, com `sequence`, `generation` e `controllerKey`; reconexão/reativação exigem neutralidade |
 
 Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri/src/test_hooks.rs`), que fora deles não fazem nada.
 
@@ -93,8 +98,9 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 - **Emuladores:** a aba mostra onde está cada emulador (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin e Azahar; o app procura sozinho nos atalhos do menu Iniciar e da Área de Trabalho e nas pastas vizinhas aos que já achou) e as pastas de ROMs. Cada pasta diz qual emulador abre os jogos dela (e qual core, no RetroArch) e de qual console eles são; o app sugere tudo pelo nome da pasta. "Procurar" coloca na biblioteca as ROMs que ainda não estão nela. Os avisos rápidos (no canto de baixo, à direita) contam o que aconteceu.
 - **Jogar:** abre a ROM no emulador da pasta dela, com a configuração do próprio emulador (o app não força tela cheia). O RetroArch abre maximizado, em janela (se ele estiver em tela cheia na configuração dele, fica assim). Enquanto o emulador está aberto, o botão mostra "Em execução"; quando ele fecha, o tempo jogado e a última vez jogado são atualizados. O app também mostra o tempo que os emuladores registram por conta própria, para o que foi jogado fora dele aparecer. Na primeira vez, o jogo sai de "Planejo jogar" e vai para "Jogando" (regra automática de Configurações → Status).
 - **Imagens e metadados:** no modo Detalhes, a lista mostra o ícone de cada jogo (sem ícone, um pedaço da capa), e a área grande mostra a arte de fundo, a capa acima do nome, a descrição e as informações (gênero, desenvolvedora, publicadora, lançamento). A Grade centraliza as capas inteiras em áreas iguais 2:3; o painel lateral mostra o fundo atrás da capa na proporção original. Sem imagem, aparece o desenho padrão (um controle num degradê). Com o IGDB configurado, a fila baixa também um trailer do YouTube para os Detalhes. O menu "Mais" baixa os metadados de um jogo, marca como favorito, escolhe um vídeo local com prioridade sobre o trailer, remove e desativa o vídeo ou reativa o trailer automático, e mostra a ROM na pasta. O vídeo se repete sem som apenas nos Detalhes, com pausa automática ao ocultar a janela, movimento reduzido e imagem de reserva. Enquanto os metadados são baixados, a barra do topo mostra "Metadados 3/7".
-- **Música tema:** um único áudio acompanha o jogo selecionado em Detalhes, Grade, Lista e Kanban, com reprodução e volume controlados somente em Configurações → Geral. A faixa salva toca offline, com transições suaves; janela inativa, jogo aberto e saída da Biblioteca interrompem a reprodução. Configurações → Geral guarda reprodução e volume; Metadados reúne a busca automática e a revisão das músicas. A fila também busca temas junto dos metadados. O menu "Mais" importa MP3/M4A/WAV, remove a cópia e desativa o automático ou reativa a busca. A seleção automática no YouTube é conservadora e pode terminar sem resultado; escolhas manuais ficam preservadas.
+- **Música tema:** um único áudio acompanha o jogo selecionado em Detalhes, Grade, Lista e Kanban do desktop, com reprodução e volume em Configurações → Geral. A faixa salva toca offline, com transições suaves; janela inativa, jogo aberto, saída da Biblioteca e entrada em tela cheia interrompem esse player. A tela cheia tem preferências e player próprios. Metadados reúne a busca automática e a revisão das músicas. A fila também busca temas junto dos metadados. O menu "Mais" importa MP3/M4A/WAV, remove a cópia e desativa o automático ou reativa a busca. A seleção automática no YouTube é conservadora e pode terminar sem resultado; escolhas manuais ficam preservadas.
 - **Controle:** com um DualSense conectado, a barra do topo mostra por onde ele está ligado (USB ou Bluetooth), a bateria e se ela está carregando (em verde). Passando o mouse, aparece tudo por extenso. Sem controle, não aparece nada.
+- **Tela cheia:** substitui a moldura desktop por uma biblioteca horizontal e Detalhes Signature. Todos, Recentes e Favoritos guardam seleção própria durante a sessão; a busca por título consulta todos os jogos, ignorando maiúsculas/acentos. Os painéis de opções, conquistas, preferências e teclado virtual restringem o foco ao escopo atual. Favorito, status, avaliação e análise gravam os mesmos dados do desktop. A preferência de iniciar em tela cheia e o áudio próprio ficam em Configurações → Geral e no painel fullscreen. Durante a execução de um jogo, input e mídia ficam suspensos; o lançamento é serializado, consulta os jogos em execução e retorna ao mesmo jogo nos detalhes. O desktop mantém seu estado oculto e restaura foco ao sair. A configuração de emuladores/pastas continua no desktop.
 - **Idiomas:** o app inteiro em português e inglês. O idioma fica em Configurações → Geral e muda na hora, sem reabrir; na primeira vez, vale o do Windows (português → português; qualquer outro → inglês). Os status que vêm com o app mudam de nome junto (Planejo jogar → Plan to play), e os criados ou renomeados ficam como o usuário escreveu. Os nomes dos jogos, as descrições do IGDB, as conquistas do RetroAchievements e os troféus do RPCS3 vêm de fora e não mudam.
 
 ## Pastas e arquivos
@@ -125,9 +131,12 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `tests/unit/release-build-env.test.ts` | Confere remapeamentos com espaços e barras Windows/Unix, precedência e preservação das flags de ambiente (encoded, `RUSTFLAGS`, target Windows x64 e build), origens vazias e o uso de somente o nome do PDB no build de release |
 | `tests/unit/themeMusicPlayer.test.ts` | Confere seleção rápida, rampas, volume, pausa manual, bloqueio de autoplay, suspensão, desmontagem e StrictMode com um áudio falso e temporizadores controlados |
 | `tests/unit/musicConfigSaveQueue.test.ts` | Confere escritas lentas entre telas, cancelamento de alterações ainda não enviadas, combinação de patches e recuperação depois de falhas |
+| `tests/unit/fullscreenNavigation.test.ts` | Snapshots de entrada, neutralidade, sequência/geração, bordas, repetição direcional, coleções/busca, restauração da seleção e edição do texto virtual |
+| `tests/unit/fullscreenSession.test.ts` | Serialização de consulta/lançamento, bloqueio com jogo aberto e liberação depois de falhas |
 | `tests/fakeDiscs.ts`, `fakeTrophies.ts` e `fakePng.ts` | Arquivos de mentira para os testes do app: discos (ISOs, os .bin de PS1, o PARAM.SFO, o EBOOT.PBP, os de GameCube, Wii e 3DS), os troféus do RPCS3 e imagens PNG |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela (a versão DEV) e clicam como uma pessoa. `helpers.ts` abre o app dos testes com uma pasta de dados temporária e liga o Playwright na janela pela depuração do WebView2, cria pastas de arquivos de mentira (`createFiles()`) e combina a resposta da janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB, um SteamGridDB e um RetroAchievements de mentira, com imagens geradas na hora, trailers MP4 e músicas M4A sintéticos, para os testes não usarem a internet |
 | `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
+| `tests/app/fullscreen.spec.ts` | Fluxos de tela cheia em dados temporários: estado nativo, biblioteca/detalhes, preferências, busca e teclado, dados compartilhados, foco/input sintético, mídia e execução simulada. Não usa HID nem emuladores reais |
 | `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): áreas iguais 2:3 na Grade, arte inteira e status alinhados, proporção original nos Detalhes e no painel lateral, limites de tamanho e área estável durante carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
 | `tests/app/backgroundVideo.spec.ts` | Confere seleção, importação, cancelamento, reprodução sem som, pausa, troca de jogo/modo, persistência, remoção, falha e movimento reduzido com WebM sintético e dados temporários |
 | `tests/app/automaticTrailers.spec.ts` | Confere trailer automático, prioridade manual, remoção/desativação, reativação, falha e busca de trailers pendentes em jogos antigos, usando MP4 sintético servido localmente; não acessa YouTube nem prepara ou executa ferramentas externas |
@@ -160,7 +169,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `evaluation.ts` | A avaliação do usuário: `formatScore()` (9 → "4,5", ou "4.5" em inglês), o tamanho máximo da análise e o formato que a janela salva (`GameEvaluation`) |
 | `types.ts` | Tipos de dados: `DailyPlaytime` (o tempo de um dia, para as Estatísticas), `Game` (o jogo), `Status` (um status), `StatusRules` (as regras automáticas), `LibrarySnapshot` (tudo junto, como a interface recebe), os da aba Emuladores (`EmulatorInfo`, `RetroArchCore`, `RomFolder` e `ScanResult`), os dos metadados (`MetadataConfig` e `MetadataProgress`), o da música (`MusicConfig`) e o da atualização (`UpdateStatus`) |
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
-| `controllers.ts` | O controle conectado e a bateria (`ConnectedController`), como o Rust manda |
+| `controllers.ts` | Controle/bateria (`ConnectedController`), botões normalizados (`ControllerButton`) e snapshot de entrada (`ControllerInputSnapshot`, com sequência, geração e chave do controle) |
+| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback` e `musicVolume`, independentes do desktop |
 
 ### `src/renderer`: interface React
 
@@ -169,12 +179,15 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `index.html` | HTML da janela. Tem a classe `dark` (tema escuro padrão) e a regra de segurança (CSP): imagens do app e de `http://playtrove-img.localhost`, vídeos de `http://playtrove-video.localhost` e áudios de `http://playtrove-music.localhost` e prévias de `http://playtrove-music-preview.localhost` |
 | `main.tsx` | Liga a ponte com o Rust (`window.api`), o React na página e o CSS |
 | `api.d.ts` | Avisa o TypeScript que `window.api` existe e qual é o formato dele (`AppApi`) |
-| `App.tsx` | Layout: barra do topo + menu lateral + página atual. Guarda a página aberta, o texto da busca, o modo da Biblioteca e a biblioteca (assim nada disso se perde ao trocar de aba). Liga o idioma (`I18nProvider`) e os avisos rápidos (`ToastProvider`) |
+| `App.tsx` | Alterna desktop/tela cheia conforme o estado nativo. Mantém montado o desktop com página, busca, filtros, modo e seleção; conserva o shell fullscreen após a primeira entrada. Liga a biblioteca, os status, o idioma e os avisos rápidos |
 | `styles/globals.css` | Tailwind e **todas as cores do app** (variáveis CSS dos temas escuro e claro) |
 | `hooks/useI18n.ts` | `useI18n()`: o idioma, os textos dele (`t`, ex.: `t.pages.library`) e `setLanguage()` para trocar |
 | `hooks/useLibrary.ts` | A biblioteca que está no banco (jogos, status e regras). Recarrega sozinha quando algo muda. `setGameStatus()` muda o status de um jogo |
 | `hooks/useStatuses.ts` | Os status para qualquer componente: `useStatuses()` (a lista) e `useStatusName()` (o nome pelo id) |
 | `hooks/useControllers.ts` | Acompanha os controles conectados: aparecem e somem sozinhos, e a bateria é lida de novo a cada 5 segundos. Quem lê é o Rust; a interface só ouve (`window.api.controllers`) |
+| `hooks/useFullscreen.ts` | `useFullscreenMode()` acompanha o estado nativo, serializa transições e restaura o foco do desktop; `useFullscreenConfig()` carrega, grava e sincroniza preferências por `fullscreen:config` |
+| `lib/fullscreenConfig.ts` | Fila de preferências: resposta otimista, patches serializados e reconciliação de eventos, falhas e leituras antigas sem perder mudanças pendentes |
+| `hooks/useFullscreenInput.ts` | Atividade da janela, habilitação do input nativo, navegação espacial restrita ao painel visível, confirmação, teclas e repetição direcional |
 | `hooks/useEmulators.ts` | Os dados da aba Emuladores (emuladores, cores do RetroArch e pastas de ROMs) e as ações de cada um |
 | `hooks/useRunningGames.ts` | Os jogos abertos agora (o Rust avisa quando um abre ou fecha) |
 | `hooks/useToast.ts` | `useToast()`: mostra um aviso rápido no canto da tela (ex.: "3 jogos novos na biblioteca") |
@@ -193,9 +206,22 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/musicConfigSaveQueue.ts` | Grava patches de preferências em uma fila compartilhada entre telas, sem reenviar alterações pendentes de componentes desmontados ou sobrescrever campos com um estado antigo |
 | `lib/musicPreviewPlayer.ts` | Player da prévia, cancelamento/respostas antigas, volume e exclusão de áudio ambiente, mantendo cache ao confirmar |
 | `lib/musicReview.ts`, `lib/musicReviewsLoader.ts` | Classificação de pendências/contagem e leitura compartilhada sem tratar desconhecido/falha como lista vazia |
+| `lib/fullscreenNavigation.ts` | Coleções/busca global, restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda e repetição só direcional |
+| `lib/fullscreenSession.ts` | `FullscreenLaunchGuard`: serializa consulta de jogos abertos e lançamento, bloqueando cliques/ações concorrentes |
+| `lib/fullscreenText.ts` | Edição do texto virtual por seleção/cursor, exclusão e limite de tamanho |
 | `lib/score.ts` | As contas das estrelas e das pimentas: quanto de cada ícone fica pintado, a nota escolhida pelo clique ou pelo teclado e o texto para leitores de tela ("4,5 de 5 estrelas") |
 | `lib/stats.ts` | As contas das Estatísticas: o resumo, os mais jogados, os grupos por plataforma e biblioteca, os jogos por status, o eixo do gráfico de atividade e as colunas dos gráficos por dia e por mês (`dayColumns()` e `monthColumns()`) |
 | `lib/achievements.ts` | A cor de cada tipo de troféu (`GRADE_TEXT`), a porcentagem curta de jogadores ("3%", "0,4%") e o progresso em %. As palavras de cada fonte ("conquistas" ou "troféus") ficam nos dicionários (`achievements.sources`) |
+
+#### `src/renderer/fullscreen`: apresentação em tela cheia
+
+| Arquivo | O que faz |
+|---|---|
+| `FullscreenShell.tsx` | Biblioteca horizontal, Detalhes Signature, coleções, busca global, seleção por coleção, painéis, dados comuns e lançamento/retorno. Guarda o estado da sessão, restringe input ao painel atual e suspende interação durante execução |
+| `FullscreenKeyboard.tsx` | Editor de busca/análise com teclado virtual e físico: maiúsculas, acentos, pontuação, espaço, cursor, exclusão e quebra de linha na análise; aplicar/salvar e cancelar preservam o rascunho separado |
+| `FullscreenPreferences.tsx` | Início em tela cheia e reprodução/volume independentes, usado no painel fullscreen e em Configurações → Geral |
+| `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, música salva com preferências fullscreen, imagem de fundo e vídeo sem som nos detalhes após 600 ms; respeita movimento reduzido, foco, visibilidade e suspensão |
+| `FullscreenAchievements.tsx` | Conquistas/troféus com os hooks e as linhas comuns do desktop; progresso, tipos, filtros e revelação de ocultos |
 
 #### `src/renderer/pages`: as telas (abas)
 
@@ -206,7 +232,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `AchievementsPage.tsx` | Conquistas: a conta e o botão "Atualizar", o resumo, os gráficos por dia e por mês, os jogos com o progresso e as desbloqueadas por último. Sem conta, um botão leva às Configurações |
 | `LibraryPage.tsx` | Biblioteca nos modos Detalhes (o principal), Grade, Lista e Kanban, com o painel de filtros na direita quando ele está aberto e um único player de música tema acompanhando a seleção. A filtragem em si fica em `lib/filters.ts`. Vazia, mostra um botão que leva à aba Emuladores |
 | `EmulatorsPage.tsx` | Emuladores: onde está cada emulador e as pastas de ROMs, com os botões de procurar jogos. Resume cada procura num aviso rápido (`describeScan()`) |
-| `SettingsPage.tsx` | Configurações: Geral, Status e Sobre (nome e **versão do app**) numa pilha, Metadados e Conquistas na outra; duas colunas a partir de 1120 px úteis, sem desmontar formulários ao redimensionar |
+| `SettingsPage.tsx` | Configurações: Geral (incluindo preferências fullscreen), Status e Sobre (nome e **versão do app**) numa pilha, Metadados e Conquistas na outra; duas colunas a partir de 1120 px úteis, sem desmontar formulários ao redimensionar |
 
 #### `src/renderer/components`: pedaços da interface
 
@@ -214,7 +240,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 
 | Arquivo | O que faz |
 |---|---|
-| `TopBar.tsx` | Barra única do topo, no estilo do Playnite: logo, ferramentas da página, o andamento dos metadados, o controle e os botões minimizar, maximizar/restaurar e fechar. O ícone do meio acompanha o estado da janela (aviso `window:state`). Arrastar pela barra move a janela (`data-tauri-drag-region`) |
+| `TopBar.tsx` | Barra única do topo: logo, ferramentas, metadados, controle, entrada em tela cheia e botões minimizar, maximizar/restaurar e fechar. O ícone do meio acompanha `window:state`; arrastar pela barra move a janela (`data-tauri-drag-region`) |
 | `AppLogo.tsx` | Logo do app (controle num quadrado azul), usado na barra do topo e em Configurações |
 | `ControllerIndicator.tsx` | Controle conectado na barra do topo: ícone, USB ou Bluetooth, bateria (verde carregando, vermelha quando fraca) e o texto completo no tooltip |
 | `MetadataStatus.tsx` | "Metadados 3/7" na barra do topo enquanto os metadados são baixados (o jogo da vez no tooltip) e o aviso com o resumo no fim |
@@ -353,7 +379,9 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/metadata/credentials.rs` | As chaves e a configuração de Configurações → Metadados (a tela nunca recebe as chaves) |
 | `src/achievements/` | As conquistas: os tipos que a tela recebe (`types.rs`), o RetroAchievements (`client.rs`, `matching.rs`, `store.rs`, `sync.rs` e `badges.rs`), os troféus do RPCS3 (`trophy_files.rs`, `trophy_store.rs`, `trophy_sync.rs` e `trophy_icons.rs`), o que as telas mostram (`views.rs`) e o serviço que atualiza sozinho e avisa (`service.rs`) |
 | `src/metadata/service.rs` | A ligação com o app: a sessão do IGDB guardada entre os downloads, a fila e os avisos `metadata:progress` |
-| `src/controllers.rs` | O DualSense na barra do topo: acha os controles pelo `hidapi` a cada segundo (USB ou Bluetooth, pelo que o Windows diz do aparelho), lê a bateria a cada 5 s (abre, espera o relatório completo e fecha, pedindo a configuração no modo simples do Bluetooth) e avisa a tela (`controllers:changed`) |
+| `src/controllers.rs` | Descoberta HID a cada segundo, indicador DualSense/Edge e bateria econômica a cada 5 s (`controllers:changed`). Input opt-in mantém um leitor por aparelho com timeout de 20 ms, dá prioridade sobre a bateria e publica mudanças (`controllers:input`). Só DualSense navega; Edge continua como indicador. Não inicializa hardware nos testes |
+| `src/controller_input.rs` | Parser puro dos relatórios DualSense USB 0x01 e Bluetooth simples 0x01/completo 0x31; botões e analógico esquerdo com zona morta, neutralidade, sequência/geração e invalidação após desconexão/reativação |
+| `src/fullscreen.rs` | Preferências próprias na tabela `settings`: início desligado, música ligada e volume 20%; valida todo o patch antes de gravar em transação e mantém os dados desktop separados |
 | `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, com os mesmos nomes do `src/shared/ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma das versões em Electron) |
 | `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
@@ -367,7 +395,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/music_search.rs` | Buscas e candidatas persistentes, distinção escolha/ausência/falha, origem do vídeo escolhido, repetição explícita e instalação protegida pela geração/revisão |
 | `src/music_previews.rs` | Prévia sob demanda em cache próprio, 1 download/2 arquivos/64 MiB, cancelamento, promoção sem baixar novamente e protocolo `playtrove-music-preview` autorizado por token/revisão |
 | `src/updates.rs` | A atualização do app: procurar versão nova (5 s depois de abrir, se a opção estiver ligada, ou quando o usuário pede), baixar avisando o andamento (`updates:status`) e instalar; na portátil, só abrir a página de download. Quem procura é o atualizador do Tauri, que só instala o que tiver a assinatura da chave do projeto; nos testes, um de mentira (`PLAYTROVE_FAKE_UPDATE`); no `npm run dev:tauri`, ninguém |
-| `src/window.rs` | A janela: sem a barra do Windows, maximizada, com o idioma e a marca DEV no endereço, e o aviso `window:state`. No app de verdade, abrir de novo traz para a frente a que já está aberta (`bring_to_front`, pela janela única do `main.rs`). O WebView2 guarda o que precisa em `<pasta de dados>\webview`, para o app de verdade, o desenvolvimento e os testes poderem ficar abertos juntos |
+| `src/window.rs` | Janela sem barra do Windows, maximizada ou em tela cheia pela preferência de início. Reconcilia `isMaximized`/`isFullscreen` em `window:state`, restaura o estado nativo ao sair e desabilita input ao perder foco/sair. Idioma e marca DEV no endereço; `bring_to_front` atende à instância única no release. O WebView2 usa `<pasta de dados>\webview`, separado entre instalado, dev e testes |
 | `src/state.rs` | O banco e o idioma enquanto o app está aberto |
 | `src/test_hooks.rs` | Só para os testes do app (`tests/app`), e só com a pasta de dados deles: no lugar da janela de "Abrir", do navegador e do Explorador, respostas combinadas e uma lista do que foi pedido; o tamanho da janela; e imagens retidas até o teste liberar (para conferir a tela enquanto carregam). Fora dos testes, os comandos `test_*` não fazem nada |
 | `src/test_mode.rs` | As variáveis `PLAYTROVE_*` dos testes, que só valem no build de desenvolvimento |
@@ -412,6 +440,8 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | Mudar onde as imagens aparecem | `GameCover.tsx` (capa), `GameIcon.tsx` (ícone), `GameBackdrop.tsx` (fundo), usados em `GameDetailsView.tsx`, `GameDetailsPanel.tsx`, `GameCard.tsx` e `GameList.tsx` |
 | Mudar o vídeo de fundo | `src-tauri/src/videos.rs` (importação, modos, associação e protocolo por intervalos), `metadata/download.rs` e `metadata/trailer_downloader.rs` (trailer automático), `metadata/trailer_tools.rs` (ferramentas e hashes), `metadata/trailer_tools_process.rs` (processo e descendentes), `GameActionsMenu.tsx` (ações) e `GameDetailsBackdrop.tsx` (reprodução e imagem de reserva) |
 | Mudar a música tema | `src-tauri/src/music.rs` (preferências/importação/protocolo), `music_search.rs`/`music_previews.rs` (candidatas/escolhas/prévias), `metadata/theme_downloader.rs` (busca/áudio), `metadata/queue.rs` (fila), `MusicReviewDialog.tsx`/`MusicReviewPanel.tsx`/`MetadataSettings.tsx` (revisão e aquisição), `LibraryThemeMusic.tsx`/`lib/themeMusicPlayer.ts`/`lib/musicPreviewPlayer.ts` (reprodução) |
+| Ampliar a tela cheia (hub, configuração completa, perfil, layouts, temas, ferramentas ou conectores) | `src/renderer/fullscreen/FullscreenShell.tsx` e seus painéis; transições em `hooks/useFullscreen.ts`/`src-tauri/src/window.rs`, preferências em `src-tauri/src/fullscreen.rs` e `src/shared/fullscreen.ts`. Esses recursos ainda ficam no roadmap |
+| Mudar a navegação por controle | `src-tauri/src/controller_input.rs` (pacotes), `controllers.rs` (serviço opt-in), `src/renderer/lib/fullscreenNavigation.ts` (ações/repetição) e `hooks/useFullscreenInput.ts` (foco/escopo) |
 | Lembrar o modo de exibição e os filtros ao reabrir o app | `src/renderer/App.tsx` → estados `libraryView` e `libraryFilters` (salvar em algum lugar, ex.: na tabela `settings`, por um comando) |
 | Criar outro modo de exibição | `src/renderer/components/LibraryTools.tsx` (`LibraryView` e `VIEWS`) e `src/renderer/pages/LibraryPage.tsx` |
 | Opções em Configurações (ex.: tema claro/escuro) | `src/renderer/pages/SettingsPage.tsx`, seção "Geral". O tema é a classe `dark` do `<html>` (`src/renderer/index.html`) |
@@ -497,13 +527,13 @@ A versão tem três números, `MAIOR.MENOR.CORREÇÃO`, no padrão do [Versionam
 - **`npm run dev` e recarga automática:** mudanças na interface (`src/renderer` e `src/shared`) aparecem na hora, sem fechar a janela. Mudanças no Rust (`src-tauri`) fazem o Tauri recompilar e reabrir o app sozinho. A primeira vez compila todas as dependências do Rust e leva alguns minutos.
 - **Atalhos de import:** na interface, `@/` aponta para `src/renderer` e `@shared/` para `src/shared`. Exemplo: `import { Button } from "@/components/ui/button"`.
 - **Onde fica o banco:** `%APPDATA%\Playtrove\playtrove.db` no app instalado, a pasta `data` ao lado do .exe na versão portátil e `%APPDATA%\Playtrove Dev\playtrove.db` no `npm run dev` (uma cópia do primeiro, para o código em teste nunca mexer nos jogos de verdade; `npm run dev:nova-copia` renova). É criado na primeira execução, com as tabelas e os 9 status. A biblioteca começa vazia. O WebView2 guarda o que precisa na pasta `webview`, ao lado do banco.
-- **Testes:** `npm test` roda tudo: os da interface (`npm run test:unit`), os do Rust (`npm run test:rust`) e os do app (`npm run test:app`, que compila o app dos testes antes e abre a janela sozinho por alguns segundos). Os testes do app usam uma pasta de dados temporária (variável `PLAYTROVE_DATA_DIR`) com os 12 jogos de exemplo (`PLAYTROVE_SAMPLE_GAMES=1`), então nunca mexem na sua biblioteca, e fingem o idioma do Windows (`PLAYTROVE_SYSTEM_LANGUAGE`: português, e inglês nos testes de idioma). O teste do controle só roda com um DualSense ligado.
+- **Testes:** `npm test` roda tudo: os da interface (`npm run test:unit`), os do Rust (`npm run test:rust`) e os do app (`npm run test:app`, que compila o app dos testes antes e abre a janela sozinho por alguns segundos). Os testes do app usam uma pasta de dados temporária (variável `PLAYTROVE_DATA_DIR`) com os 12 jogos de exemplo (`PLAYTROVE_SAMPLE_GAMES=1`), então nunca mexem na sua biblioteca, e fingem o idioma do Windows (`PLAYTROVE_SYSTEM_LANGUAGE`: português, e inglês nos testes de idioma). Input fullscreen usa eventos sintéticos e o serviço não inicializa HID nesse modo; testes físicos de USB/Bluetooth são separados e ainda pendentes para navegação.
 - **Aviso de scripts do npm:** o npm 11 pede aprovação para scripts de instalação de pacotes. O do `esbuild` está negado de propósito em `allowScripts`, no `package.json`, porque não é necessário.
 - **Dependências:** a interface não tem nada em `dependencies`: React, shadcn, Tailwind e o resto ficam em `devDependencies`, porque o Vite já os empacota dentro do app. As do Rust ficam no `src-tauri/Cargo.toml`.
 - **Tooltip em volta de toggle:** o tooltip do shadcn sobrescreve o atributo `data-state` do botão que ele envolve. Por isso o modo ativo do seletor de modos (Detalhes, Grade, Lista e Kanban) é destacado por `aria-checked` (veja `LibraryTools.tsx`).
 - **O que ainda falta:** fica no "Roadmap" do `README.md`, e não no código: aqui só entra o que já funciona.
 - **Controle no Bluetooth:** no Bluetooth, o DualSense começa num modo simples, sem a bateria. Para ler a bateria, o app pede o modo completo, o mesmo que a Steam usa, e o controle fica nele até ser desligado. Se algum jogo antigo aberto fora da Steam não reconhecer o controle, feche o app e desligue e ligue o controle.
-- **Leitura do controle:** o controle manda uns 250 relatórios por segundo. Por isso o app abre o controle só por um instante, a cada 5 segundos, em vez de deixá-lo aberto (assim não gasta processamento enquanto você joga).
+- **Leitura do controle:** fora da navegação fullscreen, a bateria usa leituras curtas a cada 5 segundos. O input opt-in mantém um único handle enquanto a janela está em tela cheia, focada e sem jogo aberto; aproveita os relatórios para bateria e desativa ao sair, perder foco ou jogar. Neutralidade e gerações impedem ações mantidas/antigas ao retomar. Não há dependência, driver ou permissão adicional para esse modo.
 
 ### Site público e guias
 
