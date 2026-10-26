@@ -26,6 +26,12 @@ test("preferências musicais acessíveis nos dois idiomas e sem erros na tela", 
       expect(errors).toEqual([])
       const path = capture ? join(ROOT, "docs", "screenshots", language, "music.png") : info.outputPath(`music-${language}.png`)
       await session.page.screenshot({ path })
+      await session.page.getByRole("button", { name: language === "en" ? "Library" : "Biblioteca", exact: true }).click()
+      await expect(session.page.getByRole("group", { name: language === "en" ? "Theme music" : "Música tema", exact: true })).toHaveCount(0)
+      await expect(session.page.getByRole("slider")).toHaveCount(0)
+      await session.page.screenshot({ path: info.outputPath(`library-${language}.png`) })
+      expect(errors).toEqual([])
+      await session.page.getByRole("button", { name: language === "en" ? "Settings" : "Configurações", exact: true }).click()
     }
   } finally {
     await session.app.close()

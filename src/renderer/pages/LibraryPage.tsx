@@ -9,7 +9,7 @@ import { GameGrid } from "@/components/GameGrid"
 import { GameKanban } from "@/components/GameKanban"
 import { GameList } from "@/components/GameList"
 import { GameTable } from "@/components/GameTable"
-import { ThemeMusicControls } from "@/components/ThemeMusicControls"
+import { LibraryThemeMusic } from "@/components/LibraryThemeMusic"
 import type { LibraryView } from "@/components/LibraryTools"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/hooks/useI18n"
@@ -153,7 +153,7 @@ export function LibraryPage({
   return (
     <div className="flex h-full">
       <div className="flex min-w-0 flex-1 flex-col">
-        {allGames.length > 0 && <ThemeMusicControls game={musicGame} />}
+        {allGames.length > 0 && <LibraryThemeMusic game={musicGame} />}
         <div className="relative flex min-h-0 flex-1">{content}</div>
       </div>
       {filtersOpen && (

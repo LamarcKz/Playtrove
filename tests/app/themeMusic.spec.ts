@@ -32,10 +32,8 @@ async function activate() {
 
 async function playing() {
   await activate()
+  await session.page.locator("main h1").click()
   await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => element.readyState >= 2)).toBe(true)
-  if (await audio().evaluate((element: HTMLAudioElement) => element.paused)) {
-    await session.page.getByRole("button", { name: "Tocar música tema", exact: true }).click()
-  }
   await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => ({
     playing: !element.paused && element.currentTime > 0,
     paused: element.paused, currentTime: element.currentTime, readyState: element.readyState,
@@ -89,6 +87,15 @@ test("cancelar e arquivo inválido conservam estado; arquivo manual toca de cóp
   await action("Escolher música tema…")
   await expect(session.page.getByRole("alert")).toContainText("MP3")
   expect((await game()).themeMusicUrl).toBeNull()
+  // Simula a política de autoplay do WebView2; um clique normal deve recuperar a reprodução.
+  await session.page.evaluate(() => {
+    const play = HTMLMediaElement.prototype.play
+    HTMLMediaElement.prototype.play = function () {
+      HTMLMediaElement.prototype.play = play
+      Object.assign(window, { themeAutoplayBlocked: true })
+      return Promise.reject(new DOMException("Autoplay bloqueado no teste", "NotAllowedError"))
+    }
+  })
   await mockOpenDialog(session.app, source)
   await action("Escolher música tema…")
   await expect.poll(async () => (await game()).themeMusicMode).toBe("manual")
@@ -96,6 +103,7 @@ test("cancelar e arquivo inválido conservam estado; arquivo manual toca de cóp
   await expect(audio()).toHaveAttribute("src", manualUrl)
   const stored = join(session.dataDir, "images", ...new URL(manualUrl).pathname.split("/").filter(Boolean))
   expect(readFileSync(stored)).toEqual(readFileSync(source))
+  await expect.poll(() => session.page.evaluate(() => (window as unknown as { themeAutoplayBlocked?: boolean }).themeAutoplayBlocked)).toBe(true)
   await playing()
   expect(await audio().evaluate((element: HTMLAudioElement) => ({ loop: element.loop, muted: element.muted }))).toEqual({ loop: true, muted: false })
 })
@@ -107,6 +115,8 @@ test("a faixa continua entre os quatro modos e para ao selecionar jogo sem músi
     await expect(audio()).toHaveAttribute("src", manualUrl)
     expect(await original!.evaluate((element) => element.isConnected)).toBe(true)
     await expect(audio()).toHaveCount(1)
+    await expect(session.page.getByRole("slider", { name: "Volume da música tema" })).toHaveCount(0)
+    await expect(session.page.getByRole("button", { name: /^(Tocar|Pausar) música tema$/ })).toHaveCount(0)
   }
   await session.page.locator("main button[aria-pressed]").filter({ hasNotText: title }).first().click()
   await expect.poll(() => audio().getAttribute("src")).toBeNull()
@@ -115,29 +125,28 @@ test("a faixa continua entre os quatro modos e para ao selecionar jogo sem músi
   await playing()
 })
 
-test("pausa manual, foco e configurações não permitem retomada indevida", async () => {
-  await session.page.getByRole("button", { name: "Pausar música tema", exact: true }).click()
-  await session.page.evaluate(() => {
-    window.dispatchEvent(new Event("blur"))
-    window.dispatchEvent(new Event("focus"))
-  })
-  expect(await audio().evaluate((element: HTMLAudioElement) => element.paused)).toBe(true)
-  await session.page.getByRole("button", { name: "Tocar música tema", exact: true }).click()
-  await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => !element.paused)).toBe(true)
+test("reprodução e volume ficam nas configurações e respeitam o foco", async () => {
   await session.page.evaluate(() => window.dispatchEvent(new Event("blur")))
   await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => element.paused)).toBe(true)
   await session.page.evaluate(async () => window.api.music.setConfig({ enabled: false, volume: 7, autoDownload: true }))
   await activate()
-  await expect(session.page.getByRole("button", { name: "Tocar música tema", exact: true })).toBeDisabled()
   expect(await audio().evaluate((element: HTMLAudioElement) => element.paused)).toBe(true)
-  await session.page.evaluate(async () => window.api.music.setConfig({ enabled: true, volume: 7, autoDownload: true }))
-  await playing()
-  await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => element.volume)).toBeCloseTo(0.07, 2)
   await session.page.getByRole("button", { name: "Configurações", exact: true }).click()
   await expect(audio()).toHaveCount(0)
-  await expect(session.page.getByRole("group", { name: "Música tema", exact: true })).toBeVisible()
+  const settings = session.page.getByRole("group", { name: "Música tema", exact: true })
+  await expect(settings).toBeVisible()
+  await expect(settings.getByRole("checkbox")).not.toBeChecked()
+  await settings.getByRole("checkbox").check()
+  const volume = settings.getByRole("slider")
+  await volume.focus()
+  await volume.press("Home")
+  for (let step = 0; step < 7; step++) await volume.press("ArrowRight")
+  await expect(volume).toHaveValue("7")
+  await expect.poll(() => session.page.evaluate(() => window.api.music.getConfig())).toMatchObject({ enabled: true, volume: 7 })
   expect((await session.page.evaluate(() => window.api.music.getConfig())).volume).toBe(7)
   await session.page.getByRole("button", { name: "Biblioteca", exact: true }).click()
+  await playing()
+  await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => element.volume)).toBeCloseTo(0.07, 2)
 })
 
 test("busca automática baixa M4A sintético e escolha manual impede substituição", async () => {
