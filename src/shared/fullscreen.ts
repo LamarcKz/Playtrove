@@ -51,6 +51,8 @@ export interface FullscreenConfig {
   uiSounds: boolean
   uiSoundsVolume: number
   swapConfirm: boolean
+  /** Onde o trailer toca no tema Playtrove (o padrão é a biblioteca e os detalhes; o do Aniki é `trailers`). */
+  playtroveTrailers: FullscreenTrailers
 }
 
 /** As opções de energia do menu principal (a mesma lista do Rust, em src-tauri/src/power.rs). */

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type MouseEvent, type PointerEvent } from "react"
 import { ArrowLeft, Bell, Download, FolderOpen, Gamepad2, ListFilter, Menu, MoreHorizontal, Play, Search, Star, Trophy } from "lucide-react"
 import type { PowerAction } from "@shared/fullscreen"
 import type { Game } from "@shared/types"
@@ -51,6 +51,9 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   const sounds = useRef(new UiSounds())
   // Painéis abertos pelo menu principal voltam para ele com ○, como no Playnite.
   const fromMenu = useRef(false)
+  // O foco que a própria tela move (ao abrir um painel, por exemplo) não toca o som de mover.
+  const programmaticFocus = useRef(false)
+  const hovered = useRef<Element | null>(null)
   const scope = useRef<HTMLElement>(null)
   const launchGuard = useRef(new FullscreenLaunchGuard())
   const launchedId = useRef<number | null>(null)
@@ -83,13 +86,27 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
     if (!active || suspended) return
     const node = scope.current
     const target = node?.querySelector<HTMLElement>("[data-fs-default]:not(:disabled)") ?? node?.querySelector<HTMLElement>("[data-fs-fallback]:not(:disabled)") ?? node?.querySelector<HTMLElement>("button:not(:disabled)")
+    programmaticFocus.current = true
     target?.focus()
+    programmaticFocus.current = false
     target?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" })
   }, [context, active, suspended])
 
   useEffect(() => () => sounds.current.dispose(), [])
-  const sound = (kind: UiSound) => { if (config?.uiSounds) sounds.current.play(kind, config.uiSoundsVolume / 100) }
-  useEffect(() => { if (panel) sound("open") }, [panel])
+  const sound = (kind: UiSound) => { if (config?.uiSounds && !suspended) sounds.current.play(kind, config.uiSoundsVolume / 100) }
+  const interactive = (target: EventTarget) => target instanceof Element ? target.closest("button:not(:disabled), [tabindex='0']") : null
+  // Como no Playnite: passar o mouse ou mover o foco por capas e botões toca o som de mover, e confirmar (clique,
+  // ✕ ou Enter) toca o de confirmar. O ✕ e o Enter chegam aqui como clique no item com o foco.
+  const soundOnHover = (event: PointerEvent<HTMLDivElement>) => {
+    const target = interactive(event.target)
+    if (!target || target === hovered.current) return
+    hovered.current = target
+    sound("move")
+  }
+  const soundOnFocus = (event: FocusEvent<HTMLDivElement>) => {
+    if (!programmaticFocus.current && interactive(event.target) && event.target !== hovered.current) sound("move")
+  }
+  const soundOnClick = (event: MouseEvent<HTMLDivElement>) => { if (interactive(event.target)) sound("confirm") }
   const closePanel = () => { reviewRevision.current++; fromMenu.current = false; setPanel(null); setError(null) }
   const openFromMenu = (next: Panel) => { fromMenu.current = true; setPanel(next); setError(null) }
   const openNotices = () => { notices.markSeen(); setPanel("notices") }
@@ -150,9 +167,8 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
     finally { setLaunching(false) }
   }
   const action = (event: FullscreenAction) => {
-    if (event === "up" || event === "down" || event === "left" || event === "right") sound("move")
-    else if (event === "cross") sound("confirm")
-    else if (event === "circle") sound("back")
+    if (event === "circle") sound("back")
+    else if ((event === "options" || event === "square") && !panel) sound("open")
     if (event === "circle") { back(); return true }
     // Create no controle e F11 no teclado ("window") voltam ao modo janela.
     if (event === "create" || event === "window") { onExit(); return true }
@@ -168,10 +184,11 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   useFullscreenInput(scope, !suspended, context, action, config?.swapConfirm ?? false)
   const status = statuses.find((item) => item.id === game?.statusId)?.name
   const canPlay = Boolean(game?.romPath && game.emulatorId)
+  const trailers = config?.playtroveTrailers ?? "all"
 
   return (
-    <div hidden={!enabled} className="playtrove-fullscreen" data-testid="fullscreen-shell">
-      <FullscreenMedia game={game} details={details} suspended={suspended} />
+    <div hidden={!enabled} className="playtrove-fullscreen" data-testid="fullscreen-shell" onPointerOver={soundOnHover} onPointerLeave={() => { hovered.current = null }} onFocusCapture={soundOnFocus} onClickCapture={soundOnClick}>
+      <FullscreenMedia game={game} playVideo={trailers === "all" || (trailers === "details" && details)} videoDelay={details ? 600 : 1000} suspended={suspended} />
       <section ref={panel ? undefined : scope} className="fs-main" inert={panel !== null || running.length > 0 || launching}>
         <header className="fs-header">
           <div className="fs-brand relative">

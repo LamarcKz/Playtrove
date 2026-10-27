@@ -113,6 +113,8 @@ pub struct FullscreenConfig {
     pub ui_sounds: bool,
     pub ui_sounds_volume: u8,
     pub swap_confirm: bool,
+    /// Onde o trailer toca no tema Playtrove (a do Aniki é `trailers`, que começa só nos detalhes, como nele).
+    pub playtrove_trailers: String,
 }
 
 pub fn get_config(db: &Connection) -> FullscreenConfig {
@@ -155,6 +157,11 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
         ui_sounds: boolean("fullscreenUiSounds", true),
         ui_sounds_volume: number(db, "fullscreenUiSoundsVolume").filter(|volume| *volume <= 100).unwrap_or(40),
         swap_confirm: boolean("fullscreenSwapConfirm", false),
+        playtrove_trailers: get_setting(db, "fullscreenPlaytroveTrailers")
+            .ok()
+            .flatten()
+            .filter(|value| TRAILERS.contains(&value.as_str()))
+            .unwrap_or_else(|| "all".to_string()),
     }
 }
 
@@ -229,6 +236,10 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
                 config.ui_sounds_volume = value.as_u64().filter(|volume| *volume <= 100).ok_or_else(invalid)? as u8;
             }
             "swapConfirm" => config.swap_confirm = to_bool(value, language)?,
+            "playtroveTrailers" => {
+                config.playtrove_trailers =
+                    value.as_str().filter(|trailers| TRAILERS.contains(trailers)).ok_or_else(invalid)?.to_string();
+            }
             "interface" => {
                 config.interface =
                     value.as_str().filter(|interface| INTERFACES.contains(interface)).ok_or_else(invalid)?.to_string();
@@ -272,6 +283,7 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenUiSounds", Some(if config.ui_sounds { "1" } else { "0" }))?;
     set_setting(&transaction, "fullscreenUiSoundsVolume", Some(&config.ui_sounds_volume.to_string()))?;
     set_setting(&transaction, "fullscreenSwapConfirm", Some(if config.swap_confirm { "1" } else { "0" }))?;
+    set_setting(&transaction, "fullscreenPlaytroveTrailers", Some(&config.playtrove_trailers))?;
     transaction.commit()?;
     Ok(config)
 }
@@ -295,6 +307,7 @@ mod tests {
                 "colorPreset": "default", "dynamicColors": false, "effects": "balanced",
                 "interface": "standard", "loginScreen": false, "trailers": "details", "setupDone": false,
                 "coverRows": 1, "showClock": true, "uiSounds": true, "uiSoundsVolume": 40, "swapConfirm": false,
+                "playtroveTrailers": "all",
             })
         );
     }
@@ -360,6 +373,7 @@ mod tests {
             json!({"showClock": "sim"}),
             json!({"uiSoundsVolume": 101}),
             json!({"swapConfirm": 1}),
+            json!({"playtroveTrailers": "sempre"}),
             json!({"theme": null}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
@@ -461,13 +475,20 @@ mod tests {
         let db = memory_database();
         let saved = set_config(
             &db,
-            &json!({"coverRows": 3, "showClock": false, "uiSounds": false, "uiSoundsVolume": 0, "swapConfirm": true}),
+            &json!({"coverRows": 3, "showClock": false, "uiSounds": false, "uiSoundsVolume": 0, "swapConfirm": true, "playtroveTrailers": "details"}),
             Language::PtBr,
         )
         .unwrap();
         assert_eq!(
-            (saved.cover_rows, saved.show_clock, saved.ui_sounds, saved.ui_sounds_volume, saved.swap_confirm),
-            (3, false, false, 0, true)
+            (
+                saved.cover_rows,
+                saved.show_clock,
+                saved.ui_sounds,
+                saved.ui_sounds_volume,
+                saved.swap_confirm,
+                saved.playtrove_trailers.as_str()
+            ),
+            (3, false, false, 0, true, "details")
         );
         assert_eq!(get_config(&db), saved);
         set_setting(&db, "fullscreenCoverRows", Some("9")).unwrap();

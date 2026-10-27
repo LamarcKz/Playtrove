@@ -221,7 +221,7 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
     <div hidden={!enabled} className="fullscreen-shell" data-testid="fullscreen-shell" data-aniki-color={config?.colorPreset ?? "default"} data-aniki-effects={config?.effects ?? "balanced"} data-aniki-interface={config?.interface ?? "standard"} style={dynamic as CSSProperties}>
       <AnikiStage>
       {/* No Aniki, o trailer fica no cartão dos detalhes (AnikiTrailerCard), não no fundo. */}
-      <FullscreenMedia game={game} details={false} suspended={suspended} />
+      <FullscreenMedia game={game} playVideo={false} suspended={suspended} />
       <section ref={panel ? undefined : scope} className="fs-main" inert={panel !== null || running.length > 0 || launching}>
         <AnikiTopBar games={games} hub={hub} layoutLabel={!config ? null : details ? t.fullscreen.detailsLayouts[config.detailsLayout] : t.fullscreen.libraryLayouts[config.libraryLayout]} onLayout={cycleLayout} onHub={() => { setHub(!hub); setDetails(false) }} onProfile={() => setPanel("profile")} onTrophies={() => setPanel("trophyOverview")} onSearch={() => setPanel("search")} onMenu={() => setPanel("menu")} />
         {hub && config ? <AnikiHub games={games} config={config} page={hubPage} onOpen={openDetails} /> : details && game && config ? <AnikiDetails

@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { ANIKI_COLOR_PRESETS } from "@shared/anikiColors"
-import { FULLSCREEN_EFFECTS, PROFILE_AVATARS } from "@shared/fullscreen"
+import { FULLSCREEN_EFFECTS, FULLSCREEN_TRAILERS, PROFILE_AVATARS } from "@shared/fullscreen"
 import { useI18n } from "@/hooks/useI18n"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { AnikiAvatar } from "./AnikiAvatar"
@@ -25,6 +25,9 @@ export function FullscreenPreferences() {
       {config.theme === "playtrove" && <>
       <div className="fs-choice" role="radiogroup" aria-label={t.fullscreen.coverRows}><span>{t.fullscreen.coverRows}</span>
         {[1, 2, 3].map((rows) => <label key={rows}><input type="radio" name="fullscreen-rows" checked={config.coverRows === rows} onChange={() => void save({ coverRows: rows })} />{rows}</label>)}
+      </div>
+      <div className="fs-choice" role="radiogroup" aria-label={t.fullscreen.trailers}><span>{t.fullscreen.trailers}</span>
+        {FULLSCREEN_TRAILERS.map((trailers) => <label key={trailers}><input type="radio" name="fullscreen-playtrove-trailers" checked={config.playtroveTrailers === trailers} onChange={() => void save({ playtroveTrailers: trailers })} />{t.fullscreen.trailerNames[trailers]}</label>)}
       </div>
       <label><input type="checkbox" checked={config.showClock} onChange={(event) => void save({ showClock: event.target.checked })} />{t.fullscreen.showClock}</label>
       <label><input type="checkbox" checked={config.uiSounds} onChange={(event) => void save({ uiSounds: event.target.checked })} />{t.fullscreen.uiSounds}</label>

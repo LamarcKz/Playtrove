@@ -337,8 +337,12 @@ test("mídia local pausa fora do app e durante execução simulada, com retorno 
     await expect(desktopMusic).toHaveCount(0)
     expect(await previousDesktopAudio!.evaluate((node: HTMLAudioElement) => node.paused)).toBe(true)
     await app.focus()
-    await page.getByTestId(`fullscreen-game-${configured.id}`).click()
+    // O trailer já toca atrás da biblioteca (o padrão do tema Playtrove); com "só nos detalhes", some dela.
     const video = page.locator("video[data-fullscreen-video]")
+    await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.readyState >= 2 && !node.paused).catch(() => false)).toBe(true)
+    await page.evaluate(() => window.api.fullscreen.setConfig({ playtroveTrailers: "details" }))
+    await expect(video).toHaveCount(0)
+    await page.getByTestId(`fullscreen-game-${configured.id}`).click()
     await expect(video).toHaveCount(1)
     await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.readyState >= 2 && !node.paused)).toBe(true)
     expect(await video.evaluate((node: HTMLVideoElement) => ({ muted: node.muted, loop: node.loop }))).toEqual({ muted: true, loop: true })
@@ -472,6 +476,54 @@ test("menu do jogo do tema Playtrove mostra a ROM no Explorador", async () => {
     await page.getByTestId("fullscreen-details").getByRole("button", { name: "Opções do jogo", exact: true }).click()
     await page.getByRole("dialog", { name: "Opções do jogo" }).getByRole("button", { name: "Mostrar a ROM no Explorador", exact: true }).click()
     await expect.poll(async () => (await app.opened()).some((path) => path.endsWith("Controle Sintetico.bin"))).toBe(true)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("sons da navegação tocam ao passar o mouse, ao mover o foco e ao confirmar no tema Playtrove", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    // Um áudio de mentira que só anota as notas: o robô dos testes não tem saída de som.
+    await page.evaluate(() => {
+      const notes: number[] = []
+      class FakeAudioContext {
+        currentTime = 0
+        state = "running"
+        destination = {}
+        async resume() {}
+        async close() {}
+        createOscillator() {
+          return { type: "", frequency: { setValueAtTime: (value: number) => { notes.push(value) } }, connect: (node: unknown) => node, start() {}, stop() {} }
+        }
+        createGain() {
+          return { gain: { setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }
+        }
+      }
+      Object.assign(window, { playtroveNotes: notes, AudioContext: FakeAudioContext })
+    })
+    let start = 0
+    const notes = () => page.evaluate((from) => (window as unknown as { playtroveNotes: number[] }).playtroveNotes.slice(from), start)
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    const library = page.getByTestId("fullscreen-library")
+    await expect(library).toBeVisible()
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    // Parte de um ponto sem botões; o foco automático da tela (na capa escolhida) não toca nada.
+    const title = library.locator("h1").boundingBox()
+    await page.mouse.move(((await title)?.x ?? 0) + 4, ((await title)?.y ?? 0) + 4)
+    await page.waitForTimeout(300)
+    start = (await notes()).length
+    const covers = library.locator(".fs-cover")
+    await covers.nth(2).hover()
+    await expect.poll(notes).toEqual([880])
+    await covers.nth(2).hover()
+    expect(await notes()).toEqual([880])
+    await press(app, "right")
+    await expect.poll(notes).toEqual([880, 880])
+    await covers.nth(3).click()
+    await expect.poll(notes).toEqual([880, 880, 880, 660, 990])
   } finally {
     await app.close()
     removeDataDir(dataDir)

@@ -3,7 +3,8 @@ import type { Game } from "@shared/types"
 import { ThemeMusicPlayer, type ThemeMusicPlayback } from "@/lib/themeMusicPlayer"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 
-export function FullscreenMedia({ game, details, suspended }: { game: Game | undefined; details: boolean; suspended: boolean }) {
+/** A música tema e o fundo do jogo da tela cheia; o trailer toca sem som quando `playVideo`, depois de `videoDelay` ms. */
+export function FullscreenMedia({ game, playVideo, videoDelay = 600, suspended }: { game: Game | undefined; playVideo: boolean; videoDelay?: number; suspended: boolean }) {
   const audio = useRef<HTMLAudioElement>(null)
   const player = useRef<ThemeMusicPlayer | null>(null)
   const playback = useRef<ThemeMusicPlayback>({ playing: false, blocked: false, failed: false })
@@ -18,10 +19,10 @@ export function FullscreenMedia({ game, details, suspended }: { game: Game | und
     return () => { document.removeEventListener("keydown", retry); document.removeEventListener("pointerdown", retry); player.current = null; instance.dispose() }
   }, [])
   useEffect(() => { player.current?.update({ url, enabled: config?.musicPlayback ?? false, volume: config?.musicVolume ?? 20, suspended }) }, [url, config?.musicPlayback, config?.musicVolume, suspended])
-  return <><audio ref={audio} data-fullscreen-music loop preload="none" onError={() => player.current?.reportError()} />{game && <FullscreenBackground key={`${game.id}:${game.backgroundUrl}:${game.backgroundVideoUrl}`} game={game} playVideo={details && !suspended} />}</>
+  return <><audio ref={audio} data-fullscreen-music loop preload="none" onError={() => player.current?.reportError()} />{game && <FullscreenBackground key={`${game.id}:${game.backgroundUrl}:${game.backgroundVideoUrl}`} game={game} playVideo={playVideo && !suspended} delay={videoDelay} />}</>
 }
 
-function FullscreenBackground({ game, playVideo }: { game: Game; playVideo: boolean }) {
+function FullscreenBackground({ game, playVideo, delay }: { game: Game; playVideo: boolean; delay: number }) {
   const video = useRef<HTMLVideoElement>(null)
   const [showVideo, setShowVideo] = useState(false)
   const [ready, setReady] = useState(false)
@@ -36,9 +37,9 @@ function FullscreenBackground({ game, playVideo }: { game: Game; playVideo: bool
   }, [])
   useEffect(() => {
     if (!playVideo || reduced || !game.backgroundVideoUrl || failed) return
-    const timer = setTimeout(() => setShowVideo(true), 600)
+    const timer = setTimeout(() => setShowVideo(true), delay)
     return () => clearTimeout(timer)
-  }, [playVideo, reduced, game.backgroundVideoUrl, failed])
+  }, [playVideo, reduced, game.backgroundVideoUrl, failed, delay])
   useEffect(() => {
     const node = video.current
     if (!node) return
