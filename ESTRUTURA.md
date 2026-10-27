@@ -32,8 +32,10 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `app_open_link` | `ServiceCard.tsx` (Configurações → Metadados e Conquistas) | Abre no navegador uma das páginas de `EXTERNAL_LINKS` (onde criar as chaves e a página de download das versões). A interface manda só o nome; o Rust não abre nenhum outro endereço (`links.rs`) |
 | `app_report_bug` | `SettingsPage.tsx` (Configurações → Sobre) | Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (`links.rs`) |
 | `window_minimize`, `window_toggle_maximize`, `window_close` e `window_get_state` | `TopBar.tsx` e `hooks/useFullscreen.ts` | Minimizar, maximizar/restaurar e fechar; consultar `isMaximized`, `isFullscreen` e `isFocused` nativos |
-| `window_set_fullscreen` | `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
-| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar) e os layouts da biblioteca e dos detalhes, com validação integral do patch e transação |
+| `games_accent_color` | `hooks/useDynamicPalette.ts` | A cor de destaque tirada da arte de fundo (ou da capa) do jogo, ou null sem imagem |
+| `window_set_fullscreen` | `hooks/useDynamicPalette.ts` | A cor dinâmica do jogo selecionado: pede a cor ao Rust 800 ms depois de a seleção parar e devolve as variáveis CSS |
+| `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
+| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar), os layouts da biblioteca e dos detalhes, a paleta, a cor dinâmica e os efeitos, com validação integral do patch e transação |
 | `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
 | `games_set_status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
 | `statuses_create`, `statuses_rename`, `statuses_reorder`, `statuses_remove` e `statuses_set_rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
@@ -171,7 +173,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `types.ts` | Tipos de dados: `DailyPlaytime` (o tempo de um dia, para as Estatísticas), `Game` (o jogo), `Status` (um status), `StatusRules` (as regras automáticas), `LibrarySnapshot` (tudo junto, como a interface recebe), os da aba Emuladores (`EmulatorInfo`, `RetroArchCore`, `RomFolder` e `ScanResult`), os dos metadados (`MetadataConfig` e `MetadataProgress`), o da música (`MusicConfig`) e o da atualização (`UpdateStatus`) |
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
 | `controllers.ts` | Controle/bateria (`ConnectedController`), botões normalizados (`ControllerButton`) e snapshot de entrada (`ControllerInputSnapshot`, com sequência, geração e chave do controle) |
-| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), independentes do desktop |
+| `anikiColors.ts` | As 41 paletas do Aniki (id e nome), a mesma lista do Rust (`COLOR_PRESETS`) |
+| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), `colorPreset`, `dynamicColors` e `effects` (de `FULLSCREEN_EFFECTS`), independentes do desktop |
 
 ### `src/renderer`: interface React
 
@@ -181,7 +184,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `main.tsx` | Liga a ponte com o Rust (`window.api`), o React na página e o CSS |
 | `api.d.ts` | Avisa o TypeScript que `window.api` existe e qual é o formato dele (`AppApi`) |
 | `App.tsx` | Alterna desktop/tela cheia conforme o estado nativo. Mantém montado o desktop com página, busca, filtros, modo e seleção; conserva o shell fullscreen após a primeira entrada. Liga a biblioteca, os status, o idioma e os avisos rápidos |
-| `styles/globals.css` | Tailwind e **todas as cores do app** (variáveis CSS dos temas escuro e claro) |
+| `styles/globals.css` | Tailwind e **as cores do app** (variáveis CSS dos temas escuro e claro e as derivadas das paletas da tela cheia) |
+| `styles/anikiColors.css` | As 41 paletas do Aniki, convertidas dos arquivos dele, cada uma pelo atributo `data-aniki-color` |
 | `hooks/useI18n.ts` | `useI18n()`: o idioma, os textos dele (`t`, ex.: `t.pages.library`) e `setLanguage()` para trocar |
 | `hooks/useLibrary.ts` | A biblioteca que está no banco (jogos, status e regras). Recarrega sozinha quando algo muda. `setGameStatus()` muda o status de um jogo |
 | `hooks/useStatuses.ts` | Os status para qualquer componente: `useStatuses()` (a lista) e `useStatusName()` (o nome pelo id) |
@@ -208,6 +212,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/musicPreviewPlayer.ts` | Player da prévia, cancelamento/respostas antigas, volume e exclusão de áudio ambiente, mantendo cache ao confirmar |
 | `lib/musicReview.ts`, `lib/musicReviewsLoader.ts` | Classificação de pendências/contagem e leitura compartilhada sem tratar desconhecido/falha como lista vazia |
 | `lib/fullscreenNavigation.ts` | Coleções/busca global, restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda e repetição só direcional |
+| `lib/dynamicColors.ts` | Os tons da cor dinâmica a partir da cor de destaque, como o BuildPalette do Aniki Helper |
 | `lib/collectorLevel.ts` | Pontos de colecionador (pela raridade) e de troféu (pelo tipo) e a curva de níveis com as patentes, recriando a regra do PlayniteAchievements |
 | `lib/fullscreenHub.ts` | Os números do perfil e os cartões de atividade do Welcome Hub, calculados com os jogos e a atividade diária |
 | `lib/fullscreenSession.ts` | `FullscreenLaunchGuard`: serializa consulta de jogos abertos e lançamento, bloqueando cliques/ações concorrentes |
@@ -377,6 +382,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/emulators.rs` | O que o app sabe de cada emulador (`PRESETS`: nome do executável, lugares comuns, extensões, argumentos e se abre maximizado), a tabela `emulators`, a detecção automática (atalhos, lugares comuns e pastas vizinhas), os cores do RetroArch e o comando para abrir um jogo |
 | `src/system_sources.rs` | De onde a detecção lê no Windows de verdade: os atalhos do menu Iniciar e da Área de Trabalho, lidos pelo próprio Windows (COM) |
 | `src/rom_scanner.rs` | As pastas de ROMs (tabela `rom_folders`) e a varredura: o nome limpo do jogo (`title_from_file_name`), as ISOs e pastas de PS3 e o .cue no lugar dos .bin |
+| `src/dynamic_color.rs` | A cor de destaque da arte de um jogo para a cor dinâmica da tela cheia, portada do Aniki Helper, com o resultado guardado por arquivo |
 | `src/discs.rs` | O código do jogo no disco (PS1, PS2, PS3, PSP, GameCube, Wii e 3DS) e o nome dos jogos de PS3, lendo só alguns bytes. Os discos de mentira dos testes ficam no módulo `fake_discs` |
 | `src/launcher.rs` | O Jogar: abre o emulador separado do app, guarda os jogos abertos e, quando ele fecha, devolve o tempo jogado. Ao fechar o app, `finish_all` registra o tempo até ali |
 | `src/emulator_window.rs` | Maximiza a janela do RetroArch quando ela aparecer, pelas funções do Windows |

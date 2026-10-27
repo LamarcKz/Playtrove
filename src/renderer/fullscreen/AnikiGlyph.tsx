@@ -16,6 +16,8 @@ export const ANIKI_ICONS = {
   home: "\uE80F",
   contact: "\uE77B",
   layout: "\uE80A",
+  color: "\uE790",
+  effects: "\uE945",
 } as const
 
 export function AnikiIcon({ icon }: { icon: keyof typeof ANIKI_ICONS }) {

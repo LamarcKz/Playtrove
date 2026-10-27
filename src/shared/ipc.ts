@@ -116,6 +116,8 @@ export interface AppApi {
     setEvaluation: (gameId: number, evaluation: GameEvaluation) => Promise<void>
     /** Escolhe um MP4/WebM e guarda uma cópia como fundo do jogo. Cancelar conserva o vídeo atual. */
     pickBackgroundVideo: (gameId: number) => Promise<void>
+    /** A cor de destaque tirada da arte do jogo ("#rrggbb"), ou null sem imagem. */
+    accentColor: (gameId: number) => Promise<string | null>
     /** Remove somente a cópia do vídeo guardada pelo app. */
     removeBackgroundVideo: (gameId: number) => Promise<void>
     /** Volta a buscar o trailer automaticamente, preservando o arquivo original de vídeos manuais. */

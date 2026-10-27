@@ -198,6 +198,13 @@ pub fn games_set_evaluation(app: AppHandle, state: State<'_, AppState>, game_id:
     Ok(())
 }
 
+/// A cor de destaque tirada da arte do jogo, para a cor dinâmica da tela cheia ("#rrggbb" ou null).
+#[tauri::command(async)]
+pub fn games_accent_color(state: State<'_, AppState>, images: State<'_, ImagesDir>, game_id: Value) -> AppResult<Option<String>> {
+    let game_id = to_id(&game_id, state.language())?;
+    Ok(crate::dynamic_color::game_accent(&state.db(), &images.0, game_id)?)
+}
+
 /// Escolhe um MP4/WebM local e guarda uma cópia nos dados do app.
 #[tauri::command(async)]
 pub fn games_pick_background_video(

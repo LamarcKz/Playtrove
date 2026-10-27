@@ -1,4 +1,5 @@
-import { DETAILS_LAYOUTS, LIBRARY_LAYOUTS } from "@shared/fullscreen"
+import { ANIKI_COLOR_PRESETS } from "@shared/anikiColors"
+import { DETAILS_LAYOUTS, FULLSCREEN_EFFECTS, LIBRARY_LAYOUTS } from "@shared/fullscreen"
 import { useI18n } from "@/hooks/useI18n"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { AnikiIcon } from "./AnikiGlyph"
@@ -38,6 +39,9 @@ export function AnikiQuickOptions() {
       </div>
       <button type="button" onClick={() => void save({ libraryLayout: LIBRARY_LAYOUTS[(LIBRARY_LAYOUTS.indexOf(config.libraryLayout) + 1) % LIBRARY_LAYOUTS.length] })}><AnikiIcon icon="layout" /><span>{t.fullscreen.libraryLayout}: {t.fullscreen.libraryLayouts[config.libraryLayout]}</span></button>
       <button type="button" onClick={() => void save({ detailsLayout: DETAILS_LAYOUTS[(DETAILS_LAYOUTS.indexOf(config.detailsLayout) + 1) % DETAILS_LAYOUTS.length] })}><AnikiIcon icon="layout" /><span>{t.fullscreen.detailsLayout}: {t.fullscreen.detailsLayouts[config.detailsLayout]}</span></button>
+      <button type="button" onClick={() => void save({ colorPreset: ANIKI_COLOR_PRESETS[(ANIKI_COLOR_PRESETS.findIndex((preset) => preset.id === config.colorPreset) + 1) % ANIKI_COLOR_PRESETS.length].id })}><span className="aniki-swatch aniki-swatch-small" data-aniki-color={config.colorPreset} /><span>{t.fullscreen.colorPreset}: {ANIKI_COLOR_PRESETS.find((preset) => preset.id === config.colorPreset)?.name}</span></button>
+      <button type="button" aria-pressed={config.dynamicColors} onClick={() => void save({ dynamicColors: !config.dynamicColors })}><AnikiIcon icon="color" /><span>{t.fullscreen.dynamicColors}</span></button>
+      <button type="button" onClick={() => void save({ effects: FULLSCREEN_EFFECTS[(FULLSCREEN_EFFECTS.indexOf(config.effects) + 1) % FULLSCREEN_EFFECTS.length] })}><AnikiIcon icon="effects" /><span>{t.fullscreen.effects}: {t.fullscreen.effectsNames[config.effects]}</span></button>
       <button type="button" aria-pressed={config.startDestination === "hub"} onClick={() => void save({ startDestination: config.startDestination === "hub" ? "library" : "hub" })}><AnikiIcon icon="home" /><span>{t.fullscreen.startIn}: {config.startDestination === "hub" ? t.fullscreen.hub : t.fullscreen.library}</span></button>
     </div>}
     {error && config && <p role="alert">{error}</p>}

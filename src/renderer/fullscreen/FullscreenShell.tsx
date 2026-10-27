@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react"
 import { ArrowLeft, Star, Gamepad2 } from "lucide-react"
 import type { Game } from "@shared/types"
 import { useI18n } from "@/hooks/useI18n"
@@ -23,6 +23,7 @@ import { AnikiQuickAccess, AnikiQuickOptions } from "./AnikiQuickPanels"
 import { AnikiProfile } from "./AnikiProfile"
 import { AnikiTrophyOverview } from "./AnikiTrophyOverview"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
+import { useDynamicPalette } from "@/hooks/useDynamicPalette"
 import type { AnikiShortcut } from "./AnikiShortcutBar"
 
 type Panel = "preferences" | "options" | "search" | "review" | "achievements" | "description" | "menu" | "quickAccess" | "quickOptions" | "profileName" | "profile" | "trophyOverview" | null
@@ -178,6 +179,7 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   }
   useFullscreenInput(scope, !suspended, context, action)
   const status = statuses.find((item) => item.id === game?.statusId)?.name
+  const dynamic = useDynamicPalette(game, Boolean(config?.dynamicColors) && enabled)
   const canPlay = Boolean(game?.romPath && game.emulatorId)
   const shortcuts: AnikiShortcut[] = [
     ...(canPlay ? [{ button: "square" as const, label: t.fullscreen.play }] : []),
@@ -189,7 +191,7 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   ]
 
   return (
-    <div hidden={!enabled} className="fullscreen-shell" data-testid="fullscreen-shell">
+    <div hidden={!enabled} className="fullscreen-shell" data-testid="fullscreen-shell" data-aniki-color={config?.colorPreset ?? "default"} data-aniki-effects={config?.effects ?? "balanced"} style={dynamic as CSSProperties}>
       <AnikiStage>
       <FullscreenMedia game={game} suspended={suspended} />
       <section ref={panel ? undefined : scope} className="fs-main" inert={panel !== null || running.length > 0 || launching}>

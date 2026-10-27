@@ -3,6 +3,7 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/exo-2";
+@import "./anikiColors.css";
 
 /* A classe "dark" no <html> (ver index.html) liga o tema escuro, que é o padrão do app. */
 @custom-variant dark (&:is(.dark *));
@@ -206,52 +207,30 @@
 
 /* Apresentação fullscreen: arte ampla, capas inteiras e foco legível a distância. */
 .fullscreen-shell {
-  /* Paleta padrão do Aniki ReMake (Constants.xaml): dourado sobre azul-escuro. */
-  --aniki-accent: #d6b16f;
-  --aniki-glyph: #e8c98f;
-  --aniki-light: #f4e8d0;
-  --aniki-control: #111820;
-  --aniki-control-dark: #080c13;
-  --aniki-text: #f5f2ec;
-  --aniki-text-secondary: #d8d4cce6;
-  --aniki-text-detail: #a9adb2bf;
-  --aniki-topbar-top: #151d26;
-  --aniki-topbar-bottom: #080c13;
-  --aniki-separator-edge: #ffffff18;
-  --aniki-separator-bar: #ffffff22;
-  --aniki-glass-top: #ffffff14;
-  --aniki-glass-mid: #11182008;
-  --aniki-focus-glow: #e9c48a99;
-  --aniki-focus-right: #d6b16f99;
-  --aniki-focus-fill: linear-gradient(90deg, #fff4e866, #e8c98f4d 40%, #d6b16f2e 70%, #9b713614);
-  --aniki-menu-top: #151d26;
-  --aniki-menu-bottom: #0a0f16;
-  --aniki-shade-strong: #000000;
-  --aniki-shade-mid: #0f0c10f2;
-  --aniki-shade-soft: #000000cc;
-  --aniki-shade-light: #00000080;
+  /*
+   * As cores de base vêm da paleta escolhida (anikiColors.css, pelo atributo data-aniki-color, ou da cor
+   * dinâmica, aplicada no próprio elemento). Daqui para baixo, só as derivadas delas.
+   */
   --aniki-transparent: #00000000;
-  --aniki-chip: #111820b3;
-  --aniki-badge: #080c13cc;
-  --aniki-scrim: #05080dd9;
-  --aniki-panel: #0e141ccc;
-  --aniki-band: #0e141c;
-  --aniki-band-dark: #0a0f16;
-  --aniki-list-item: #11182099;
-  --aniki-hub-bg: radial-gradient(ellipse at 70% 10%, #1b242e, #0a1017 50%, #05080d);
-  --aniki-hub-card: #111820cc;
-  --aniki-hub-tile: #1b242ecc;
-  --aniki-avatar-bg: linear-gradient(145deg, #2a3542, #0e141c);
-  --aniki-avatar-border: #d6b16f;
-  --aniki-glass-signature: linear-gradient(#00000036, #00000018 60%, #ffffff20);
-  --aniki-secondary-view: radial-gradient(ellipse at 50% 30%, #111820, #0a1017 55%, #05080d);
-  --aniki-card-trophy: #111820eb;
+  --aniki-focus-fill: linear-gradient(90deg, var(--aniki-focus-stop0), var(--aniki-focus-stop1) 40%, var(--aniki-focus-stop2) 70%, var(--aniki-focus-stop3));
+  --aniki-chip: color-mix(in srgb, var(--aniki-control) 70%, transparent);
+  --aniki-badge: color-mix(in srgb, var(--aniki-control-dark) 80%, transparent);
+  --aniki-scrim: color-mix(in srgb, var(--aniki-secondary-end) 85%, transparent);
+  --aniki-panel: color-mix(in srgb, var(--aniki-band) 80%, transparent);
+  --aniki-band-dark: var(--aniki-menu-bottom);
+  --aniki-list-item: color-mix(in srgb, var(--aniki-control) 60%, transparent);
+  --aniki-hub-bg: radial-gradient(ellipse at 70% 10%, var(--aniki-secondary-center), var(--aniki-secondary-mid) 50%, var(--aniki-secondary-end));
+  --aniki-avatar-bg: linear-gradient(145deg, var(--aniki-card), var(--aniki-control-dark));
+  --aniki-avatar-border: var(--aniki-accent);
+  --aniki-glass-signature: linear-gradient(var(--aniki-glass-sig-top), var(--aniki-glass-sig-mid) 60%, var(--aniki-glass-sig-bot));
+  --aniki-secondary-view: radial-gradient(ellipse at 50% 30%, var(--aniki-secondary-center), var(--aniki-secondary-mid) 55%, var(--aniki-secondary-end));
+  --aniki-card-trophy: color-mix(in srgb, var(--aniki-card-trophy-base) 92%, transparent);
   --aniki-button-idle: #ffffff14;
   --aniki-track: #ffffff1f;
   /* As peças que ainda usam os nomes antigos seguem a mesma paleta. */
   --fs-background: var(--aniki-control-dark);
-  --fs-surface: #111820e0;
-  --fs-glass: #111820cc;
+  --fs-surface: color-mix(in srgb, var(--aniki-control) 88%, transparent);
+  --fs-glass: color-mix(in srgb, var(--aniki-control) 80%, transparent);
   --fs-foreground: var(--aniki-text);
   --fs-muted: var(--aniki-text-detail);
   --fs-focus: var(--aniki-glyph);
@@ -267,6 +246,7 @@
   font-family: "Exo 2 Variable", var(--font-sans);
   isolation: isolate;
 }
+
 .fullscreen-shell[hidden] { display: none; }
 .fullscreen-shell button { cursor: pointer; border: 1px solid transparent; border-radius: .55rem; padding: .65em 1em; transition: background .15s, border-color .15s, transform .15s; }
 .fullscreen-shell button:hover { background: var(--fs-border); }
@@ -623,3 +603,23 @@
 .aniki-vertical-title .aniki-logo { max-height: 230px; margin-inline: auto; object-position: center; }
 .aniki-showcase-title .aniki-logo { max-height: 110px; margin-inline: auto; object-position: center; }
 .aniki-trophies-title .aniki-logo { max-height: 130px; max-width: 450px; margin-inline: auto; object-position: center; }
+
+/* Amostras das paletas (também nas Configurações do desktop): a cor da barra e o destaque de cada uma. */
+.fs-swatches { display: flex; flex-wrap: wrap; gap: .4em; }
+.fs-swatches button { padding: .15em; border-radius: 50%; }
+.fs-swatches button[aria-pressed="true"] { outline: 2px solid currentColor; outline-offset: 1px; }
+.aniki-swatch { display: block; width: 2em; height: 2em; border-radius: 50%; background: linear-gradient(135deg, var(--aniki-topbar-top) 0 50%, var(--aniki-accent) 50%); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-swatch-small { width: 30px; height: 30px; flex-shrink: 0; }
+
+/* Modos de efeitos do Aniki. Equilibrada é o padrão (transições e painéis, sem movimento no fundo). */
+.fullscreen-shell[data-aniki-effects="animated"] .fs-background > img, .fullscreen-shell[data-aniki-effects="full"] .fs-background > img { animation: aniki-background-in .9s ease-out; }
+.fullscreen-shell[data-aniki-effects="animated"] .aniki-logo, .fullscreen-shell[data-aniki-effects="full"] .aniki-logo { animation: aniki-logo-in .6s ease-out; }
+.fullscreen-shell[data-aniki-effects="full"] .fs-background > img { animation: aniki-background-in .9s ease-out, aniki-background-drift 32s ease-in-out .9s infinite alternate; }
+.fullscreen-shell[data-aniki-effects="full"] .aniki-cover[aria-current="true"] { animation: aniki-focus-pulse 2.4s ease-in-out infinite; }
+.fullscreen-shell[data-aniki-effects="performance"] *, .fullscreen-shell[data-aniki-effects="performance"] *::before, .fullscreen-shell[data-aniki-effects="performance"] *::after { transition: none !important; animation: none !important; backdrop-filter: none !important; }
+.fullscreen-shell[data-aniki-effects="performance"] .aniki-cover[aria-current="true"] { box-shadow: 0 0 0 3px var(--aniki-light); }
+@keyframes aniki-background-in { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+@keyframes aniki-background-drift { from { transform: scale(1); } to { transform: scale(1.08) translate(-1.5%, -1%); } }
+@keyframes aniki-logo-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes aniki-focus-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 24px var(--aniki-focus-glow); } 50% { box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 46px var(--aniki-focus-glow); } }
+@media (prefers-reduced-motion: reduce) { .fullscreen-shell .fs-background > img, .fullscreen-shell .aniki-logo, .fullscreen-shell .aniki-cover { animation: none !important; } }

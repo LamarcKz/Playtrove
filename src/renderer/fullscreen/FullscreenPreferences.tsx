@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { PROFILE_AVATARS } from "@shared/fullscreen"
+import { ANIKI_COLOR_PRESETS } from "@shared/anikiColors"
+import { FULLSCREEN_EFFECTS, PROFILE_AVATARS } from "@shared/fullscreen"
 import { useI18n } from "@/hooks/useI18n"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { AnikiAvatar } from "./AnikiAvatar"
@@ -27,6 +28,13 @@ export function FullscreenPreferences({ onEditName }: { onEditName?: () => void 
         : <label className="fs-profile-name">{t.fullscreen.profileName}<input type="text" maxLength={32} value={draft ?? config.profileName} placeholder={t.fullscreen.defaultProfileName} onChange={(event) => setDraft(event.target.value)} onBlur={() => { if (draft !== null) void save({ profileName: draft.trim() }).finally(() => setDraft(null)) }} /></label>}
       <div className="fs-avatars" role="group" aria-label={t.fullscreen.avatar}>
         {PROFILE_AVATARS.map((avatar) => <button type="button" key={avatar} aria-label={t.fullscreen.avatars[avatar]} aria-pressed={config.profileAvatar === avatar} onClick={() => void save({ profileAvatar: avatar })}><AnikiAvatar avatar={avatar} size={40} /></button>)}
+      </div>
+      <div className="fs-choice" role="radiogroup" aria-label={t.fullscreen.effects}><span>{t.fullscreen.effects}</span>
+        {FULLSCREEN_EFFECTS.map((effects) => <label key={effects}><input type="radio" name="fullscreen-effects" checked={config.effects === effects} onChange={() => void save({ effects })} />{t.fullscreen.effectsNames[effects]}</label>)}
+      </div>
+      <label><input type="checkbox" checked={config.dynamicColors} onChange={(event) => void save({ dynamicColors: event.target.checked })} />{t.fullscreen.dynamicColors}</label>
+      <div className="fs-swatches" role="group" aria-label={t.fullscreen.colorPreset}>
+        {ANIKI_COLOR_PRESETS.map((preset) => <button type="button" key={preset.id} title={preset.name} aria-label={preset.name} aria-pressed={config.colorPreset === preset.id} onClick={() => void save({ colorPreset: preset.id })}><span className="aniki-swatch" data-aniki-color={preset.id} /></button>)}
       </div>
       {error && <p role="alert">{error}</p>}
     </div>

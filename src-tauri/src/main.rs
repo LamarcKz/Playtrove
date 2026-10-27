@@ -9,6 +9,7 @@ mod data_folder;
 mod database;
 mod dates;
 mod discs;
+mod dynamic_color;
 mod emulator_playtime;
 mod emulator_window;
 mod emulators;
@@ -122,6 +123,7 @@ fn main() {
             commands::games_set_favorite,
             commands::games_set_evaluation,
             commands::games_pick_background_video,
+            commands::games_accent_color,
             commands::games_remove_background_video,
             commands::games_use_automatic_background_video,
             commands::games_pick_theme_music,

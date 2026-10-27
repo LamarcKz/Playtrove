@@ -114,6 +114,10 @@ export const en: Messages = {
     detailsLayouts: { signature: "Signature", modern: "Modern", classic: "Classic", original: "Original", showcase: "Showcase", panel: "Panel" },
     gameInfo: "Game info",
     gameProfile: "Game profile",
+    colorPreset: "Color palette",
+    dynamicColors: "Dynamic color (taken from the game art)",
+    effects: "Visual effects",
+    effectsNames: { full: "Full Animated", animated: "Animated", balanced: "Balanced", performance: "Performance" },
   },
   common: {
     cancel: "Cancel",

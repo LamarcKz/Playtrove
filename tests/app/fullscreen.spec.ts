@@ -293,6 +293,31 @@ test("segurar triângulo troca os layouts do Aniki e os seis detalhes mostram o 
   }
 })
 
+test("paleta, cor dinâmica e efeitos do Aniki mudam a tela cheia na hora", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    await startInLibrary(page)
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    const shell = page.getByTestId("fullscreen-shell")
+    await expect(shell).toHaveAttribute("data-aniki-color", "default")
+    await expect(shell).toHaveAttribute("data-aniki-effects", "balanced")
+    await openMenuItem(page, "Configurações")
+    const preferences = page.getByRole("dialog", { name: "Preferências da tela cheia" })
+    await preferences.getByRole("button", { name: "Orbis Blue", exact: true }).click()
+    await expect(shell).toHaveAttribute("data-aniki-color", "orbis-blue")
+    await expect.poll(() => shell.evaluate((node) => getComputedStyle(node).getPropertyValue("--aniki-accent").trim())).toBe("#2e7bff")
+    await preferences.getByRole("radio", { name: "Desempenho" }).check()
+    await expect(shell).toHaveAttribute("data-aniki-effects", "performance")
+    await preferences.getByRole("checkbox", { name: "Cor dinâmica (tirada da arte do jogo)" }).check()
+    await expect.poll(() => page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ colorPreset: "orbis-blue", effects: "performance", dynamicColors: true })
+    const id = await page.evaluate(async () => (await window.api.library.get()).games[0].id)
+    expect(await page.evaluate((gameId) => window.api.games.accentColor(gameId), id)).toBeNull()
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
 test("busca global pelo teclado virtual sai de Favoritos e devolve a coleção anterior", async () => {
   const { app, page, dataDir } = await launchApp()
   try {

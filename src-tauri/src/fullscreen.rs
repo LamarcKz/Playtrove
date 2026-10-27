@@ -17,6 +17,52 @@ pub const AVATARS: [&str; 12] =
 /// Layouts da biblioteca e dos detalhes do Aniki; o primeiro de cada lista é o padrão.
 pub const LIBRARY_LAYOUTS: [&str; 3] = ["horizontal", "vertical", "list"];
 pub const DETAILS_LAYOUTS: [&str; 6] = ["signature", "modern", "classic", "original", "showcase", "panel"];
+/// As paletas do Aniki (a padrão e as 40 de ThemeColors), na ordem dele; os ids são os de src/shared/anikiColors.ts.
+pub const COLOR_PRESETS: [&str; 41] = [
+    "default",
+    "pure-black",
+    "golden-dark",
+    "golden-graphite",
+    "steel-gray",
+    "retro-gray",
+    "light-white",
+    "ivory-white",
+    "orbis-blue",
+    "mist-blue",
+    "royal-blue",
+    "lunar-blue",
+    "midnight-blue",
+    "forest-green",
+    "velocity-green",
+    "scarlet-red",
+    "midnight-red",
+    "blood-red",
+    "royal-red",
+    "velvet-purple",
+    "toxic-purple",
+    "sakura-pink",
+    "midnight-pink",
+    "golden-pink",
+    "pop-red",
+    "pop-yellow",
+    "pop-tangerine",
+    "pop-orange",
+    "pop-green",
+    "golden-green",
+    "iris",
+    "hunter-green",
+    "aurora-prestige",
+    "rose-prestige",
+    "vermilion-prestige",
+    "carbon-prestige",
+    "emerald-prestige",
+    "sapphire-prestige",
+    "flat-dark",
+    "flat-blue",
+    "flat-red",
+];
+/// Os modos de efeitos do Aniki; o padrão é o equilibrado.
+pub const EFFECTS: [&str; 4] = ["balanced", "full", "animated", "performance"];
 /// Tamanho máximo do nome do perfil, em caracteres.
 const PROFILE_NAME_MAX: usize = 32;
 
@@ -40,6 +86,10 @@ pub struct FullscreenConfig {
     pub profile_avatar: String,
     pub library_layout: String,
     pub details_layout: String,
+    pub color_preset: String,
+    /// Cor tirada da arte do jogo selecionado, no lugar da paleta (a "cor dinâmica" do Aniki).
+    pub dynamic_colors: bool,
+    pub effects: String,
 }
 
 pub fn get_config(db: &Connection) -> FullscreenConfig {
@@ -69,6 +119,9 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
             .unwrap_or_else(|| AVATARS[0].to_string()),
         library_layout: choice(db, "fullscreenLibraryLayout", &LIBRARY_LAYOUTS),
         details_layout: choice(db, "fullscreenDetailsLayout", &DETAILS_LAYOUTS),
+        color_preset: choice(db, "fullscreenColorPreset", &COLOR_PRESETS),
+        dynamic_colors: boolean("fullscreenDynamicColors", false),
+        effects: choice(db, "fullscreenEffects", &EFFECTS),
     }
 }
 
@@ -119,6 +172,14 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
                 config.library_layout =
                     value.as_str().filter(|layout| LIBRARY_LAYOUTS.contains(layout)).ok_or_else(invalid)?.to_string();
             }
+            "colorPreset" => {
+                config.color_preset =
+                    value.as_str().filter(|preset| COLOR_PRESETS.contains(preset)).ok_or_else(invalid)?.to_string();
+            }
+            "dynamicColors" => config.dynamic_colors = to_bool(value, language)?,
+            "effects" => {
+                config.effects = value.as_str().filter(|effects| EFFECTS.contains(effects)).ok_or_else(invalid)?.to_string();
+            }
             "detailsLayout" => {
                 config.details_layout =
                     value.as_str().filter(|layout| DETAILS_LAYOUTS.contains(layout)).ok_or_else(invalid)?.to_string();
@@ -139,6 +200,9 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenProfileAvatar", Some(&config.profile_avatar))?;
     set_setting(&transaction, "fullscreenLibraryLayout", Some(&config.library_layout))?;
     set_setting(&transaction, "fullscreenDetailsLayout", Some(&config.details_layout))?;
+    set_setting(&transaction, "fullscreenColorPreset", Some(&config.color_preset))?;
+    set_setting(&transaction, "fullscreenDynamicColors", Some(if config.dynamic_colors { "1" } else { "0" }))?;
+    set_setting(&transaction, "fullscreenEffects", Some(&config.effects))?;
     transaction.commit()?;
     Ok(config)
 }
@@ -159,6 +223,7 @@ mod tests {
                 "startOnLaunch": false, "musicPlayback": true, "musicVolume": 20,
                 "startDestination": "hub", "profileName": "", "profileAvatar": "gamepad",
                 "libraryLayout": "horizontal", "detailsLayout": "signature",
+                "colorPreset": "default", "dynamicColors": false, "effects": "balanced",
             })
         );
     }
@@ -210,6 +275,9 @@ mod tests {
             json!({"libraryLayout": "grade"}),
             json!({"detailsLayout": "Signature"}),
             json!({"detailsLayout": 1}),
+            json!({"colorPreset": "neon"}),
+            json!({"dynamicColors": "true"}),
+            json!({"effects": "maximo"}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
             assert_eq!(get_config(&db), before);
@@ -236,6 +304,9 @@ mod tests {
         set_setting(&db, "fullscreenProfileAvatar", Some("personagem")).unwrap();
         set_setting(&db, "fullscreenLibraryLayout", Some("grade")).unwrap();
         set_setting(&db, "fullscreenDetailsLayout", Some("outro")).unwrap();
+        set_setting(&db, "fullscreenColorPreset", Some("neon")).unwrap();
+        set_setting(&db, "fullscreenDynamicColors", Some("talvez")).unwrap();
+        set_setting(&db, "fullscreenEffects", Some("maximo")).unwrap();
         assert_eq!(get_config(&db), get_config(&memory_database()));
     }
 
@@ -265,5 +336,22 @@ mod tests {
             assert_eq!(set_config(&db, &json!({"detailsLayout": layout}), Language::PtBr).unwrap().details_layout, layout);
         }
         assert_eq!(get_config(&db).details_layout, "panel");
+    }
+
+    #[test]
+    fn paleta_cor_dinamica_e_efeitos_persistem() {
+        let db = memory_database();
+        let saved = set_config(
+            &db,
+            &json!({"colorPreset": "orbis-blue", "dynamicColors": true, "effects": "performance"}),
+            Language::PtBr,
+        )
+        .unwrap();
+        assert_eq!(
+            (saved.color_preset.as_str(), saved.dynamic_colors, saved.effects.as_str()),
+            ("orbis-blue", true, "performance")
+        );
+        assert_eq!(get_config(&db), saved);
+        assert!(COLOR_PRESETS.contains(&"sapphire-prestige") && COLOR_PRESETS[0] == "default");
     }
 }

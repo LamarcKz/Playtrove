@@ -114,6 +114,10 @@ export const ptBR = {
     detailsLayouts: { signature: "Signature", modern: "Moderno", classic: "Clássico", original: "Original", showcase: "Showcase", panel: "Painéis" },
     gameInfo: "Informações do jogo",
     gameProfile: "Perfil do jogo",
+    colorPreset: "Paleta de cores",
+    dynamicColors: "Cor dinâmica (tirada da arte do jogo)",
+    effects: "Efeitos visuais",
+    effectsNames: { full: "Animação completa", animated: "Animada", balanced: "Equilibrada", performance: "Desempenho" },
   },
   common: {
     cancel: "Cancelar",
