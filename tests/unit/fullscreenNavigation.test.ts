@@ -30,6 +30,29 @@ describe("entrada fullscreen", () => {
     expect(input.update(snapshot(6, ["cross"], 2), 750)).toEqual(["cross"])
   })
 })
+// Como no Aniki: Options, Create e triângulo agem ao soltar; segurados por 500 ms, disparam a segunda ação uma vez.
+describe("toque e segurar", () => {
+  it("toque age ao soltar e segurar dispara uma vez, sem toque depois", () => {
+    const input = new FullscreenInput()
+    input.update(snapshot(1, []), 0)
+    expect(input.update(snapshot(2, ["options"]), 100)).toEqual([])
+    expect(input.update(snapshot(3, []), 300)).toEqual(["options"])
+    expect(input.update(snapshot(4, ["create"]), 1000)).toEqual([])
+    expect(input.repeat(1499)).toEqual([])
+    expect(input.repeat(1500)).toEqual(["create-hold"])
+    expect(input.repeat(2500)).toEqual([])
+    expect(input.update(snapshot(5, []), 2600)).toEqual([])
+  })
+  it("segurar não atrasa os outros botões e a reinicialização descarta o segurar pendente", () => {
+    const input = new FullscreenInput()
+    input.update(snapshot(1, []), 0)
+    expect(input.update(snapshot(2, ["triangle", "cross"]), 0)).toEqual(["cross"])
+    input.reset()
+    expect(input.repeat(800)).toEqual([])
+    input.update(snapshot(3, []), 900)
+    expect(input.update(snapshot(4, ["l3", "r3"]), 950)).toEqual(["l3", "r3"])
+  })
+})
 describe("contexto da biblioteca fullscreen", () => {
   const games = [{ id: 1, title: "Ação", favorite: false, lastPlayedAt: null }, { id: 2, title: "Outro", favorite: true, lastPlayedAt: null }]
   it("busca global ignora a coleção sem a alterar", () => {

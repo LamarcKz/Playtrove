@@ -1,32 +1,65 @@
-export type FullscreenAction = "up" | "down" | "left" | "right" | "cross" | "circle" | "square" | "triangle" | "l1" | "r1" | "options" | "create"
+import type { ControllerButton } from "@shared/controllers"
+
+/** Botões com duas ações, como no Aniki: o toque age ao soltar; segurar dispara a segunda ação. */
+const holdable = ["options", "create", "triangle"] as const
+type HoldableButton = (typeof holdable)[number]
+export type FullscreenAction = ControllerButton | `${HoldableButton}-hold`
 export type FullscreenCollection = "all" | "recent" | "favorites"
 interface InputSnapshot { sequence: number; generation: number; controllerKey: number | null; buttons: string[] }
 const directions = new Set(["up", "down", "left", "right"])
-/** Arestas de ação e repetição direcional, com uma barreira neutra em cada troca de contexto. */
+/** Tempo de segurar do Aniki (RunTapOrHoldCommand, holdDelayMs). */
+export const FULLSCREEN_HOLD_MS = 500
+const isHoldable = (button: string): button is HoldableButton => (holdable as readonly string[]).includes(button)
+/** Arestas de ação, toque/segurar e repetição direcional, com uma barreira neutra em cada troca de contexto. */
 export class FullscreenInput {
   private sequence = -1
   private generation = -1
   private armed = false
   private held: string[] = []
   private nextRepeat = 0
+  private pressedAt = new Map<HoldableButton, number>()
+  private fired = new Set<HoldableButton>()
   get neutral() { return this.armed && this.held.length === 0 }
-  reset(neutral = false) { this.armed = neutral; this.held = [] }
+  reset(neutral = false) { this.armed = neutral; this.held = []; this.pressedAt.clear(); this.fired.clear() }
   update(snapshot: InputSnapshot, now: number): FullscreenAction[] {
     if (snapshot.sequence <= this.sequence || snapshot.generation < this.generation) return []
     this.sequence = snapshot.sequence
     if (snapshot.generation !== this.generation) { this.generation = snapshot.generation; this.reset() }
     if (snapshot.controllerKey === null) { this.reset(); return [] }
-    if (!snapshot.buttons.length) { this.armed = true; this.held = []; return [] }
-    if (!this.armed) return []
-    const edges = snapshot.buttons.filter((button) => !this.held.includes(button)) as FullscreenAction[]
+    if (!this.armed) {
+      if (!snapshot.buttons.length) { this.armed = true; this.held = [] }
+      return []
+    }
+    const edges = snapshot.buttons.filter((button) => !this.held.includes(button))
+    const released = this.held.filter((button) => !snapshot.buttons.includes(button))
     this.held = snapshot.buttons
+    const actions: FullscreenAction[] = []
+    for (const button of released) {
+      if (!isHoldable(button) || !this.pressedAt.has(button)) continue
+      if (!this.fired.has(button)) actions.push(button)
+      this.pressedAt.delete(button)
+      this.fired.delete(button)
+    }
+    for (const button of edges) {
+      if (isHoldable(button)) this.pressedAt.set(button, now)
+      else actions.push(button as FullscreenAction)
+    }
     if (edges.some((button) => directions.has(button))) this.nextRepeat = now + 400
-    return edges
+    return actions
   }
   repeat(now: number): FullscreenAction[] {
-    if (!this.armed || now < this.nextRepeat) return []
-    this.nextRepeat = now + 100
-    return this.held.filter((button) => directions.has(button)) as FullscreenAction[]
+    if (!this.armed) return []
+    const actions: FullscreenAction[] = []
+    for (const [button, at] of this.pressedAt) {
+      if (this.fired.has(button) || now - at < FULLSCREEN_HOLD_MS) continue
+      this.fired.add(button)
+      actions.push(`${button}-hold`)
+    }
+    if (now >= this.nextRepeat) {
+      const repeated = this.held.filter((button) => directions.has(button)) as FullscreenAction[]
+      if (repeated.length) { this.nextRepeat = now + 100; actions.push(...repeated) }
+    }
+    return actions
   }
 }
 export function fullscreenGames<T extends { title: string; favorite: boolean; lastPlayedAt: string | null }>(games: T[], collection: FullscreenCollection, query: string): T[] {
