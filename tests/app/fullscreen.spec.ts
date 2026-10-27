@@ -241,6 +241,7 @@ test("perfil e tela geral de troféus abrem pelo Acesso rápido, com o nível de
     await expect(page.getByTestId("aniki-hub")).toBeVisible()
     await expect(page.getByTestId("aniki-hub").getByText("Nível 0 · Bronze 5", { exact: true })).toBeVisible()
     await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
     await press(app, "options")
     await page.getByTestId("aniki-quick-access").getByRole("button", { name: "Perfil", exact: true }).click()
     const profile = page.getByTestId("aniki-profile")
