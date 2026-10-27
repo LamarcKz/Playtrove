@@ -17,8 +17,8 @@ export function FullscreenPreferences({ onEditName }: { onEditName?: () => void 
   return (
     <div className="fs-preferences" aria-busy={pending}>
       <label><input type="checkbox" checked={config.startOnLaunch} onChange={(event) => void save({ startOnLaunch: event.target.checked })} />{t.fullscreen.startup}</label>
-      <div className="fs-choice" role="group" aria-label={t.fullscreen.startIn}><span>{t.fullscreen.startIn}</span>
-        {(["hub", "library"] as const).map((destination) => <button type="button" key={destination} aria-pressed={config.startDestination === destination} onClick={() => void save({ startDestination: destination })}>{destination === "hub" ? t.fullscreen.hub : t.fullscreen.library}</button>)}
+      <div className="fs-choice" role="radiogroup" aria-label={t.fullscreen.startIn}><span>{t.fullscreen.startIn}</span>
+        {(["hub", "library"] as const).map((destination) => <label key={destination}><input type="radio" name="fullscreen-start" checked={config.startDestination === destination} onChange={() => void save({ startDestination: destination })} />{destination === "hub" ? t.fullscreen.hub : t.fullscreen.library}</label>)}
       </div>
       <label><input type="checkbox" checked={config.musicPlayback} onChange={(event) => void save({ musicPlayback: event.target.checked })} />{t.fullscreen.music}</label>
       <div className="fs-volume"><span>{t.fullscreen.volume}</span><button type="button" aria-label={t.fullscreen.volume + " −"} onClick={() => void save({ musicVolume: Math.max(0, config.musicVolume - 5) })}>{"−"}</button><output>{config.musicVolume}%</output><button type="button" aria-label={t.fullscreen.volume + " +"} onClick={() => void save({ musicVolume: Math.min(100, config.musicVolume + 5) })}>{"+"}</button></div>
