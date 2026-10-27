@@ -54,6 +54,7 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   // O foco que a própria tela move (ao abrir um painel, por exemplo) não toca o som de mover.
   const programmaticFocus = useRef(false)
   const hovered = useRef<Element | null>(null)
+  const pointer = useRef<{ x: number; y: number } | null>(null)
   const scope = useRef<HTMLElement>(null)
   const launchGuard = useRef(new FullscreenLaunchGuard())
   const launchedId = useRef<number | null>(null)
@@ -98,10 +99,13 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   // Como no Playnite: passar o mouse ou mover o foco por capas e botões toca o som de mover, e confirmar (clique,
   // ✕ ou Enter) toca o de confirmar. O ✕ e o Enter chegam aqui como clique no item com o foco.
   const soundOnHover = (event: PointerEvent<HTMLDivElement>) => {
+    // A tela mudar embaixo do mouse parado (ex.: os detalhes abrindo) não conta como passar por um item.
+    const moved = pointer.current?.x !== event.clientX || pointer.current?.y !== event.clientY
+    pointer.current = { x: event.clientX, y: event.clientY }
     const target = interactive(event.target)
     if (!target || target === hovered.current) return
     hovered.current = target
-    sound("move")
+    if (moved) sound("move")
   }
   const soundOnFocus = (event: FocusEvent<HTMLDivElement>) => {
     if (!programmaticFocus.current && interactive(event.target) && event.target !== hovered.current) sound("move")
