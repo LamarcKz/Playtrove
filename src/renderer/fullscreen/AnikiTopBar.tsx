@@ -9,14 +9,14 @@ import { useI18n } from "@/hooks/useI18n"
 import { devMark } from "@/lib/devBuild"
 import { AnikiAvatar } from "./AnikiAvatar"
 
-interface Props { games: Game[]; hub: boolean; onHub: () => void; onProfile: () => void; onTrophies: () => void; onSearch: () => void; onMenu: () => void }
+interface Props { games: Game[]; hub: boolean; layoutLabel: string | null; onLayout: () => void; onHub: () => void; onProfile: () => void; onTrophies: () => void; onSearch: () => void; onMenu: () => void }
 
 /**
- * Barra do topo do Aniki (interface Padrão): o perfil à esquerda; no centro, Hub, Menu e Buscar (no Hub,
+ * Barra do topo do Aniki (interface Padrão): o perfil à esquerda; no centro, Hub, o layout atual, Menu e Buscar (no Hub,
  * o botão Biblioteca) — o menu fica também nos detalhes, para voltar ao modo janela de qualquer tela,
  * como no Playnite —; e, à direita, os troféus pegos de cada tipo, o controle e o relógio.
  */
-export function AnikiTopBar({ games, hub, onHub, onProfile, onTrophies, onSearch, onMenu }: Props) {
+export function AnikiTopBar({ games, hub, layoutLabel, onLayout, onHub, onProfile, onTrophies, onSearch, onMenu }: Props) {
   const { t } = useI18n()
   const { config } = useFullscreenConfig()
   const overview = useAchievementsOverview(games)
@@ -29,7 +29,7 @@ export function AnikiTopBar({ games, hub, onHub, onProfile, onTrophies, onSearch
     <nav className="aniki-topbar-center" aria-label={t.fullscreen.menu}>
       {hub
         ? <><button type="button" className="aniki-quick" onClick={onHub}>{t.fullscreen.library}</button><button type="button" className="aniki-quick" onClick={onProfile}>{t.fullscreen.profile}</button></>
-        : <button type="button" className="aniki-quick" onClick={onHub}>{t.fullscreen.hub}</button>}
+        : <><button type="button" className="aniki-quick" onClick={onHub}>{t.fullscreen.hub}</button>{layoutLabel && <button type="button" className="aniki-quick" title={t.fullscreen.layout} onClick={onLayout}>{layoutLabel}</button>}</>}
       <button type="button" className="aniki-quick" onClick={onMenu}>{t.fullscreen.menu}</button>
       <button type="button" className="aniki-quick" onClick={onSearch}>{t.fullscreen.searchShort}</button>
     </nav>

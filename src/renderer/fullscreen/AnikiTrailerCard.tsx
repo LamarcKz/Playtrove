@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
  * Trailer em miniatura do Signature (o "mini trailer" do Aniki): começa sem som depois de 600 ms de
  * seleção estável, respeita o movimento reduzido e some se o vídeo falhar.
  */
-export function AnikiTrailerCard({ url, play }: { url: string; play: boolean }) {
+export function AnikiTrailerCard({ url, play, className = "" }: { url: string; play: boolean; className?: string }) {
   const video = useRef<HTMLVideoElement>(null)
   const [show, setShow] = useState(false)
   const [ready, setReady] = useState(false)
@@ -31,7 +31,7 @@ export function AnikiTrailerCard({ url, play }: { url: string; play: boolean }) 
   }, [play, reduced, show])
   useEffect(() => () => { const node = video.current; if (node) { node.pause(); node.removeAttribute("src"); node.load() } }, [])
   if (!show || failed) return null
-  return <div className={ready ? "aniki-trailer aniki-trailer-ready" : "aniki-trailer"} aria-hidden="true">
+  return <div className={`aniki-trailer ${className} ${ready ? "aniki-trailer-ready" : ""}`} aria-hidden="true">
     <video ref={video} data-fullscreen-video src={url} muted loop playsInline preload="metadata" onLoadedData={() => setReady(true)} onError={() => setFailed(true)} />
   </div>
 }

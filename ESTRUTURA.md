@@ -33,7 +33,7 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `app_report_bug` | `SettingsPage.tsx` (Configurações → Sobre) | Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (`links.rs`) |
 | `window_minimize`, `window_toggle_maximize`, `window_close` e `window_get_state` | `TopBar.tsx` e `hooks/useFullscreen.ts` | Minimizar, maximizar/restaurar e fechar; consultar `isMaximized`, `isFullscreen` e `isFocused` nativos |
 | `window_set_fullscreen` | `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
-| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca) e o perfil (nome e avatar), com validação integral do patch e transação |
+| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar) e os layouts da biblioteca e dos detalhes, com validação integral do patch e transação |
 | `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
 | `games_set_status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
 | `statuses_create`, `statuses_rename`, `statuses_reorder`, `statuses_remove` e `statuses_set_rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
@@ -171,7 +171,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `types.ts` | Tipos de dados: `DailyPlaytime` (o tempo de um dia, para as Estatísticas), `Game` (o jogo), `Status` (um status), `StatusRules` (as regras automáticas), `LibrarySnapshot` (tudo junto, como a interface recebe), os da aba Emuladores (`EmulatorInfo`, `RetroArchCore`, `RomFolder` e `ScanResult`), os dos metadados (`MetadataConfig` e `MetadataProgress`), o da música (`MusicConfig`) e o da atualização (`UpdateStatus`) |
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
 | `controllers.ts` | Controle/bateria (`ConnectedController`), botões normalizados (`ControllerButton`) e snapshot de entrada (`ControllerInputSnapshot`, com sequência, geração e chave do controle) |
-| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), independentes do desktop |
+| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), independentes do desktop |
 
 ### `src/renderer`: interface React
 
@@ -223,7 +223,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `FullscreenShell.tsx` | Estado da sessão: biblioteca horizontal, Detalhes Signature, coleções, busca global, seleção por coleção, painéis, menu principal, mapa de botões do Aniki, dados comuns e lançamento/retorno. Restringe input ao painel atual e suspende interação durante execução |
 | `AnikiStage.tsx` | Palco de 1920×1080 do tema, ajustado ao monitor como no Playnite |
 | `AnikiTopBar.tsx` | Barra do topo da interface Padrão: coleção, Menu, Buscar, troféus desbloqueados, controle e relógio |
-| `AnikiLibrary.tsx` | Biblioteca horizontal: nome do jogo sobre a arte, etiquetas, legenda dos botões e faixa de capas |
+| `AnikiLibrary.tsx` | Biblioteca nos três layouts do Aniki: Horizontal (nome sobre a arte, etiquetas, legenda e faixa de capas), Vertical (capas em grade) e Lista (a lista à esquerda e o jogo à direita) |
 | `AnikiShortcutBar.tsx` | Legenda dos botões do controle, com a ação de segurar |
 | `AnikiHub.tsx` | Welcome Hub: páginas de perfil e de atividade, com os pontos de página e a legenda dos botões |
 | `AnikiQuickPanels.tsx` | Acesso rápido (perfil, configurações, jogo aleatório, atualizar biblioteca e energia) e Opções rápidas (música, volume e onde abrir) |
@@ -235,8 +235,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `FullscreenKeyboard.tsx` | Editor de busca/análise com teclado virtual e físico: maiúsculas, acentos, pontuação, espaço, cursor, exclusão e quebra de linha na análise; aplicar/salvar e cancelar preservam o rascunho separado |
 | `FullscreenPreferences.tsx` | Início em tela cheia e reprodução/volume independentes, usado no painel fullscreen e em Configurações → Geral |
 | `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, música salva com preferências fullscreen e a imagem de fundo do jogo; respeita foco, visibilidade e suspensão |
-| `AnikiSignature.tsx` | Detalhes no layout Signature: nome sobre a arte, painel de vidro com capa, nota e dificuldade, botões, dados e barra de conquistas |
-| `AnikiTrailerCard.tsx` | Trailer em miniatura dos detalhes: sem som, depois de 600 ms, com movimento reduzido e pausa na suspensão |
+| `AnikiDetails.tsx` | Detalhes nos seis layouts do Aniki (Signature, Moderno, Clássico, Original, Showcase e Painéis), com as mesmas peças (capa com nota e dificuldade, botões, dados, barra de conquistas, descrição e trailer) em lugares diferentes |
+| `AnikiTrailerCard.tsx` | Trailer dos detalhes (em miniatura ou ocupando um quadro, conforme o layout): sem som, depois de 600 ms, com movimento reduzido e pausa na suspensão |
 | `AnikiDescription.tsx` | Painel de descrição do Signature, com a análise e o botão de editar |
 | `AnikiTrophies.tsx` | Painel de troféus do Aniki: cabeçalho com capa e progresso, pegos de cada tipo, cartões, ordenação, filtro e ocultos |
 

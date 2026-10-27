@@ -1,3 +1,4 @@
+import { DETAILS_LAYOUTS, LIBRARY_LAYOUTS } from "@shared/fullscreen"
 import { useI18n } from "@/hooks/useI18n"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { AnikiIcon } from "./AnikiGlyph"
@@ -22,7 +23,7 @@ export function AnikiQuickAccess({ canRandom, updating, onProfile, onTrophies, o
   </div>
 }
 
-/** Quick Options do Aniki (segurar Create): painel à direita com as mudanças rápidas de mídia e de início. */
+/** Quick Options do Aniki (segurar Create): painel à direita com as mudanças rápidas de mídia, layouts e início. */
 export function AnikiQuickOptions() {
   const { t } = useI18n()
   const { config, save, error, pending } = useFullscreenConfig()
@@ -35,6 +36,8 @@ export function AnikiQuickOptions() {
         <output>{config.musicVolume}%</output>
         <button type="button" aria-label={t.fullscreen.volume + " +"} onClick={() => void save({ musicVolume: Math.min(100, config.musicVolume + 5) })}>{"+"}</button>
       </div>
+      <button type="button" onClick={() => void save({ libraryLayout: LIBRARY_LAYOUTS[(LIBRARY_LAYOUTS.indexOf(config.libraryLayout) + 1) % LIBRARY_LAYOUTS.length] })}><AnikiIcon icon="layout" /><span>{t.fullscreen.libraryLayout}: {t.fullscreen.libraryLayouts[config.libraryLayout]}</span></button>
+      <button type="button" onClick={() => void save({ detailsLayout: DETAILS_LAYOUTS[(DETAILS_LAYOUTS.indexOf(config.detailsLayout) + 1) % DETAILS_LAYOUTS.length] })}><AnikiIcon icon="layout" /><span>{t.fullscreen.detailsLayout}: {t.fullscreen.detailsLayouts[config.detailsLayout]}</span></button>
       <button type="button" aria-pressed={config.startDestination === "hub"} onClick={() => void save({ startDestination: config.startDestination === "hub" ? "library" : "hub" })}><AnikiIcon icon="home" /><span>{t.fullscreen.startIn}: {config.startDestination === "hub" ? t.fullscreen.hub : t.fullscreen.library}</span></button>
     </div>}
     {error && config && <p role="alert">{error}</p>}

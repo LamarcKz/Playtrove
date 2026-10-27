@@ -14,6 +14,9 @@ pub const CONFIG_EVENT: &str = "fullscreen:config";
 /// Avatares próprios do Playtrove para o perfil do Aniki (os do tema têm arte de terceiros).
 pub const AVATARS: [&str; 12] =
     ["gamepad", "trophy", "star", "crown", "ghost", "swords", "rocket", "flame", "skull", "sparkles", "shield", "zap"];
+/// Layouts da biblioteca e dos detalhes do Aniki; o primeiro de cada lista é o padrão.
+pub const LIBRARY_LAYOUTS: [&str; 3] = ["horizontal", "vertical", "list"];
+pub const DETAILS_LAYOUTS: [&str; 6] = ["signature", "modern", "classic", "original", "showcase", "panel"];
 /// Tamanho máximo do nome do perfil, em caracteres.
 const PROFILE_NAME_MAX: usize = 32;
 
@@ -35,6 +38,8 @@ pub struct FullscreenConfig {
     /// Vazio usa o nome padrão da tela ("Jogador").
     pub profile_name: String,
     pub profile_avatar: String,
+    pub library_layout: String,
+    pub details_layout: String,
 }
 
 pub fn get_config(db: &Connection) -> FullscreenConfig {
@@ -62,7 +67,18 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
             .flatten()
             .filter(|avatar| AVATARS.contains(&avatar.as_str()))
             .unwrap_or_else(|| AVATARS[0].to_string()),
+        library_layout: choice(db, "fullscreenLibraryLayout", &LIBRARY_LAYOUTS),
+        details_layout: choice(db, "fullscreenDetailsLayout", &DETAILS_LAYOUTS),
     }
+}
+
+/// Um valor salvo que precisa estar na lista; qualquer outro volta ao primeiro (o padrão).
+fn choice(db: &Connection, key: &str, options: &[&str]) -> String {
+    get_setting(db, key)
+        .ok()
+        .flatten()
+        .filter(|value| options.contains(&value.as_str()))
+        .unwrap_or_else(|| options[0].to_string())
 }
 
 fn valid_name(name: &str) -> bool {
@@ -99,6 +115,14 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
             "profileAvatar" => {
                 config.profile_avatar = value.as_str().filter(|avatar| AVATARS.contains(avatar)).ok_or_else(invalid)?.to_string();
             }
+            "libraryLayout" => {
+                config.library_layout =
+                    value.as_str().filter(|layout| LIBRARY_LAYOUTS.contains(layout)).ok_or_else(invalid)?.to_string();
+            }
+            "detailsLayout" => {
+                config.details_layout =
+                    value.as_str().filter(|layout| DETAILS_LAYOUTS.contains(layout)).ok_or_else(invalid)?.to_string();
+            }
             _ => return Err(invalid()),
         }
     }
@@ -113,6 +137,8 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenStartDestination", Some(destination))?;
     set_setting(&transaction, "fullscreenProfileName", Some(&config.profile_name))?;
     set_setting(&transaction, "fullscreenProfileAvatar", Some(&config.profile_avatar))?;
+    set_setting(&transaction, "fullscreenLibraryLayout", Some(&config.library_layout))?;
+    set_setting(&transaction, "fullscreenDetailsLayout", Some(&config.details_layout))?;
     transaction.commit()?;
     Ok(config)
 }
@@ -132,6 +158,7 @@ mod tests {
             json!({
                 "startOnLaunch": false, "musicPlayback": true, "musicVolume": 20,
                 "startDestination": "hub", "profileName": "", "profileAvatar": "gamepad",
+                "libraryLayout": "horizontal", "detailsLayout": "signature",
             })
         );
     }
@@ -180,6 +207,9 @@ mod tests {
             json!({"profileName": "a".repeat(33)}),
             json!({"profileName": "nome\nquebrado"}),
             json!({"profileAvatar": "personagem"}),
+            json!({"libraryLayout": "grade"}),
+            json!({"detailsLayout": "Signature"}),
+            json!({"detailsLayout": 1}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
             assert_eq!(get_config(&db), before);
@@ -204,6 +234,8 @@ mod tests {
         set_setting(&db, "fullscreenStartDestination", Some("detalhes")).unwrap();
         set_setting(&db, "fullscreenProfileName", Some(" nome com espaço ")).unwrap();
         set_setting(&db, "fullscreenProfileAvatar", Some("personagem")).unwrap();
+        set_setting(&db, "fullscreenLibraryLayout", Some("grade")).unwrap();
+        set_setting(&db, "fullscreenDetailsLayout", Some("outro")).unwrap();
         assert_eq!(get_config(&db), get_config(&memory_database()));
     }
 
@@ -221,5 +253,17 @@ mod tests {
         assert_eq!(saved.profile_avatar, "crown");
         assert_eq!(get_config(&db), saved);
         assert_eq!(set_config(&db, &json!({"profileName": ""}), Language::PtBr).unwrap().profile_name, "");
+    }
+
+    #[test]
+    fn layouts_da_biblioteca_e_dos_detalhes_persistem() {
+        let db = memory_database();
+        for layout in LIBRARY_LAYOUTS {
+            assert_eq!(set_config(&db, &json!({"libraryLayout": layout}), Language::PtBr).unwrap().library_layout, layout);
+        }
+        for layout in DETAILS_LAYOUTS {
+            assert_eq!(set_config(&db, &json!({"detailsLayout": layout}), Language::PtBr).unwrap().details_layout, layout);
+        }
+        assert_eq!(get_config(&db).details_layout, "panel");
     }
 }

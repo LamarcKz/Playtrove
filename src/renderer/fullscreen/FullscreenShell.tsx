@@ -14,7 +14,8 @@ import { AnikiStage } from "./AnikiStage"
 import { AnikiTopBar } from "./AnikiTopBar"
 import { AnikiLibrary } from "./AnikiLibrary"
 import { AnikiMainMenu } from "./AnikiMainMenu"
-import { AnikiSignature } from "./AnikiSignature"
+import { AnikiDetails } from "./AnikiDetails"
+import { DETAILS_LAYOUTS, LIBRARY_LAYOUTS } from "@shared/fullscreen"
 import { AnikiTrophies } from "./AnikiTrophies"
 import { AnikiDescription } from "./AnikiDescription"
 import { AnikiHub, HUB_PAGES } from "./AnikiHub"
@@ -128,6 +129,12 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
     catch (reason) { setError(String(reason)) }
     finally { setUpdating(false) }
   }
+  // Como segurar △ no Aniki: troca o layout da tela atual (biblioteca ou detalhes), em ciclo.
+  const cycleLayout = () => {
+    if (!config) return
+    if (details) void saveConfig({ detailsLayout: DETAILS_LAYOUTS[(DETAILS_LAYOUTS.indexOf(config.detailsLayout) + 1) % DETAILS_LAYOUTS.length] })
+    else void saveConfig({ libraryLayout: LIBRARY_LAYOUTS[(LIBRARY_LAYOUTS.indexOf(config.libraryLayout) + 1) % LIBRARY_LAYOUTS.length] })
+  }
   const mutate = async (operation: () => Promise<void>) => {
     if (editing) return
     setEditing(true)
@@ -162,6 +169,7 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
     if (event === "l3") { setPanel("search"); return true }
     if (event === "square") { if (game?.romPath && game.emulatorId) void play(); return true }
     if (event === "triangle" && game) { setPanel("options"); return true }
+    if (event === "triangle-hold") { cycleLayout(); return true }
     if ((event === "l1" || event === "r1") && !details) {
       changeCollection(collections[(collections.indexOf(collection) + (event === "r1" ? 1 : 2)) % collections.length])
       return true
@@ -174,7 +182,7 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   const shortcuts: AnikiShortcut[] = [
     ...(canPlay ? [{ button: "square" as const, label: t.fullscreen.play }] : []),
     { button: "cross", label: t.fullscreen.details },
-    ...(game ? [{ button: "triangle" as const, label: t.fullscreen.options }] : []),
+    ...(game ? [{ button: "triangle" as const, label: t.fullscreen.options, hold: t.fullscreen.holdLayout }] : []),
     { button: "l3", label: t.fullscreen.searchShort },
     { button: "create", label: t.fullscreen.hub, hold: t.fullscreen.holdQuickOptions },
     { button: "options", label: t.fullscreen.quickAccess, hold: t.fullscreen.holdSettings },
@@ -185,8 +193,9 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
       <AnikiStage>
       <FullscreenMedia game={game} suspended={suspended} />
       <section ref={panel ? undefined : scope} className="fs-main" inert={panel !== null || running.length > 0 || launching}>
-        <AnikiTopBar games={games} hub={hub} onHub={() => { setHub(!hub); setDetails(false) }} onProfile={() => setPanel("profile")} onTrophies={() => setPanel("trophyOverview")} onSearch={() => setPanel("search")} onMenu={() => setPanel("menu")} />
-        {hub && config ? <AnikiHub games={games} config={config} page={hubPage} onOpen={openDetails} /> : details && game ? <AnikiSignature
+        <AnikiTopBar games={games} hub={hub} layoutLabel={!config ? null : details ? t.fullscreen.detailsLayouts[config.detailsLayout] : t.fullscreen.libraryLayouts[config.libraryLayout]} onLayout={cycleLayout} onHub={() => { setHub(!hub); setDetails(false) }} onProfile={() => setPanel("profile")} onTrophies={() => setPanel("trophyOverview")} onSearch={() => setPanel("search")} onMenu={() => setPanel("menu")} />
+        {hub && config ? <AnikiHub games={games} config={config} page={hubPage} onOpen={openDetails} /> : details && game && config ? <AnikiDetails
+          layout={config.detailsLayout}
           game={game}
           status={status}
           canPlay={canPlay}
@@ -197,7 +206,8 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
           onTrophies={() => setPanel("achievements")}
           onDescription={() => setPanel("description")}
           onOptions={() => setPanel("options")}
-        /> : <AnikiLibrary game={game} games={games} visible={visible} selectedId={resolvedId} query={query} collectionLabel={query ? t.fullscreen.searchResults : label(collection)} shortcuts={shortcuts} onSelect={setSelectedId} onOpen={openDetails} onClearSearch={clearSearch} onOpenEmulators={onOpenEmulators} />}
+          onReview={openReview}
+        /> : <AnikiLibrary layout={config?.libraryLayout ?? "horizontal"} status={status} game={game} games={games} visible={visible} selectedId={resolvedId} query={query} collectionLabel={query ? t.fullscreen.searchResults : label(collection)} shortcuts={shortcuts} onSelect={setSelectedId} onOpen={openDetails} onClearSearch={clearSearch} onOpenEmulators={onOpenEmulators} />}
         {disconnected && <p role="status" className="aniki-disconnected">{t.fullscreen.disconnected}</p>}
       </section>
       {panel === "menu" && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.mainMenu}>

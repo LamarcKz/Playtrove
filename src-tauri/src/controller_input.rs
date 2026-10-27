@@ -52,9 +52,9 @@ pub fn parse_input(connection: Connection, report: &[u8]) -> Option<Vec<Controll
     // Só o analógico esquerdo navega. A zona morta evita eventos de ruído em repouso.
     let candidates = [
         (Up, matches!(hat, 0 | 1 | 7) || data[1] <= 64),
-        (Down, matches!(hat, 3 | 4 | 5) || data[1] >= 192),
-        (Left, matches!(hat, 5 | 6 | 7) || data[0] <= 64),
-        (Right, matches!(hat, 1 | 2 | 3) || data[0] >= 192),
+        (Down, matches!(hat, 3..=5) || data[1] >= 192),
+        (Left, matches!(hat, 5..=7) || data[0] <= 64),
+        (Right, matches!(hat, 1..=3) || data[0] >= 192),
         (Cross, face & 0x20 != 0),
         (Circle, face & 0x40 != 0),
         (Square, face & 0x10 != 0),

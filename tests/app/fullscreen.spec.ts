@@ -262,6 +262,37 @@ test("perfil e tela geral de troféus abrem pelo Acesso rápido, com o nível de
   }
 })
 
+test("segurar triângulo troca os layouts do Aniki e os seis detalhes mostram o Jogar", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    await startInLibrary(page)
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    const library = page.getByTestId("fullscreen-library")
+    await expect(library).toBeVisible()
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    await input(app)
+    await input(app, ["triangle"])
+    await page.waitForTimeout(700)
+    await input(app)
+    await expect(library).toHaveClass(/aniki-library-vertical/)
+    await expect(page.getByTestId("aniki-quick-options")).toHaveCount(0)
+    await page.getByTestId("fullscreen-shell").getByRole("button", { name: "Vertical", exact: true }).click()
+    await expect(library).toHaveClass(/aniki-library-list/)
+    await expect.poll(() => page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ libraryLayout: "list" })
+    await library.getByRole("button", { name: "Mar de Estrelas", exact: true }).click()
+    const details = page.getByTestId("fullscreen-details")
+    for (const layout of ["signature", "modern", "classic", "original", "showcase", "panel"]) {
+      await page.evaluate((value) => window.api.fullscreen.setConfig({ detailsLayout: value as "signature" }), layout)
+      await expect(details).toHaveAttribute("data-layout", layout)
+      await expect(details.getByRole("button", { name: "Jogar", exact: true })).toBeVisible()
+    }
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
 test("busca global pelo teclado virtual sai de Favoritos e devolve a coleção anterior", async () => {
   const { app, page, dataDir } = await launchApp()
   try {
