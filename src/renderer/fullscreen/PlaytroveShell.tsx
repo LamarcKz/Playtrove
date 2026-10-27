@@ -110,7 +110,8 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   }
   const action = (event: FullscreenAction) => {
     if (event === "circle") { back(); return true }
-    if (event === "create") { onExit(); return true }
+    // Create no controle e F11 no teclado ("window") voltam ao modo janela.
+    if (event === "create" || event === "window") { onExit(); return true }
     if (event === "options" && !panel) { setPanel("preferences"); return true }
     if (event === "square" && !panel) { setPanel("search"); return true }
     if (event === "triangle" && !panel) { favorite(); return true }

@@ -397,7 +397,8 @@ test("o tema Aniki é baixado com confirmação, vale na tela cheia e remover vo
     await page.getByRole("button", { name: "Remover o pacote do Aniki", exact: true }).click()
     await expect(themes.getByRole("radio", { name: "Playtrove" })).toBeChecked()
     expect(await page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ theme: "playtrove" })
-    expect(await load("Images/Back.png")).toBe(false)
+    // Outro endereço para o mesmo arquivo: a imagem carregada antes fica no cache do WebView.
+    expect(await load("Images/Back.png?depois-de-remover")).toBe(false)
   } finally {
     await app.close()
     removeDataDir(dataDir)
