@@ -11,6 +11,12 @@ export type DetailsLayout = (typeof DETAILS_LAYOUTS)[number]
 /** Os modos de efeitos do Aniki, do mais animado ao mais leve (o padrão é o equilibrado). */
 export const FULLSCREEN_EFFECTS = ["full", "animated", "balanced", "performance"] as const
 export type FullscreenEffects = (typeof FULLSCREEN_EFFECTS)[number]
+/** Os estilos de interface do Aniki, do mais limpo ao mais completo (o padrão é o Padrão). */
+export const FULLSCREEN_INTERFACES = ["clean", "standard", "enhanced", "complete"] as const
+export type FullscreenInterface = (typeof FULLSCREEN_INTERFACES)[number]
+/** Onde os trailers tocam sozinhos (o padrão é só nos detalhes). */
+export const FULLSCREEN_TRAILERS = ["off", "details", "all"] as const
+export type FullscreenTrailers = (typeof FULLSCREEN_TRAILERS)[number]
 
 /** Preferências próprias do modo de tela cheia, independentes do desktop. */
 export interface FullscreenConfig {
@@ -28,4 +34,10 @@ export interface FullscreenConfig {
   /** A cor tirada da arte do jogo selecionado, no lugar da paleta. */
   dynamicColors: boolean
   effects: FullscreenEffects
+  interface: FullscreenInterface
+  /** A tela de boas-vindas com o perfil ao abrir o app em tela cheia. */
+  loginScreen: boolean
+  trailers: FullscreenTrailers
+  /** O assistente inicial já foi concluído (ou pulado). */
+  setupDone: boolean
 }

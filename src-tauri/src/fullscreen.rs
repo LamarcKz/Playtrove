@@ -63,6 +63,10 @@ pub const COLOR_PRESETS: [&str; 41] = [
 ];
 /// Os modos de efeitos do Aniki; o padrão é o equilibrado.
 pub const EFFECTS: [&str; 4] = ["balanced", "full", "animated", "performance"];
+/// Os estilos de interface do Aniki (quanta informação e quantos atalhos a biblioteca mostra); o padrão é o Padrão.
+pub const INTERFACES: [&str; 4] = ["standard", "clean", "enhanced", "complete"];
+/// Onde os trailers tocam sozinhos: só nos detalhes (padrão), em nenhum lugar ou também na biblioteca.
+pub const TRAILERS: [&str; 3] = ["details", "off", "all"];
 /// Tamanho máximo do nome do perfil, em caracteres.
 const PROFILE_NAME_MAX: usize = 32;
 
@@ -90,6 +94,12 @@ pub struct FullscreenConfig {
     /// Cor tirada da arte do jogo selecionado, no lugar da paleta (a "cor dinâmica" do Aniki).
     pub dynamic_colors: bool,
     pub effects: String,
+    pub interface: String,
+    /// A tela de boas-vindas com o perfil ao abrir o app em tela cheia (a de login do Aniki).
+    pub login_screen: bool,
+    pub trailers: String,
+    /// O assistente inicial já foi concluído (ou pulado): ele não abre sozinho de novo.
+    pub setup_done: bool,
 }
 
 pub fn get_config(db: &Connection) -> FullscreenConfig {
@@ -122,6 +132,10 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
         color_preset: choice(db, "fullscreenColorPreset", &COLOR_PRESETS),
         dynamic_colors: boolean("fullscreenDynamicColors", false),
         effects: choice(db, "fullscreenEffects", &EFFECTS),
+        interface: choice(db, "fullscreenInterface", &INTERFACES),
+        login_screen: boolean("fullscreenLoginScreen", false),
+        trailers: choice(db, "fullscreenTrailers", &TRAILERS),
+        setup_done: boolean("fullscreenSetupDone", false),
     }
 }
 
@@ -177,6 +191,15 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
                     value.as_str().filter(|preset| COLOR_PRESETS.contains(preset)).ok_or_else(invalid)?.to_string();
             }
             "dynamicColors" => config.dynamic_colors = to_bool(value, language)?,
+            "loginScreen" => config.login_screen = to_bool(value, language)?,
+            "setupDone" => config.setup_done = to_bool(value, language)?,
+            "interface" => {
+                config.interface =
+                    value.as_str().filter(|interface| INTERFACES.contains(interface)).ok_or_else(invalid)?.to_string();
+            }
+            "trailers" => {
+                config.trailers = value.as_str().filter(|trailers| TRAILERS.contains(trailers)).ok_or_else(invalid)?.to_string();
+            }
             "effects" => {
                 config.effects = value.as_str().filter(|effects| EFFECTS.contains(effects)).ok_or_else(invalid)?.to_string();
             }
@@ -203,6 +226,10 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenColorPreset", Some(&config.color_preset))?;
     set_setting(&transaction, "fullscreenDynamicColors", Some(if config.dynamic_colors { "1" } else { "0" }))?;
     set_setting(&transaction, "fullscreenEffects", Some(&config.effects))?;
+    set_setting(&transaction, "fullscreenInterface", Some(&config.interface))?;
+    set_setting(&transaction, "fullscreenLoginScreen", Some(if config.login_screen { "1" } else { "0" }))?;
+    set_setting(&transaction, "fullscreenTrailers", Some(&config.trailers))?;
+    set_setting(&transaction, "fullscreenSetupDone", Some(if config.setup_done { "1" } else { "0" }))?;
     transaction.commit()?;
     Ok(config)
 }
@@ -224,6 +251,7 @@ mod tests {
                 "startDestination": "hub", "profileName": "", "profileAvatar": "gamepad",
                 "libraryLayout": "horizontal", "detailsLayout": "signature",
                 "colorPreset": "default", "dynamicColors": false, "effects": "balanced",
+                "interface": "standard", "loginScreen": false, "trailers": "details", "setupDone": false,
             })
         );
     }
@@ -278,6 +306,10 @@ mod tests {
             json!({"colorPreset": "neon"}),
             json!({"dynamicColors": "true"}),
             json!({"effects": "maximo"}),
+            json!({"interface": "minima"}),
+            json!({"trailers": "sempre"}),
+            json!({"loginScreen": 1}),
+            json!({"setupDone": null}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
             assert_eq!(get_config(&db), before);
@@ -307,6 +339,8 @@ mod tests {
         set_setting(&db, "fullscreenColorPreset", Some("neon")).unwrap();
         set_setting(&db, "fullscreenDynamicColors", Some("talvez")).unwrap();
         set_setting(&db, "fullscreenEffects", Some("maximo")).unwrap();
+        set_setting(&db, "fullscreenInterface", Some("minima")).unwrap();
+        set_setting(&db, "fullscreenTrailers", Some("sempre")).unwrap();
         assert_eq!(get_config(&db), get_config(&memory_database()));
     }
 
@@ -353,5 +387,21 @@ mod tests {
         );
         assert_eq!(get_config(&db), saved);
         assert!(COLOR_PRESETS.contains(&"sapphire-prestige") && COLOR_PRESETS[0] == "default");
+    }
+
+    #[test]
+    fn interface_login_trailers_e_assistente_persistem() {
+        let db = memory_database();
+        let saved = set_config(
+            &db,
+            &json!({"interface": "complete", "loginScreen": true, "trailers": "all", "setupDone": true}),
+            Language::PtBr,
+        )
+        .unwrap();
+        assert_eq!(
+            (saved.interface.as_str(), saved.login_screen, saved.trailers.as_str(), saved.setup_done),
+            ("complete", true, "all", true)
+        );
+        assert_eq!(get_config(&db), saved);
     }
 }

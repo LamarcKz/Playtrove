@@ -7,7 +7,9 @@ import { useRunningGamesState } from "@/hooks/useRunningGames"
 import { useFullscreenActive, useFullscreenInput } from "@/hooks/useFullscreenInput"
 import { fullscreenGames, restoreFullscreenSelection, type FullscreenAction, type FullscreenCollection } from "@/lib/fullscreenNavigation"
 import { FullscreenLaunchGuard } from "@/lib/fullscreenSession"
-import { FullscreenPreferences } from "./FullscreenPreferences"
+import { AnikiSettings, SETTINGS_CATEGORIES, type SettingsCategory } from "./AnikiSettings"
+import { AnikiSetup, SETUP_STEPS, type SetupDraft } from "./AnikiSetup"
+import { AnikiLogin } from "./AnikiLogin"
 import { FullscreenKeyboard } from "./FullscreenKeyboard"
 import { FullscreenMedia } from "./FullscreenMedia"
 import { AnikiStage } from "./AnikiStage"
@@ -26,7 +28,7 @@ import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { useDynamicPalette } from "@/hooks/useDynamicPalette"
 import type { AnikiShortcut } from "./AnikiShortcutBar"
 
-type Panel = "preferences" | "options" | "search" | "review" | "achievements" | "description" | "menu" | "quickAccess" | "quickOptions" | "profileName" | "profile" | "trophyOverview" | null
+type Panel = "preferences" | "options" | "search" | "review" | "achievements" | "description" | "menu" | "quickAccess" | "quickOptions" | "profileName" | "profile" | "trophyOverview" | "setup" | "login" | null
 interface Props { enabled: boolean; games: Game[]; initialGameId: number | null; onExit: () => void; onOpenEmulators: () => void }
 const collections: FullscreenCollection[] = ["all", "recent", "favorites"]
 
@@ -48,6 +50,10 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   const [notice, setNotice] = useState<string | null>(null)
   const { config, save: saveConfig } = useFullscreenConfig()
   const startApplied = useRef(false)
+  const [settingsCategory, setSettingsCategory] = useState<SettingsCategory>("general")
+  const [setupStep, setSetupStep] = useState(0)
+  const [setupDraft, setSetupDraft] = useState<SetupDraft | null>(null)
+  const nameReturn = useRef<Panel>("preferences")
   const scope = useRef<HTMLElement>(null)
   const launchGuard = useRef(new FullscreenLaunchGuard())
   const launchedId = useRef<number | null>(null)
@@ -61,7 +67,7 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   const active = useFullscreenActive()
   const { running, loading: loadingRunning } = useRunningGamesState()
   const suspended = !enabled || !active || loadingRunning || running.length > 0 || launching
-  const context = `${hub ? `hub${hubPage}` : details ? "details" : "library"}:${panel ?? "main"}:${details ? game?.id : collection}`
+  const context = `${hub ? `hub${hubPage}` : details ? "details" : "library"}:${panel ?? "main"}:${details ? game?.id : collection}:${panel === "preferences" ? settingsCategory : panel === "setup" ? setupStep : ""}`
   const label = (value: FullscreenCollection) => value === "all" ? t.fullscreen.all : value === "recent" ? t.fullscreen.recent : t.fullscreen.favorites
 
   useEffect(() => {
@@ -76,6 +82,9 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
     if (!enabled || !config || startApplied.current) return
     startApplied.current = true
     setHub(config.startDestination === "hub")
+    // Como no Aniki: a tela de boas-vindas, se ligada, e o assistente na primeira vez.
+    if (!config.setupDone) openSetup()
+    else if (config.loginScreen) setPanel("login")
   }, [enabled, config])
   useEffect(() => {
     if (!notice) return
@@ -97,6 +106,19 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   }, [context, active, suspended])
 
   const closePanel = () => { reviewRevision.current++; setPanel(null); setError(null) }
+  const openSetup = () => {
+    if (!config) return
+    const { profileName, profileAvatar, startDestination, loginScreen, interface: style, colorPreset, detailsLayout, effects, trailers } = config
+    setSetupDraft({ profileName, profileAvatar, startDestination, loginScreen, interface: style, colorPreset, detailsLayout, effects, trailers })
+    setSetupStep(0)
+    setPanel("setup")
+  }
+  const finishSetup = async (patch: Partial<SetupDraft>) => {
+    await saveConfig({ ...patch, setupDone: true })
+    setSetupDraft(null)
+    closePanel()
+  }
+  const editName = () => { nameReturn.current = panel; setPanel("profileName") }
   const clearSearch = () => { setQuery(""); setSelectedId(searchReturn.current.id); setDetails(searchReturn.current.details) }
   const openReview = () => { reviewRevision.current++; reviewReturn.current = panel; setPanel("review") }
   const cancelReview = () => { reviewRevision.current++; setPanel(reviewReturn.current); setError(null) }
@@ -112,7 +134,8 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   // Na biblioteca, voltar não sai da tela cheia: no Aniki a saída fica no menu principal.
   const back = () => {
     if (panel === "review") cancelReview()
-    else if (panel === "profileName") setPanel("preferences")
+    else if (panel === "profileName") setPanel(nameReturn.current)
+    else if (panel === "setup") { if (setupStep > 0) setSetupStep(setupStep - 1); else void finishSetup({}) }
     else if (panel) closePanel()
     else if (hub) setHub(false)
     else if (details) setDetails(false)
@@ -160,6 +183,10 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   const action = (event: FullscreenAction) => {
     if (event === "circle") { back(); return true }
     if (event === "window") { onExit(); return true }
+    if (panel === "preferences" && (event === "l1" || event === "r1")) {
+      setSettingsCategory(SETTINGS_CATEGORIES[(SETTINGS_CATEGORIES.indexOf(settingsCategory) + (event === "r1" ? 1 : SETTINGS_CATEGORIES.length - 1)) % SETTINGS_CATEGORIES.length])
+      return true
+    }
     if (panel) return false
     if (event === "options") { setPanel("quickAccess"); return true }
     if (event === "options-hold") { setPanel("preferences"); return true }
@@ -191,7 +218,7 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   ]
 
   return (
-    <div hidden={!enabled} className="fullscreen-shell" data-testid="fullscreen-shell" data-aniki-color={config?.colorPreset ?? "default"} data-aniki-effects={config?.effects ?? "balanced"} style={dynamic as CSSProperties}>
+    <div hidden={!enabled} className="fullscreen-shell" data-testid="fullscreen-shell" data-aniki-color={config?.colorPreset ?? "default"} data-aniki-effects={config?.effects ?? "balanced"} data-aniki-interface={config?.interface ?? "standard"} style={dynamic as CSSProperties}>
       <AnikiStage>
       <FullscreenMedia game={game} suspended={suspended} />
       <section ref={panel ? undefined : scope} className="fs-main" inert={panel !== null || running.length > 0 || launching}>
@@ -204,12 +231,13 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
           playLabel={launching ? t.fullscreen.launching : t.fullscreen.play}
           playDisabled={loadingRunning || launching || running.length > 0}
           playVideo={!suspended && !panel}
+          showTrailer={config.trailers !== "off"}
           onPlay={() => void play()}
           onTrophies={() => setPanel("achievements")}
           onDescription={() => setPanel("description")}
           onOptions={() => setPanel("options")}
           onReview={openReview}
-        /> : <AnikiLibrary layout={config?.libraryLayout ?? "horizontal"} status={status} game={game} games={games} visible={visible} selectedId={resolvedId} query={query} collectionLabel={query ? t.fullscreen.searchResults : label(collection)} shortcuts={shortcuts} onSelect={setSelectedId} onOpen={openDetails} onClearSearch={clearSearch} onOpenEmulators={onOpenEmulators} />}
+        /> : <AnikiLibrary layout={config?.libraryLayout ?? "horizontal"} interfaceStyle={config?.interface ?? "standard"} trailer={config?.trailers === "all"} playVideo={!suspended && !panel} status={status} game={game} games={games} visible={visible} selectedId={resolvedId} query={query} collectionLabel={query ? t.fullscreen.searchResults : label(collection)} shortcuts={shortcuts} onSelect={setSelectedId} onOpen={openDetails} onClearSearch={clearSearch} onOpenEmulators={onOpenEmulators} />}
         {disconnected && <p role="status" className="aniki-disconnected">{t.fullscreen.disconnected}</p>}
       </section>
       {panel === "menu" && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.mainMenu}>
@@ -220,6 +248,15 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
       </section></div>}
       {panel === "quickOptions" && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.quickOptions} className="aniki-quick-options-panel">
         <AnikiQuickOptions />
+      </section></div>}
+      {panel === "preferences" && <div className="aniki-trophies-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.settings}>
+        <AnikiSettings category={settingsCategory} onCategory={setSettingsCategory} onEditName={editName} onRunSetup={openSetup} />
+      </section></div>}
+      {panel === "setup" && setupDraft && <div className="aniki-trophies-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.setup.title}>
+        <AnikiSetup step={setupStep} draft={setupDraft} onDraft={(patch) => setSetupDraft({ ...setupDraft, ...patch })} onStep={(step) => setSetupStep(Math.max(0, Math.min(SETUP_STEPS.length - 1, step)))} onApply={() => void finishSetup(setupDraft)} onEditName={editName} />
+      </section></div>}
+      {panel === "login" && config && <div className="aniki-trophies-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.welcomeBack}>
+        <AnikiLogin config={config} onContinue={closePanel} />
       </section></div>}
       {panel === "description" && game && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.details.description} className="aniki-side-panel">
         <AnikiDescription game={game} onEditReview={openReview} />
@@ -233,10 +270,9 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
       {panel === "achievements" && game && <div className="aniki-trophies-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fields.achievements}>
         <AnikiTrophies game={game} />
       </section></div>}
-      {panel && !["menu", "description", "achievements", "quickAccess", "quickOptions", "profile", "trophyOverview"].includes(panel) && <div className="fs-modal-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={panel === "preferences" ? t.fullscreen.preferences : panel === "profileName" ? t.fullscreen.profileName : panel === "search" ? t.fullscreen.search : panel === "review" ? t.fullscreen.review : t.fullscreen.options} className={`fs-modal fs-modal-${panel}`}>
-        {panel === "profileName" && config ? <FullscreenKeyboard title={t.fullscreen.profileName} initial={config.profileName} onCancel={() => setPanel("preferences")} onApply={(text) => void saveConfig({ profileName: text.trim() }).then(() => setPanel("preferences"))} /> : panel === "search" ? <FullscreenKeyboard title={t.fullscreen.search} initial={query} onCancel={closePanel} onApply={(text) => { if (!query) searchReturn.current = { id: selectedId ?? resolvedId, details }; setQuery(text); setSelectedId(text ? null : searchReturn.current.id); setDetails(text ? false : searchReturn.current.details); closePanel() }} /> : panel === "review" && game ? <FullscreenKeyboard title={t.fullscreen.review} initial={game.review ?? ""} multiline onCancel={cancelReview} onApply={(text) => { const revision = reviewRevision.current; void mutate(async () => { await window.api.games.setEvaluation(game.id, { review: text || null }); if (revision === reviewRevision.current) { setPanel(reviewReturn.current); setError(null) } }) }} /> : <>
+      {panel && !["menu", "description", "achievements", "quickAccess", "quickOptions", "profile", "trophyOverview", "preferences", "setup", "login"].includes(panel) && <div className="fs-modal-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={panel === "profileName" ? t.fullscreen.profileName : panel === "search" ? t.fullscreen.search : panel === "review" ? t.fullscreen.review : t.fullscreen.options} className={`fs-modal fs-modal-${panel}`}>
+        {panel === "profileName" && config ? <FullscreenKeyboard title={t.fullscreen.profileName} initial={nameReturn.current === "setup" && setupDraft ? setupDraft.profileName : config.profileName} onCancel={() => setPanel(nameReturn.current)} onApply={(text) => { if (nameReturn.current === "setup" && setupDraft) { setSetupDraft({ ...setupDraft, profileName: text.trim().slice(0, 32) }); setPanel("setup") } else void saveConfig({ profileName: text.trim() }).then(() => setPanel(nameReturn.current)) }} /> : panel === "search" ? <FullscreenKeyboard title={t.fullscreen.search} initial={query} onCancel={closePanel} onApply={(text) => { if (!query) searchReturn.current = { id: selectedId ?? resolvedId, details }; setQuery(text); setSelectedId(text ? null : searchReturn.current.id); setDetails(text ? false : searchReturn.current.details); closePanel() }} /> : panel === "review" && game ? <FullscreenKeyboard title={t.fullscreen.review} initial={game.review ?? ""} multiline onCancel={cancelReview} onApply={(text) => { const revision = reviewRevision.current; void mutate(async () => { await window.api.games.setEvaluation(game.id, { review: text || null }); if (revision === reviewRevision.current) { setPanel(reviewReturn.current); setError(null) } }) }} /> : <>
           <button type="button" className="fs-back" onClick={closePanel}><ArrowLeft />{t.fullscreen.back}</button>
-          {panel === "preferences" && <><h2>{t.fullscreen.preferences}</h2><FullscreenPreferences onEditName={() => setPanel("profileName")} /></>}
           {panel === "options" && game && <><h2>{game.title}</h2><div className="fs-options">
             <button type="button" aria-pressed={game.favorite} disabled={editing} onClick={favorite}><Star />{t.fullscreen.favorite}</button>
             <h3>{t.fields.status}</h3><div className="fs-status-options">{statuses.map((item) => <button type="button" key={item.id} disabled={editing} aria-pressed={game.statusId === item.id} onClick={() => void mutate(() => window.api.games.setStatus(game.id, item.id))}>{item.name}</button>)}</div>

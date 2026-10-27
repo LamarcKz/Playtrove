@@ -1,6 +1,6 @@
 import type { ReactNode } from "react"
-import { Gamepad2 } from "lucide-react"
-import type { LibraryLayout } from "@shared/fullscreen"
+import { CalendarDays, CircleDot, Clock, Gamepad2, Star, Tag, Trophy } from "lucide-react"
+import type { FullscreenInterface, LibraryLayout } from "@shared/fullscreen"
 import type { Game } from "@shared/types"
 import { genreLabel } from "@shared/i18n"
 import { GameCover } from "@/components/GameCover"
@@ -8,10 +8,17 @@ import { useI18n } from "@/hooks/useI18n"
 import { formatLastPlayed, formatPlaytime } from "@/lib/format"
 import { AnikiIcon } from "./AnikiGlyph"
 import { AnikiLogo } from "./AnikiLogo"
+import { IconFact } from "./AnikiDetails"
+import { AnikiTrailerCard } from "./AnikiTrailerCard"
+import { progressPercent } from "@/lib/achievements"
 import { AnikiShortcutBar, type AnikiShortcut } from "./AnikiShortcutBar"
 
 interface Props {
   layout: LibraryLayout
+  interfaceStyle: FullscreenInterface
+  /** O trailer do jogo toca sem som atrás da biblioteca horizontal (trailers em "Biblioteca e detalhes"). */
+  trailer: boolean
+  playVideo: boolean
   game: Game | undefined
   games: Game[]
   visible: Game[]
@@ -30,7 +37,7 @@ interface Props {
  * Biblioteca do Aniki nos três layouts: Horizontal (nome sobre a arte, etiquetas, atalhos e a faixa de
  * capas), Vertical (nome no alto e as capas em grade) e Lista (a lista à esquerda e o jogo à direita).
  */
-export function AnikiLibrary({ layout, game, games, visible, selectedId, query, collectionLabel, status, shortcuts, onSelect, onOpen, onClearSearch, onOpenEmulators }: Props) {
+export function AnikiLibrary({ layout, interfaceStyle, trailer, playVideo, game, games, visible, selectedId, query, collectionLabel, status, shortcuts, onSelect, onOpen, onClearSearch, onOpenEmulators }: Props) {
   const { t } = useI18n()
   const item = (entry: Game, children: ReactNode) => <button
     type="button"
@@ -92,7 +99,19 @@ export function AnikiLibrary({ layout, game, games, visible, selectedId, query, 
     <div className="aniki-hero">
       <h1 className="aniki-game-title">{game ? <AnikiLogo game={game} /> : t.library.emptyTitle}</h1>
     </div>
-    {game && <div className="aniki-chips">
+    {trailer && game?.backgroundVideoUrl && <AnikiTrailerCard key={game.backgroundVideoUrl} url={game.backgroundVideoUrl} play={playVideo} className="aniki-trailer-background" />}
+    {game && interfaceStyle === "complete" && <aside className="aniki-side-info" aria-label={game.title}>
+      <ul className="aniki-details-iconfacts">
+        {game.achievements && <IconFact icon={Trophy} label={t.fields.achievements}>{game.achievements.unlocked} / {game.achievements.total} · {progressPercent(game.achievements.unlocked, game.achievements.total)}%</IconFact>}
+        <IconFact icon={Clock} label={t.fields.playtime}>{formatPlaytime(game.playtimeMinutes, t)}</IconFact>
+        <IconFact icon={CalendarDays} label={t.fields.lastPlayed}>{formatLastPlayed(game.lastPlayedAt, t)}</IconFact>
+        {game.genres.length > 0 && <IconFact icon={Tag} label={t.fields.genre}>{game.genres.slice(0, 2).map((genre) => genreLabel(genre, t)).join(" · ")}</IconFact>}
+        {status && <IconFact icon={CircleDot} label={t.fields.status}>{status}</IconFact>}
+        {game.rating !== null && <IconFact icon={Star} label={t.fields.rating}>{(game.rating / 2).toLocaleString(t.locale)} / 5</IconFact>}
+        {(game.platform ?? game.library) && <IconFact icon={Gamepad2} label={t.fields.platform}>{game.platform ?? game.library}</IconFact>}
+      </ul>
+    </aside>}
+    {game && interfaceStyle !== "complete" && <div className="aniki-chips">
       {clear}
       {game.favorite && <span className="aniki-chip"><AnikiIcon icon="heartFilled" />{t.fullscreen.favorite}</span>}
       {game.achievements && <span className="aniki-chip"><AnikiIcon icon="trophy" />{game.achievements.unlocked} / {game.achievements.total}</span>}

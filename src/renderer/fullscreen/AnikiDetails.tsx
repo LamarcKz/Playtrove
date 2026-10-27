@@ -21,6 +21,8 @@ interface Props {
   playLabel: string
   playDisabled: boolean
   playVideo: boolean
+  /** Os trailers automáticos estão ligados (nos detalhes ou também na biblioteca). */
+  showTrailer: boolean
   onPlay: () => void
   onTrophies: () => void
   onDescription: () => void
@@ -32,7 +34,7 @@ interface Props {
  * Detalhes nos seis layouts do Aniki (GameDetails e os de "7.Other Views"): Signature, Moderno, Clássico,
  * Original, Showcase e Painéis. Todos usam as mesmas peças, em lugares diferentes.
  */
-export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDisabled, playVideo, onPlay, onTrophies, onDescription, onOptions, onReview }: Props) {
+export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDisabled, playVideo, showTrailer, onPlay, onTrophies, onDescription, onOptions, onReview }: Props) {
   const { t } = useI18n()
   const year = game.releaseDate?.slice(0, 4)
   const achievements = game.achievements
@@ -75,7 +77,7 @@ export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDis
     </button>
     : <p className="aniki-details-none">{game.trophiesPending ? t.achievements.trophiesPending : t.fullscreen.noAchievements}</p>
   const description = <div className="aniki-details-description" data-fs-scroll tabIndex={0}><p>{game.description || t.fullscreen.noDescription}</p></div>
-  const trailer = (position: string) => game.backgroundVideoUrl && <AnikiTrailerCard key={game.backgroundVideoUrl} url={game.backgroundVideoUrl} play={playVideo} className={position} />
+  const trailer = (position: string) => showTrailer && game.backgroundVideoUrl && <AnikiTrailerCard key={game.backgroundVideoUrl} url={game.backgroundVideoUrl} play={playVideo} className={position} />
 
   return <div className={`aniki-details aniki-details-${layout}`} data-testid="fullscreen-details" data-layout={layout}>
     {layout === "signature" && <>
@@ -181,6 +183,6 @@ export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDis
   </div>
 }
 
-function IconFact({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {
+export function IconFact({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {
   return <li title={label}><Icon aria-hidden="true" /><span className="sr-only">{label}: </span><span>{children}</span></li>
 }

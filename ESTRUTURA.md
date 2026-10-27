@@ -35,7 +35,7 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `games_accent_color` | `hooks/useDynamicPalette.ts` | A cor de destaque tirada da arte de fundo (ou da capa) do jogo, ou null sem imagem |
 | `window_set_fullscreen` | `hooks/useDynamicPalette.ts` | A cor dinâmica do jogo selecionado: pede a cor ao Rust 800 ms depois de a seleção parar e devolve as variáveis CSS |
 | `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
-| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar), os layouts da biblioteca e dos detalhes, a paleta, a cor dinâmica e os efeitos, com validação integral do patch e transação |
+| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar), os layouts da biblioteca e dos detalhes, a paleta, a cor dinâmica, os efeitos, o estilo da interface, a tela de boas-vindas, os trailers e se o assistente inicial já foi feito, com validação integral do patch e transação |
 | `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
 | `games_set_status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
 | `statuses_create`, `statuses_rename`, `statuses_reorder`, `statuses_remove` e `statuses_set_rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
@@ -174,7 +174,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
 | `controllers.ts` | Controle/bateria (`ConnectedController`), botões normalizados (`ControllerButton`) e snapshot de entrada (`ControllerInputSnapshot`, com sequência, geração e chave do controle) |
 | `anikiColors.ts` | As 41 paletas do Aniki (id e nome), a mesma lista do Rust (`COLOR_PRESETS`) |
-| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), `colorPreset`, `dynamicColors` e `effects` (de `FULLSCREEN_EFFECTS`), independentes do desktop |
+| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), `colorPreset`, `dynamicColors` e `effects` (de `FULLSCREEN_EFFECTS`), `interface` (de `FULLSCREEN_INTERFACES`), `loginScreen`, `trailers` (de `FULLSCREEN_TRAILERS`) e `setupDone` (o assistente inicial), independentes do desktop |
 
 ### `src/renderer`: interface React
 
@@ -228,7 +228,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `FullscreenShell.tsx` | Estado da sessão: biblioteca horizontal, Detalhes Signature, coleções, busca global, seleção por coleção, painéis, menu principal, mapa de botões do Aniki, dados comuns e lançamento/retorno. Restringe input ao painel atual e suspende interação durante execução |
 | `AnikiStage.tsx` | Palco de 1920×1080 do tema, ajustado ao monitor como no Playnite |
 | `AnikiTopBar.tsx` | Barra do topo da interface Padrão: coleção, Menu, Buscar, troféus desbloqueados, controle e relógio |
-| `AnikiLibrary.tsx` | Biblioteca nos três layouts do Aniki: Horizontal (nome sobre a arte, etiquetas, legenda e faixa de capas), Vertical (capas em grade) e Lista (a lista à esquerda e o jogo à direita) |
+| `AnikiLibrary.tsx` | Biblioteca nos três layouts do Aniki: Horizontal (nome sobre a arte, etiquetas, legenda e faixa de capas), Vertical (capas em grade) e Lista (a lista à esquerda e o jogo à direita), com o painel lateral do estilo Completo e o trailer de fundo |
 | `AnikiShortcutBar.tsx` | Legenda dos botões do controle, com a ação de segurar |
 | `AnikiHub.tsx` | Welcome Hub: páginas de perfil e de atividade, com os pontos de página e a legenda dos botões |
 | `AnikiQuickPanels.tsx` | Acesso rápido (perfil, configurações, jogo aleatório, atualizar biblioteca e energia) e Opções rápidas (música, volume e onde abrir) |
@@ -239,7 +239,10 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `AnikiMainMenu.tsx` | Menu principal: configurações, jogo aleatório, minimizar, voltar ao modo janela e sair |
 | `AnikiGlyph.tsx` | Ícones (Segoe Fluent Icons, os códigos do Aniki) e glifos dos botões do DualSense |
 | `FullscreenKeyboard.tsx` | Editor de busca/análise com teclado virtual e físico: maiúsculas, acentos, pontuação, espaço, cursor, exclusão e quebra de linha na análise; aplicar/salvar e cancelar preservam o rascunho separado |
-| `FullscreenPreferences.tsx` | Início em tela cheia e reprodução/volume independentes, usado no painel fullscreen e em Configurações → Geral |
+| `FullscreenPreferences.tsx` | Preferências da tela cheia em Configurações → Geral do modo janela |
+| `AnikiSettings.tsx` | Configurações pelo controle: categorias (L1/R1), opções que ligam ou avançam em ciclo e a descrição do item com o foco |
+| `AnikiSetup.tsx` | Assistente inicial de 11 etapas, com rascunho próprio, prévia de cada escolha e o resumo antes de aplicar |
+| `AnikiLogin.tsx` | Tela de boas-vindas ao abrir a tela cheia (avatar, nome e continuar) |
 | `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, música salva com preferências fullscreen e a imagem de fundo do jogo; respeita foco, visibilidade e suspensão |
 | `AnikiDetails.tsx` | Detalhes nos seis layouts do Aniki (Signature, Moderno, Clássico, Original, Showcase e Painéis), com as mesmas peças (capa com nota e dificuldade, botões, dados, barra de conquistas, descrição e trailer) em lugares diferentes |
 | `AnikiTrailerCard.tsx` | Trailer dos detalhes (em miniatura ou ocupando um quadro, conforme o layout): sem som, depois de 600 ms, com movimento reduzido e pausa na suspensão |
@@ -464,7 +467,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | Mudar onde as imagens aparecem | `GameCover.tsx` (capa), `GameIcon.tsx` (ícone), `GameBackdrop.tsx` (fundo), usados em `GameDetailsView.tsx`, `GameDetailsPanel.tsx`, `GameCard.tsx` e `GameList.tsx` |
 | Mudar o vídeo de fundo | `src-tauri/src/videos.rs` (importação, modos, associação e protocolo por intervalos), `metadata/download.rs` e `metadata/trailer_downloader.rs` (trailer automático), `metadata/trailer_tools.rs` (ferramentas e hashes), `metadata/trailer_tools_process.rs` (processo e descendentes), `GameActionsMenu.tsx` (ações) e `GameDetailsBackdrop.tsx` (reprodução e imagem de reserva) |
 | Mudar a música tema | `src-tauri/src/music.rs` (preferências/importação/protocolo), `music_search.rs`/`music_previews.rs` (candidatas/escolhas/prévias), `metadata/theme_downloader.rs` (busca/áudio), `metadata/queue.rs` (fila), `MusicReviewDialog.tsx`/`MusicReviewPanel.tsx`/`MetadataSettings.tsx` (revisão e aquisição), `LibraryThemeMusic.tsx`/`lib/themeMusicPlayer.ts`/`lib/musicPreviewPlayer.ts` (reprodução) |
-| Ampliar a tela cheia (hub, configuração completa, perfil, layouts, temas, ferramentas ou conectores) | `src/renderer/fullscreen/FullscreenShell.tsx` e seus painéis; transições em `hooks/useFullscreen.ts`/`src-tauri/src/window.rs`, preferências em `src-tauri/src/fullscreen.rs` e `src/shared/fullscreen.ts`. Esses recursos ainda ficam no roadmap |
+| Ampliar a tela cheia (centro de controle durante o jogo, mídia extra, ferramentas, serviços ou conectores) | `src/renderer/fullscreen/FullscreenShell.tsx` e seus painéis; transições em `hooks/useFullscreen.ts`/`src-tauri/src/window.rs`, preferências em `src-tauri/src/fullscreen.rs` e `src/shared/fullscreen.ts` (e a opção nova em `AnikiSettings.tsx`, com a descrição nos dicionários). Esses recursos ainda ficam no roadmap |
 | Mudar a navegação por controle | `src-tauri/src/controller_input.rs` (pacotes), `controllers.rs` (serviço opt-in), `src/renderer/lib/fullscreenNavigation.ts` (ações, toque/segurar e repetição), `hooks/useFullscreenInput.ts` (foco/escopo) e o mapa em `fullscreen/FullscreenShell.tsx` |
 | Lembrar o modo de exibição e os filtros ao reabrir o app | `src/renderer/App.tsx` → estados `libraryView` e `libraryFilters` (salvar em algum lugar, ex.: na tabela `settings`, por um comando) |
 | Criar outro modo de exibição | `src/renderer/components/LibraryTools.tsx` (`LibraryView` e `VIEWS`) e `src/renderer/pages/LibraryPage.tsx` |
