@@ -89,6 +89,8 @@ mod tests {
     use std::io::Read;
     use std::process::{Command, Stdio};
 
+    use windows::Win32::UI::WindowsAndMessaging::IsZoomed;
+
     use super::*;
     use crate::test_support::temp_folder;
 
@@ -120,8 +122,23 @@ $form.add_Shown({{ $timer.Start() }})
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        maximize_window(child.id());
-        thread::sleep(Duration::from_secs(4));
+        let pid = child.id();
+        maximize_window(pid);
+        // Espera a janela de verdade, e não um tempo fixo: no robô dos testes, o PowerShell pode levar
+        // mais de 4 s para mostrar a janela, e ela fecharia antes de ser maximizada.
+        let start = Instant::now();
+        let window = loop {
+            if let Some(window) = main_window(pid) {
+                break window;
+            }
+            assert!(start.elapsed() < Duration::from_secs(60), "a janela de teste não apareceu");
+            thread::sleep(POLL);
+        };
+        let shown = Instant::now();
+        // SAFETY: consulta sobre a janela que acabou de ser achada; se ela fechar, só devolve falso.
+        while !unsafe { IsZoomed(window) }.as_bool() && shown.elapsed() < Duration::from_secs(5) {
+            thread::sleep(POLL);
+        }
         std::fs::write(&done, "").unwrap();
         let mut output = String::new();
         child.stdout.take().unwrap().read_to_string(&mut output).unwrap();
