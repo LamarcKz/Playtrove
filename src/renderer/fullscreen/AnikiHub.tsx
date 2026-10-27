@@ -7,6 +7,8 @@ import { formatPlaytime } from "@/lib/format"
 import { hubActivity, hubProfileStats } from "@/lib/fullscreenHub"
 import { AnikiAvatar } from "./AnikiAvatar"
 import { AnikiShortcutBar } from "./AnikiShortcutBar"
+import { useCollectorLevel } from "./AnikiProfile"
+import { useAchievementsOverview } from "@/hooks/useAchievements"
 
 export const HUB_PAGES = 2
 
@@ -36,6 +38,7 @@ export function AnikiHub({ games, config, page, onOpen }: Props) {
 function HubProfile({ games, daily, config }: { games: Game[]; daily: DailyPlaytime[]; config: FullscreenConfig }) {
   const { t } = useI18n()
   const stats = hubProfileStats(games, daily)
+  const level = useCollectorLevel(useAchievementsOverview(games))
   const tiles = [
     [t.fullscreen.hubTotalGames, stats.totalGames],
     [t.fullscreen.hubPlayable, stats.playable],
@@ -49,6 +52,7 @@ function HubProfile({ games, daily, config }: { games: Game[]; daily: DailyPlayt
     <div className="aniki-hub-identity">
       <h2>{config.profileName || t.fullscreen.defaultProfileName}</h2>
       {stats.topGenre && <p className="aniki-hub-rank">{t.fullscreen.fanOf(genreLabel(stats.topGenre, t))}</p>}
+      <p>{t.fullscreen.level(level.level)}{level.rank && ` · ${t.fullscreen.ranks[level.rank.tier]} ${level.rank.step}`}</p>
       <p>{t.fullscreen.totalPlaytime}: {formatPlaytime(stats.totalMinutes, t)}</p>
       {stats.topPlatform && <p className="aniki-hub-tags"><span>{t.fullscreen.topPlatform} · {stats.topPlatform}</span></p>}
     </div>

@@ -328,8 +328,9 @@
 .fullscreen-shell .aniki-quick { width: 120px; padding: 6px 0; font-size: 24px; font-weight: 600; color: var(--aniki-text); border-radius: 10px; }
 .fullscreen-shell .aniki-quick:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
 .aniki-topbar-right { display: flex; align-items: center; justify-content: flex-end; gap: 22px; font-size: 22px; font-weight: 600; }
-.aniki-grades { display: flex; align-items: center; gap: 14px; }
-.aniki-grades li { display: flex; align-items: center; gap: 4px; }
+.fullscreen-shell .aniki-grades { display: flex; align-items: center; gap: 14px; padding: 6px 10px; font-size: 22px; font-weight: 600; border-radius: 10px; }
+.aniki-grades span { display: flex; align-items: center; gap: 4px; }
+.fullscreen-shell .aniki-grades:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
 .aniki-grades svg { width: 24px; height: 24px; }
 .aniki-clock { font-variant-numeric: tabular-nums; }
 .aniki-library { position: relative; height: 1000px; }
@@ -475,3 +476,52 @@
 .fullscreen-shell .fs-avatars button { padding: .2em; border-radius: 50%; }
 .fs-profile-name { text-align: left; }
 .fs-profile-name input { margin-left: 1em; }
+
+/* Tela de perfil (ProfilView) e tela geral de troféus (PlayniteAchievements) do Aniki. */
+.aniki-profile, .aniki-trophy-overview { height: 1080px; padding: 40px 100px 0; display: flex; flex-direction: column; gap: 20px; }
+.aniki-profile-header { display: grid; grid-template-columns: 140px 1fr auto; align-items: center; gap: 34px; padding: 26px 34px; border-radius: 22px; background: var(--aniki-hub-card); box-shadow: inset 0 0 0 2px var(--aniki-avatar-border); }
+.aniki-profile-identity h2 { font-size: 40px; font-weight: 800; }
+.aniki-profile-identity p { font-size: 22px; margin-top: 4px; }
+.aniki-profile-level { font-weight: 700; color: var(--aniki-light); }
+.aniki-profile-progress, .aniki-overview-progress { height: 10px; margin-top: 12px; max-width: 520px; }
+.aniki-profile-points { font-size: 18px !important; color: var(--aniki-text-detail); }
+.aniki-profile-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 26px; padding-bottom: 40px; }
+.aniki-profile-body h3 { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
+.aniki-profile-trophies .aniki-trophies-grades { justify-content: flex-start; margin-bottom: 14px; }
+.aniki-profile-unlocks { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+.aniki-profile-unlocks h4 { font-size: 20px; color: var(--aniki-glyph); margin-bottom: 8px; }
+.aniki-profile-unlocks li { display: flex; align-items: center; gap: 14px; padding: 8px 0; }
+.aniki-profile-unlocks li span { display: flex; flex-direction: column; min-width: 0; }
+.aniki-profile-unlocks strong { font-size: 19px; overflow-wrap: anywhere; }
+.aniki-profile-unlocks small { font-size: 15px; color: var(--aniki-text-detail); }
+.aniki-profile-badge { width: 56px !important; height: 56px !important; border-radius: 10px !important; }
+.aniki-profile-covers { display: flex; gap: 18px; }
+.fullscreen-shell .aniki-profile-covers button { width: 150px; height: 225px; padding: 0; border-radius: 12px; overflow: hidden; background: var(--aniki-control); }
+.aniki-profile-covers [data-slot="game-cover"] { width: 100%; height: 100%; max-width: 100% !important; --cover-max-height: 225px; }
+.aniki-profile-covers [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+.fullscreen-shell .aniki-profile-covers button:focus-visible, .fullscreen-shell .aniki-overview-games button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 24px var(--aniki-focus-glow); }
+.aniki-profile-platforms ul { display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
+.aniki-profile-platforms li { display: grid; grid-template-columns: 260px 1fr 60px; align-items: center; gap: 16px; font-size: 20px; }
+.aniki-profile-platforms strong { text-align: right; }
+.aniki-overview-header { display: grid; grid-template-columns: 96px 1fr 420px; align-items: center; gap: 26px; }
+.aniki-overview-header h2 { font-size: 42px; font-weight: 800; }
+.aniki-overview-header p { font-size: 22px; color: var(--aniki-text-secondary); }
+.aniki-overview-level { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 22px; }
+.aniki-overview-level strong { font-size: 32px; color: var(--aniki-light); }
+.aniki-overview-level small { font-size: 16px; color: var(--aniki-text-detail); }
+.aniki-overview-level .aniki-overview-progress { width: 100%; }
+.aniki-overview-stats { display: flex; align-items: center; justify-content: space-between; gap: 30px; padding: 18px 26px; border-radius: 18px; background: var(--aniki-hub-card); }
+.aniki-overview-stats dl { display: flex; gap: 30px; }
+.aniki-overview-stats dt { font-size: 15px; color: var(--aniki-text-detail); }
+.aniki-overview-stats dd { font-size: 26px; font-weight: 700; }
+.aniki-overview-games { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 4px 16px 30px 4px; }
+.fullscreen-shell .aniki-overview-games button { width: 100%; display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 24px; padding: 10px 24px 10px 10px; border-radius: 14px; text-align: left; background: var(--aniki-card-trophy); }
+.aniki-overview-cover { width: 96px; height: 120px; border-radius: 10px; overflow: hidden; }
+.aniki-overview-cover [data-slot="game-cover"] { width: 100%; height: 100%; max-width: 100% !important; --cover-max-height: 120px; }
+.aniki-overview-cover [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+.aniki-overview-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.aniki-overview-info strong { font-size: 24px; overflow-wrap: anywhere; }
+.aniki-overview-info small { font-size: 17px; color: var(--aniki-text-detail); }
+.aniki-overview-grades { display: flex; gap: 18px; font-size: 20px; font-weight: 600; }
+.aniki-overview-grades span { display: flex; align-items: center; gap: 4px; }
+.aniki-overview-grades svg { width: 26px; height: 26px; }

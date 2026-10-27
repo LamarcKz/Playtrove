@@ -234,6 +234,33 @@ test("Welcome Hub abre primeiro, troca de página, abre um jogo e chega aos pain
   }
 })
 
+test("perfil e tela geral de troféus abrem pelo Acesso rápido, com o nível de colecionador", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    await expect(page.getByTestId("aniki-hub")).toBeVisible()
+    await expect(page.getByTestId("aniki-hub").getByText("Nível 0 · Bronze 5", { exact: true })).toBeVisible()
+    await app.focus()
+    await press(app, "options")
+    await page.getByTestId("aniki-quick-access").getByRole("button", { name: "Perfil", exact: true }).click()
+    const profile = page.getByTestId("aniki-profile")
+    await expect(profile.getByRole("heading", { name: "Jogador", exact: true })).toBeVisible()
+    await expect(profile.getByText("Nível 0 · Bronze 5", { exact: true })).toBeVisible()
+    await profile.getByRole("heading", { name: "Adicionados recentemente", exact: true }).waitFor()
+    await press(app, "circle")
+    await expect(profile).toHaveCount(0)
+    await press(app, "options")
+    await page.getByTestId("aniki-quick-access").getByRole("button", { name: "Troféus", exact: true }).click()
+    const trophies = page.getByTestId("aniki-trophy-overview")
+    await expect(trophies.getByText("Nível 0", { exact: true })).toBeVisible()
+    await trophies.getByRole("button", { name: /Ordenar/ }).click()
+    await expect(trophies.getByRole("button", { name: "Ordenar: Nome", exact: true })).toBeVisible()
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
 test("busca global pelo teclado virtual sai de Favoritos e devolve a coleção anterior", async () => {
   const { app, page, dataDir } = await launchApp()
   try {

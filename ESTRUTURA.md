@@ -51,7 +51,7 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `stats_daily_playtime` | `pages/StatsPage.tsx` | O tempo jogado em cada um dos últimos 30 dias (das sessões guardadas no banco) |
 | `achievements_get_config` e `achievements_set_account` | `hooks/useAchievements.ts` e `AchievementsSettings.tsx` (Configurações → Conquistas) | A conta do RetroAchievements (o nome e a situação da atualização; a chave nunca volta) e salvar ou tirar a conta (o Rust confere no site antes de salvar) |
 | `achievements_sync` | Botões "Atualizar" (aba Conquistas e Configurações) | Busca agora as conquistas de todos os jogos |
-| `achievements_game` e `achievements_overview` | `hooks/useAchievements.ts` | As conquistas de um jogo (o cartão dos Detalhes e a janela "Ver todas") e tudo o que a aba Conquistas mostra |
+| `achievements_game` e `achievements_overview` | `hooks/useAchievements.ts` | As conquistas de um jogo (o cartão dos Detalhes e a janela "Ver todas") e tudo o que a aba Conquistas mostra, mais as desbloqueadas por raridade e as mais raras (o nível de colecionador e o perfil da tela cheia) |
 | `updates_get_status`, `updates_check`, `updates_install` e `updates_set_auto_check` | `hooks/useUpdates.ts`, `UpdateNotice.tsx` e `UpdateSettings.tsx` (Configurações → Sobre) | A atualização do app: a situação, procurar agora, instalar a versão encontrada (baixa, fecha, instala e abre de novo; na portátil, abre a página de download) e ligar ou desligar a procura ao abrir |
 | `controllers_list` | `hooks/useControllers.ts` | Os controles conectados (DualSense), com a bateria |
 | `controllers_get_input` e `controllers_set_input_enabled` | `hooks/useFullscreenInput.ts` | Snapshot de entrada e habilitação opt-in do leitor rápido; o Rust exige tela cheia nativa, foco e nenhum jogo em execução |
@@ -208,6 +208,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/musicPreviewPlayer.ts` | Player da prévia, cancelamento/respostas antigas, volume e exclusão de áudio ambiente, mantendo cache ao confirmar |
 | `lib/musicReview.ts`, `lib/musicReviewsLoader.ts` | Classificação de pendências/contagem e leitura compartilhada sem tratar desconhecido/falha como lista vazia |
 | `lib/fullscreenNavigation.ts` | Coleções/busca global, restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda e repetição só direcional |
+| `lib/collectorLevel.ts` | Pontos de colecionador (pela raridade) e de troféu (pelo tipo) e a curva de níveis com as patentes, recriando a regra do PlayniteAchievements |
 | `lib/fullscreenHub.ts` | Os números do perfil e os cartões de atividade do Welcome Hub, calculados com os jogos e a atividade diária |
 | `lib/fullscreenSession.ts` | `FullscreenLaunchGuard`: serializa consulta de jogos abertos e lançamento, bloqueando cliques/ações concorrentes |
 | `lib/fullscreenText.ts` | Edição do texto virtual por seleção/cursor, exclusão e limite de tamanho |
@@ -226,6 +227,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `AnikiShortcutBar.tsx` | Legenda dos botões do controle, com a ação de segurar |
 | `AnikiHub.tsx` | Welcome Hub: páginas de perfil e de atividade, com os pontos de página e a legenda dos botões |
 | `AnikiQuickPanels.tsx` | Acesso rápido (perfil, configurações, jogo aleatório, atualizar biblioteca e energia) e Opções rápidas (música, volume e onde abrir) |
+| `AnikiProfile.tsx` | Tela de perfil: nível de colecionador, números, troféus, desbloqueadas por último e mais raras, prateleiras e jogos por plataforma |
+| `AnikiTrophyOverview.tsx` | Tela geral de troféus: nível, totais por tipo e raridade e os jogos com progresso, ordenação e filtro |
 | `AnikiAvatar.tsx` | Avatares próprios do Playtrove para o perfil, no círculo dourado do Aniki |
 | `AnikiMainMenu.tsx` | Menu principal: configurações, jogo aleatório, minimizar, voltar ao modo janela e sair |
 | `AnikiGlyph.tsx` | Ícones (Segoe Fluent Icons, os códigos do Aniki) e glifos dos botões do DualSense |

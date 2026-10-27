@@ -3,16 +3,18 @@ import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { AnikiIcon } from "./AnikiGlyph"
 import { AnikiAvatar } from "./AnikiAvatar"
 
-interface QuickAccessProps { canRandom: boolean; updating: boolean; onSettings: () => void; onRandom: () => void; onUpdate: () => void; onPower: () => void }
+interface QuickAccessProps { canRandom: boolean; updating: boolean; onProfile: () => void; onTrophies: () => void; onSettings: () => void; onRandom: () => void; onUpdate: () => void; onPower: () => void }
 
 /** Quick Access do Aniki (Options): painel à esquerda com o perfil e os atalhos do app. */
-export function AnikiQuickAccess({ canRandom, updating, onSettings, onRandom, onUpdate, onPower }: QuickAccessProps) {
+export function AnikiQuickAccess({ canRandom, updating, onProfile, onTrophies, onSettings, onRandom, onUpdate, onPower }: QuickAccessProps) {
   const { t } = useI18n()
   const { config } = useFullscreenConfig()
   return <div className="aniki-main-menu aniki-quick-access" data-testid="aniki-quick-access">
     {config && <div className="aniki-quick-profile"><AnikiAvatar avatar={config.profileAvatar} size={72} /><strong>{config.profileName || t.fullscreen.defaultProfileName}</strong></div>}
     <div className="aniki-menu-items">
-      <button type="button" data-fs-default onClick={onSettings}><AnikiIcon icon="settings" /><span>{t.fullscreen.settings}</span></button>
+      <button type="button" data-fs-default onClick={onProfile}><AnikiIcon icon="contact" /><span>{t.fullscreen.profile}</span></button>
+      <button type="button" onClick={onTrophies}><AnikiIcon icon="trophy" /><span>{t.fullscreen.trophiesTitle}</span></button>
+      <button type="button" onClick={onSettings}><AnikiIcon icon="settings" /><span>{t.fullscreen.settings}</span></button>
       <button type="button" disabled={!canRandom} onClick={onRandom}><AnikiIcon icon="random" /><span>{t.fullscreen.randomGame}</span></button>
       <button type="button" disabled={updating} onClick={onUpdate}><AnikiIcon icon="refresh" /><span>{updating ? t.fullscreen.updatingLibrary : t.fullscreen.updateLibrary}</span></button>
       <button type="button" onClick={onPower}><AnikiIcon icon="power" /><span>{t.fullscreen.power}</span></button>
