@@ -520,7 +520,8 @@ test("sons da navegação tocam ao passar o mouse, ao mover o foco e ao confirma
     await expect.poll(notes).toEqual([880])
     await covers.nth(2).hover()
     expect(await notes()).toEqual([880])
-    await press(app, "right")
+    // A seta é um aperto só; no controle, segurar a direção repete (e o robô é lento entre apertar e soltar).
+    await page.keyboard.press("ArrowRight")
     await expect.poll(notes).toEqual([880, 880])
     await covers.nth(3).click()
     await expect.poll(notes).toEqual([880, 880, 880, 660, 990])
