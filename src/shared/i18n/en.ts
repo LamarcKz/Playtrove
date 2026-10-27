@@ -43,7 +43,6 @@ export const en: Messages = {
     running: "Game running. Return to Playtrove after closing the emulator.",
     launching: "Starting game…",
     ratingClear: "No rating",
-    achievements: "View achievements",
     enterHint: "Switch to fullscreen mode (F11)",
     menu: "Menu",
     mainMenu: "Main menu",
@@ -55,6 +54,10 @@ export const en: Messages = {
     desktopMode: "Back to window mode",
     exitApp: "Exit Playtrove",
     trophiesUnlocked: "Trophies and achievements unlocked",
+    sortBy: "Sort",
+    sorts: { default: "Default", name: "Name", date: "Unlock date", rarity: "Rarity", grade: "Trophy type" },
+    showing: "Show",
+    totalUnlocked: (unlocked: number, total: number) => `Total unlocked: ${unlocked}/${total}`,
   },
   common: {
     cancel: "Cancel",

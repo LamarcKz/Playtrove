@@ -43,7 +43,6 @@ export const ptBR = {
     running: "Jogo em execução. Volte ao Playtrove depois de fechar o emulador.",
     launching: "Iniciando jogo…",
     ratingClear: "Sem avaliação",
-    achievements: "Ver conquistas",
     enterHint: "Mudar para o modo tela cheia (F11)",
     menu: "Menu",
     mainMenu: "Menu principal",
@@ -55,6 +54,10 @@ export const ptBR = {
     desktopMode: "Voltar ao modo janela",
     exitApp: "Sair do Playtrove",
     trophiesUnlocked: "Troféus e conquistas desbloqueados",
+    sortBy: "Ordenar",
+    sorts: { default: "Padrão", name: "Nome", date: "Data de desbloqueio", rarity: "Raridade", grade: "Tipo de troféu" },
+    showing: "Mostrar",
+    totalUnlocked: (unlocked: number, total: number) => `Total desbloqueado: ${unlocked}/${total}`,
   },
   common: {
     cancel: "Cancelar",

@@ -9,6 +9,7 @@ export const ANIKI_ICONS = {
   exit: "\uE8BB",
   trophy: "\uEC1B",
   heartFilled: "\uEB52",
+  star: "\uE735",
 } as const
 
 export function AnikiIcon({ icon }: { icon: keyof typeof ANIKI_ICONS }) {

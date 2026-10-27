@@ -1,25 +1,25 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
-import { ArrowLeft, Star, Gamepad2, Play, MoreHorizontal, Trophy } from "lucide-react"
+import { ArrowLeft, Star, Gamepad2 } from "lucide-react"
 import type { Game } from "@shared/types"
-import { GameCover } from "@/components/GameCover"
 import { useI18n } from "@/hooks/useI18n"
 import { useStatuses } from "@/hooks/useStatuses"
 import { useRunningGamesState } from "@/hooks/useRunningGames"
 import { useFullscreenActive, useFullscreenInput } from "@/hooks/useFullscreenInput"
 import { fullscreenGames, restoreFullscreenSelection, type FullscreenAction, type FullscreenCollection } from "@/lib/fullscreenNavigation"
 import { FullscreenLaunchGuard } from "@/lib/fullscreenSession"
-import { formatPlaytime } from "@/lib/format"
 import { FullscreenPreferences } from "./FullscreenPreferences"
 import { FullscreenKeyboard } from "./FullscreenKeyboard"
-import { FullscreenAchievements } from "./FullscreenAchievements"
 import { FullscreenMedia } from "./FullscreenMedia"
 import { AnikiStage } from "./AnikiStage"
 import { AnikiTopBar } from "./AnikiTopBar"
 import { AnikiLibrary } from "./AnikiLibrary"
 import { AnikiMainMenu } from "./AnikiMainMenu"
+import { AnikiSignature } from "./AnikiSignature"
+import { AnikiTrophies } from "./AnikiTrophies"
+import { AnikiDescription } from "./AnikiDescription"
 import type { AnikiShortcut } from "./AnikiShortcutBar"
 
-type Panel = "preferences" | "options" | "search" | "review" | "achievements" | "menu" | null
+type Panel = "preferences" | "options" | "search" | "review" | "achievements" | "description" | "menu" | null
 interface Props { enabled: boolean; games: Game[]; initialGameId: number | null; onExit: () => void; onOpenEmulators: () => void }
 const collections: FullscreenCollection[] = ["all", "recent", "favorites"]
 
@@ -145,46 +145,36 @@ export function FullscreenShell({ enabled, games, initialGameId, onExit, onOpenE
   return (
     <div hidden={!enabled} className="fullscreen-shell" data-testid="fullscreen-shell">
       <AnikiStage>
-      <FullscreenMedia game={game} details={details} suspended={suspended} />
+      <FullscreenMedia game={game} suspended={suspended} />
       <section ref={panel ? undefined : scope} className="fs-main" inert={panel !== null || running.length > 0 || launching}>
-        <AnikiTopBar games={games} collectionLabel={query ? t.fullscreen.searchResults : label(collection)} onSearch={() => setPanel("search")} onMenu={() => setPanel("menu")} />
-        {details && game ? <div className="fs-signature" data-testid="fullscreen-details">
-          <div className="fs-signature-heading">
-            <button type="button" className="fs-back" onClick={() => setDetails(false)}><ArrowLeft />{t.fullscreen.back}</button>
-            <p className="fs-eyebrow">{[game.platform, game.library].filter(Boolean).join(" · ")}</p>
-            <h1>{game.title}{game.favorite && <Star className="fs-favorite" />}</h1>
-          </div>
-          <div className="fs-signature-card">
-            <div className="fs-signature-cover"><GameCover title={game.title} src={game.coverUrl} /></div>
-            <div className="fs-signature-content">
-              <p className="fs-eyebrow">{[game.developers.join(", "), game.releaseDate?.slice(0, 4)].filter(Boolean).join(" · ")}</p>
-              <div className="fs-details-actions">
-                <button type="button" data-fs-default className="fs-primary fs-play" disabled={!canPlay || loadingRunning || launching || running.length > 0} onClick={() => void play()}><Play />{launching ? t.fullscreen.launching : t.fullscreen.play}</button>
-                <button type="button" data-fs-fallback aria-label={t.fullscreen.options} onClick={() => setPanel("options")}><MoreHorizontal /></button>
-                <button type="button" aria-label={t.fullscreen.favorite} aria-pressed={game.favorite} disabled={editing} onClick={favorite}><Star /></button>
-              </div>
-              <dl className="fs-facts">
-                <div><dt>{t.fields.status}</dt><dd>{status}</dd></div>
-                <div><dt>{t.fields.playtime}</dt><dd>{formatPlaytime(game.playtimeMinutes, t)}</dd></div>
-                <div><dt>{t.fields.rating}</dt><dd>{game.rating !== null ? (game.rating / 2).toLocaleString(t.locale) + " / 5" : "—"}</dd></div>
-                <div><dt>{t.fields.difficulty}</dt><dd>{game.difficulty !== null ? (game.difficulty / 2).toLocaleString(t.locale) + " / 5" : "—"}</dd></div>
-              </dl>
-              <div className="fs-achievement-card"><Trophy /><div><h2>{t.fields.achievements}</h2>{game.achievements ? <p>{game.achievements.unlocked} / {game.achievements.total}</p> : <p>{game.trophiesPending ? t.achievements.trophiesPending : t.fullscreen.noAchievements}</p>}</div>{game.achievements && <button type="button" onClick={() => setPanel("achievements")}>{t.fullscreen.achievements}</button>}</div>
-              <button type="button" onClick={openReview}>{t.fullscreen.editReview}</button>
-            </div>
-          </div>
-          <div className="fs-description" data-testid="fullscreen-description" data-fs-scroll tabIndex={0}><h2>{t.details.description}</h2><p>{game.description || t.fullscreen.noDescription}</p>{game.review && <><h2>{t.fullscreen.review}</h2><p className="fs-review-text">{game.review}</p></>}</div>
-        </div> : <AnikiLibrary game={game} games={games} visible={visible} selectedId={resolvedId} query={query} shortcuts={shortcuts} onSelect={setSelectedId} onOpen={openDetails} onClearSearch={clearSearch} onOpenEmulators={onOpenEmulators} />}
+        <AnikiTopBar games={games} label={details && game ? game.platform ?? game.library ?? "" : query ? t.fullscreen.searchResults : label(collection)} onSearch={() => setPanel("search")} onMenu={() => setPanel("menu")} />
+        {details && game ? <AnikiSignature
+          game={game}
+          status={status}
+          canPlay={canPlay}
+          playLabel={launching ? t.fullscreen.launching : t.fullscreen.play}
+          playDisabled={loadingRunning || launching || running.length > 0}
+          playVideo={!suspended && !panel}
+          onPlay={() => void play()}
+          onTrophies={() => setPanel("achievements")}
+          onDescription={() => setPanel("description")}
+          onOptions={() => setPanel("options")}
+        /> : <AnikiLibrary game={game} games={games} visible={visible} selectedId={resolvedId} query={query} shortcuts={shortcuts} onSelect={setSelectedId} onOpen={openDetails} onClearSearch={clearSearch} onOpenEmulators={onOpenEmulators} />}
         {disconnected && <p role="status" className="aniki-disconnected">{t.fullscreen.disconnected}</p>}
       </section>
       {panel === "menu" && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.mainMenu}>
         <AnikiMainMenu canRandom={games.length > 0} onSettings={() => setPanel("preferences")} onRandom={randomGame} onMinimize={() => { closePanel(); window.api.windowControls.minimize() }} onDesktop={() => { closePanel(); onExit() }} onExit={() => window.api.windowControls.close()} />
       </section></div>}
-      {panel && panel !== "menu" && <div className="fs-modal-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={panel === "preferences" ? t.fullscreen.preferences : panel === "search" ? t.fullscreen.search : panel === "review" ? t.fullscreen.review : panel === "achievements" ? t.fields.achievements : t.fullscreen.options} className={`fs-modal fs-modal-${panel}`}>
+      {panel === "description" && game && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.details.description} className="aniki-side-panel">
+        <AnikiDescription game={game} onEditReview={openReview} />
+      </section></div>}
+      {panel === "achievements" && game && <div className="aniki-trophies-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fields.achievements}>
+        <AnikiTrophies game={game} />
+      </section></div>}
+      {panel && !["menu", "description", "achievements"].includes(panel) && <div className="fs-modal-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={panel === "preferences" ? t.fullscreen.preferences : panel === "search" ? t.fullscreen.search : panel === "review" ? t.fullscreen.review : t.fullscreen.options} className={`fs-modal fs-modal-${panel}`}>
         {panel === "search" ? <FullscreenKeyboard title={t.fullscreen.search} initial={query} onCancel={closePanel} onApply={(text) => { if (!query) searchReturn.current = { id: selectedId ?? resolvedId, details }; setQuery(text); setSelectedId(text ? null : searchReturn.current.id); setDetails(text ? false : searchReturn.current.details); closePanel() }} /> : panel === "review" && game ? <FullscreenKeyboard title={t.fullscreen.review} initial={game.review ?? ""} multiline onCancel={cancelReview} onApply={(text) => { const revision = reviewRevision.current; void mutate(async () => { await window.api.games.setEvaluation(game.id, { review: text || null }); if (revision === reviewRevision.current) closePanel() }) }} /> : <>
           <button type="button" className="fs-back" onClick={closePanel}><ArrowLeft />{t.fullscreen.back}</button>
           {panel === "preferences" && <><h2>{t.fullscreen.preferences}</h2><FullscreenPreferences /></>}
-          {panel === "achievements" && game && <FullscreenAchievements game={game} />}
           {panel === "options" && game && <><h2>{game.title}</h2><div className="fs-options">
             <button type="button" aria-pressed={game.favorite} disabled={editing} onClick={favorite}><Star />{t.fullscreen.favorite}</button>
             <h3>{t.fields.status}</h3><div className="fs-status-options">{statuses.map((item) => <button type="button" key={item.id} disabled={editing} aria-pressed={game.statusId === item.id} onClick={() => void mutate(() => window.api.games.setStatus(game.id, item.id))}>{item.name}</button>)}</div>

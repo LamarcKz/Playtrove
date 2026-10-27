@@ -212,7 +212,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/fullscreenText.ts` | Edição do texto virtual por seleção/cursor, exclusão e limite de tamanho |
 | `lib/score.ts` | As contas das estrelas e das pimentas: quanto de cada ícone fica pintado, a nota escolhida pelo clique ou pelo teclado e o texto para leitores de tela ("4,5 de 5 estrelas") |
 | `lib/stats.ts` | As contas das Estatísticas: o resumo, os mais jogados, os grupos por plataforma e biblioteca, os jogos por status, o eixo do gráfico de atividade e as colunas dos gráficos por dia e por mês (`dayColumns()` e `monthColumns()`) |
-| `lib/achievements.ts` | A cor de cada tipo de troféu (`GRADE_TEXT`), a porcentagem curta de jogadores ("3%", "0,4%") e o progresso em %. As palavras de cada fonte ("conquistas" ou "troféus") ficam nos dicionários (`achievements.sources`) |
+| `lib/achievements.ts` | A cor de cada tipo de troféu (`GRADE_TEXT`), a porcentagem curta de jogadores ("3%", "0,4%") e o progresso em %. `sortAchievements` dá as ordenações do painel de troféus da tela cheia. As palavras de cada fonte ("conquistas" ou "troféus") ficam nos dicionários (`achievements.sources`) |
 
 #### `src/renderer/fullscreen`: apresentação em tela cheia
 
@@ -227,8 +227,11 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `AnikiGlyph.tsx` | Ícones (Segoe Fluent Icons, os códigos do Aniki) e glifos dos botões do DualSense |
 | `FullscreenKeyboard.tsx` | Editor de busca/análise com teclado virtual e físico: maiúsculas, acentos, pontuação, espaço, cursor, exclusão e quebra de linha na análise; aplicar/salvar e cancelar preservam o rascunho separado |
 | `FullscreenPreferences.tsx` | Início em tela cheia e reprodução/volume independentes, usado no painel fullscreen e em Configurações → Geral |
-| `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, música salva com preferências fullscreen, imagem de fundo e vídeo sem som nos detalhes após 600 ms; respeita movimento reduzido, foco, visibilidade e suspensão |
-| `FullscreenAchievements.tsx` | Conquistas/troféus com os hooks e as linhas comuns do desktop; progresso, tipos, filtros e revelação de ocultos |
+| `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, música salva com preferências fullscreen e a imagem de fundo do jogo; respeita foco, visibilidade e suspensão |
+| `AnikiSignature.tsx` | Detalhes no layout Signature: nome sobre a arte, painel de vidro com capa, nota e dificuldade, botões, dados e barra de conquistas |
+| `AnikiTrailerCard.tsx` | Trailer em miniatura dos detalhes: sem som, depois de 600 ms, com movimento reduzido e pausa na suspensão |
+| `AnikiDescription.tsx` | Painel de descrição do Signature, com a análise e o botão de editar |
+| `AnikiTrophies.tsx` | Painel de troféus do Aniki: cabeçalho com capa e progresso, pegos de cada tipo, cartões, ordenação, filtro e ocultos |
 
 #### `src/renderer/pages`: as telas (abas)
 
