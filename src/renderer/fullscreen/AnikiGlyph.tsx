@@ -10,6 +10,10 @@ export const ANIKI_ICONS = {
   trophy: "\uEC1B",
   heartFilled: "\uEB52",
   star: "\uE735",
+  refresh: "\uE72C",
+  power: "\uE7E8",
+  music: "\uE8D6",
+  home: "\uE80F",
 } as const
 
 export function AnikiIcon({ icon }: { icon: keyof typeof ANIKI_ICONS }) {

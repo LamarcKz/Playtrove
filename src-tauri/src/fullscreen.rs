@@ -11,12 +11,30 @@ use crate::validation::to_bool;
 
 pub const CONFIG_EVENT: &str = "fullscreen:config";
 
+/// Avatares próprios do Playtrove para o perfil do Aniki (os do tema têm arte de terceiros).
+pub const AVATARS: [&str; 12] =
+    ["gamepad", "trophy", "star", "crown", "ghost", "swords", "rocket", "flame", "skull", "sparkles", "shield", "zap"];
+/// Tamanho máximo do nome do perfil, em caracteres.
+const PROFILE_NAME_MAX: usize = 32;
+
+/// Onde a tela cheia abre, como no assistente do Aniki: no Welcome Hub ou na biblioteca.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum StartDestination {
+    Hub,
+    Library,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FullscreenConfig {
     pub start_on_launch: bool,
     pub music_playback: bool,
     pub music_volume: u8,
+    pub start_destination: StartDestination,
+    /// Vazio usa o nome padrão da tela ("Jogador").
+    pub profile_name: String,
+    pub profile_avatar: String,
 }
 
 pub fn get_config(db: &Connection) -> FullscreenConfig {
@@ -34,7 +52,21 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
             .and_then(|value| value.parse::<u8>().ok())
             .filter(|volume| *volume <= 100)
             .unwrap_or(20),
+        start_destination: match get_setting(db, "fullscreenStartDestination").ok().flatten().as_deref() {
+            Some("library") => StartDestination::Library,
+            _ => StartDestination::Hub,
+        },
+        profile_name: get_setting(db, "fullscreenProfileName").ok().flatten().filter(|name| valid_name(name)).unwrap_or_default(),
+        profile_avatar: get_setting(db, "fullscreenProfileAvatar")
+            .ok()
+            .flatten()
+            .filter(|avatar| AVATARS.contains(&avatar.as_str()))
+            .unwrap_or_else(|| AVATARS[0].to_string()),
     }
+}
+
+fn valid_name(name: &str) -> bool {
+    name.trim() == name && name.chars().count() <= PROFILE_NAME_MAX && !name.chars().any(char::is_control)
 }
 
 /// Valida o patch inteiro antes da transação; falhas nunca gravam só parte das preferências.
@@ -53,6 +85,20 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
                     .ok_or_else(|| AppError::text(language, "errors.invalidThemeMusicVolume", &[]))?
                     as u8;
             }
+            "startDestination" => {
+                config.start_destination = match value.as_str() {
+                    Some("hub") => StartDestination::Hub,
+                    Some("library") => StartDestination::Library,
+                    _ => return Err(invalid()),
+                }
+            }
+            "profileName" => {
+                let name = value.as_str().map(str::trim).filter(|name| valid_name(name)).ok_or_else(invalid)?;
+                config.profile_name = name.to_string();
+            }
+            "profileAvatar" => {
+                config.profile_avatar = value.as_str().filter(|avatar| AVATARS.contains(avatar)).ok_or_else(invalid)?.to_string();
+            }
             _ => return Err(invalid()),
         }
     }
@@ -60,6 +106,13 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenStartOnLaunch", Some(if config.start_on_launch { "1" } else { "0" }))?;
     set_setting(&transaction, "fullscreenMusicPlayback", Some(if config.music_playback { "1" } else { "0" }))?;
     set_setting(&transaction, "fullscreenMusicVolume", Some(&config.music_volume.to_string()))?;
+    let destination = match config.start_destination {
+        StartDestination::Hub => "hub",
+        StartDestination::Library => "library",
+    };
+    set_setting(&transaction, "fullscreenStartDestination", Some(destination))?;
+    set_setting(&transaction, "fullscreenProfileName", Some(&config.profile_name))?;
+    set_setting(&transaction, "fullscreenProfileAvatar", Some(&config.profile_avatar))?;
     transaction.commit()?;
     Ok(config)
 }
@@ -78,6 +131,7 @@ mod tests {
             serde_json::to_value(get_config(&db)).unwrap(),
             json!({
                 "startOnLaunch": false, "musicPlayback": true, "musicVolume": 20,
+                "startDestination": "hub", "profileName": "", "profileAvatar": "gamepad",
             })
         );
     }
@@ -88,7 +142,15 @@ mod tests {
         set_setting(&db, "themeMusicVolume", Some("72")).unwrap();
         set_config(&db, &json!({"startOnLaunch": true, "musicVolume": 100}), Language::PtBr).unwrap();
         let saved = set_config(&db, &json!({"musicPlayback": false}), Language::PtBr).unwrap();
-        assert_eq!(saved, FullscreenConfig { start_on_launch: true, music_playback: false, music_volume: 100 });
+        assert_eq!(
+            saved,
+            FullscreenConfig {
+                start_on_launch: true,
+                music_playback: false,
+                music_volume: 100,
+                ..get_config(&memory_database())
+            }
+        );
         assert_eq!(get_config(&db), saved);
         assert_eq!(get_setting(&db, "themeMusicVolume").unwrap().as_deref(), Some("72"));
         assert_eq!(set_config(&db, &json!({"musicVolume": 0}), Language::PtBr).unwrap().music_volume, 0);
@@ -112,6 +174,12 @@ mod tests {
             json!({"musicVolume": "20"}),
             json!({"musicVolume": null}),
             json!({"startOnLaunch": true, "musicVolume": 300}),
+            json!({"startDestination": "details"}),
+            json!({"startDestination": null}),
+            json!({"profileName": 7}),
+            json!({"profileName": "a".repeat(33)}),
+            json!({"profileName": "nome\nquebrado"}),
+            json!({"profileAvatar": "personagem"}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
             assert_eq!(get_config(&db), before);
@@ -133,6 +201,25 @@ mod tests {
         set_setting(&db, "fullscreenStartOnLaunch", Some("inválido")).unwrap();
         set_setting(&db, "fullscreenMusicPlayback", Some("inválido")).unwrap();
         set_setting(&db, "fullscreenMusicVolume", Some("250")).unwrap();
-        assert_eq!(get_config(&db), FullscreenConfig { start_on_launch: false, music_playback: true, music_volume: 20 });
+        set_setting(&db, "fullscreenStartDestination", Some("detalhes")).unwrap();
+        set_setting(&db, "fullscreenProfileName", Some(" nome com espaço ")).unwrap();
+        set_setting(&db, "fullscreenProfileAvatar", Some("personagem")).unwrap();
+        assert_eq!(get_config(&db), get_config(&memory_database()));
+    }
+
+    #[test]
+    fn perfil_e_destino_do_inicio_persistem() {
+        let db = memory_database();
+        let saved = set_config(
+            &db,
+            &json!({"startDestination": "library", "profileName": "  Ação Jogador  ", "profileAvatar": "crown"}),
+            Language::PtBr,
+        )
+        .unwrap();
+        assert_eq!(saved.start_destination, StartDestination::Library);
+        assert_eq!(saved.profile_name, "Ação Jogador");
+        assert_eq!(saved.profile_avatar, "crown");
+        assert_eq!(get_config(&db), saved);
+        assert_eq!(set_config(&db, &json!({"profileName": ""}), Language::PtBr).unwrap().profile_name, "");
     }
 }

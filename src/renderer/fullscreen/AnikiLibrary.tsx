@@ -11,6 +11,7 @@ interface Props {
   visible: Game[]
   selectedId: number | null
   query: string
+  collectionLabel: string
   shortcuts: AnikiShortcut[]
   onSelect: (id: number) => void
   onOpen: (id: number) => void
@@ -19,9 +20,10 @@ interface Props {
 }
 
 /** Biblioteca horizontal do Aniki: logo (ou nome) do jogo sobre a arte, informações, atalhos e a faixa de capas. */
-export function AnikiLibrary({ game, games, visible, selectedId, query, shortcuts, onSelect, onOpen, onClearSearch, onOpenEmulators }: Props) {
+export function AnikiLibrary({ game, games, visible, selectedId, query, collectionLabel, shortcuts, onSelect, onOpen, onClearSearch, onOpenEmulators }: Props) {
   const { t } = useI18n()
   return <div className="aniki-library" data-testid="fullscreen-library">
+    <p className="aniki-preset">{collectionLabel}</p>
     <div className="aniki-hero">
       <h1 className="aniki-game-title">{game?.title ?? t.library.emptyTitle}</h1>
     </div>

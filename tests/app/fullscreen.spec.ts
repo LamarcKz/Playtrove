@@ -48,6 +48,11 @@ async function press(app: AppProcess, button: ControllerButton) {
   await input(app)
 }
 
+/** A tela cheia abre no Hub, como no Aniki; os testes da biblioteca começam nela. */
+async function startInLibrary(page: Page) {
+  await page.evaluate(() => window.api.fullscreen.setConfig({ startDestination: "library" }))
+}
+
 /** Abre o menu principal do Aniki pela barra do topo e escolhe um item. */
 async function openMenuItem(page: Page, item: string, menu = "Menu") {
   await page.getByTestId("fullscreen-shell").getByRole("button", { name: menu, exact: true }).click()
@@ -63,6 +68,7 @@ for (const maximized of [false, true]) {
       const desktopGame = page.locator("main button[aria-pressed]", { hasText: "Neon Madrugada" })
       await desktopGame.click()
       await expect(page.locator("main h1")).toHaveText("Neon Madrugada")
+      await startInLibrary(page)
       await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
       await expect(page.getByTestId("fullscreen-shell")).toBeVisible()
       await expect(page.getByTestId("fullscreen-shell").locator("header").getByText("DEV", { exact: true })).toBeVisible()
@@ -92,6 +98,7 @@ test("controle exige neutro, abre detalhes uma vez e restaura foco depois de rec
     const configured = await configuredGame(session)
     files = configured.files
     await app.focus()
+    await startInLibrary(page)
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
     await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
     const library = page.getByTestId("fullscreen-library")
@@ -136,6 +143,7 @@ test("minimizar suspende o input e voltar ao app exige novo neutro", async () =>
   const { app, page, dataDir } = await launchApp()
   try {
     await app.focus()
+    await startInLibrary(page)
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
     await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
     const cover = page.getByTestId("fullscreen-library").getByRole("button", { name: "Mar de Estrelas", exact: true })
@@ -161,6 +169,7 @@ test("minimizar suspende o input e voltar ao app exige novo neutro", async () =>
 test("controle segue o mapa do Aniki: menu, segurar para configurações e voltar sem sair", async () => {
   const { app, page, dataDir } = await launchApp()
   try {
+    await startInLibrary(page)
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
     await expect(page.getByTestId("fullscreen-library")).toBeVisible()
     await app.focus()
@@ -168,9 +177,9 @@ test("controle segue o mapa do Aniki: menu, segurar para configurações e volta
     await expect(page.getByTestId("fullscreen-library")).toBeVisible()
     expect((await app.window()).fullscreen).toBe(true)
     await press(app, "options")
-    await expect(page.getByTestId("aniki-main-menu")).toBeVisible()
+    await expect(page.getByTestId("aniki-quick-access")).toBeVisible()
     await press(app, "circle")
-    await expect(page.getByTestId("aniki-main-menu")).toHaveCount(0)
+    await expect(page.getByTestId("aniki-quick-access")).toHaveCount(0)
     await input(app)
     await input(app, ["options"])
     await page.waitForTimeout(700)
@@ -185,9 +194,50 @@ test("controle segue o mapa do Aniki: menu, segurar para configurações e volta
   }
 })
 
+test("Welcome Hub abre primeiro, troca de página, abre um jogo e chega aos painéis rápidos", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    const hub = page.getByTestId("aniki-hub")
+    await expect(hub).toBeVisible()
+    await expect(hub.getByRole("heading", { name: "Jogador", exact: true })).toBeVisible()
+    await app.focus()
+    await press(app, "r1")
+    await expect(hub.getByRole("heading", { name: "Sua atividade", exact: true })).toBeVisible()
+    await hub.getByRole("button", { name: /Adicionado por último/ }).click()
+    await expect(page.getByTestId("fullscreen-details")).toBeVisible()
+    await press(app, "create")
+    await expect(hub).toBeVisible()
+    await press(app, "circle")
+    await expect(page.getByTestId("fullscreen-library")).toBeVisible()
+    await input(app)
+    await input(app, ["create"])
+    await page.waitForTimeout(700)
+    await input(app)
+    await expect(page.getByTestId("aniki-quick-options")).toBeVisible()
+    await page.getByTestId("aniki-quick-options").getByRole("button", { name: /Abrir no/ }).click()
+    await expect.poll(() => page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ startDestination: "library" })
+    await press(app, "circle")
+    await press(app, "options")
+    await page.getByTestId("aniki-quick-access").getByRole("button", { name: "Configurações", exact: true }).click()
+    const preferences = page.getByRole("dialog", { name: "Preferências da tela cheia" })
+    await preferences.getByRole("button", { name: "Coroa", exact: true }).click()
+    await preferences.getByRole("button", { name: /Nome do perfil/ }).click()
+    const keyboard = page.getByRole("dialog", { name: "Nome do perfil" })
+    for (const key of ["a", "n", "a"]) await keyboard.getByRole("button", { name: key, exact: true }).click()
+    await keyboard.getByRole("button", { name: "Concluir", exact: true }).click()
+    await expect.poll(() => page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ profileName: "ana", profileAvatar: "crown" })
+    await expect(page.getByTestId("fullscreen-shell").locator(".aniki-profile-name")).toHaveText("ana")
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
 test("busca global pelo teclado virtual sai de Favoritos e devolve a coleção anterior", async () => {
   const { app, page, dataDir } = await launchApp()
   try {
+    await startInLibrary(page)
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
     const targetId = await page.evaluate(async () => (await window.api.library.get()).games.find((game) => game.title === "Mar de Estrelas")!.id)
     await page.evaluate((id) => window.api.games.setFavorite(id, false), targetId)
@@ -216,6 +266,7 @@ test("análise longa conserva Unicode, permite cancelar e aparece também no des
   const { app, page, dataDir } = await launchApp()
   try {
     await app.focus()
+    await startInLibrary(page)
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
     await page.getByTestId("fullscreen-library").getByRole("button", { name: "Mar de Estrelas", exact: true }).click()
     await page.getByTestId("fullscreen-details").getByRole("button", { name: "Descrição", exact: true }).click()
@@ -361,6 +412,7 @@ test("mídia local pausa fora do app e durante execução simulada, com retorno 
         for (const listener of listeners) listener([])
       }
     })
+    await startInLibrary(page)
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
     const music = page.locator("audio[data-fullscreen-music]")
     await expect.poll(() => music.evaluate((node: HTMLAudioElement) => !node.paused && node.currentTime > 0)).toBe(true)

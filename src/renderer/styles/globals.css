@@ -234,6 +234,11 @@
   --aniki-chip: #111820b3;
   --aniki-badge: #080c13cc;
   --aniki-scrim: #05080dd9;
+  --aniki-hub-bg: radial-gradient(ellipse at 70% 10%, #1b242e, #0a1017 50%, #05080d);
+  --aniki-hub-card: #111820cc;
+  --aniki-hub-tile: #1b242ecc;
+  --aniki-avatar-bg: linear-gradient(145deg, #2a3542, #0e141c);
+  --aniki-avatar-border: #d6b16f;
   --aniki-glass-signature: linear-gradient(#00000036, #00000018 60%, #ffffff20);
   --aniki-secondary-view: radial-gradient(ellipse at 50% 30%, #111820, #0a1017 55%, #05080d);
   --aniki-card-trophy: #111820eb;
@@ -316,7 +321,8 @@
 .aniki-topbar { position: relative; height: 80px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 30px; background: linear-gradient(var(--aniki-topbar-top), var(--aniki-topbar-bottom)); opacity: .94; }
 .aniki-topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, var(--aniki-separator-edge), var(--aniki-accent), var(--aniki-separator-edge)); }
 .aniki-topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
-.aniki-preset { font-size: 26px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aniki-preset { position: absolute; left: 70px; top: 26px; font-size: 22px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--aniki-text-detail); }
+.aniki-profile-name { font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .aniki-dev { border-radius: 4px; padding: 0 6px; font-size: 13px; font-weight: 700; background: var(--dev); color: var(--dev-foreground); }
 .aniki-topbar-center { display: flex; gap: 16px; }
 .fullscreen-shell .aniki-quick { width: 120px; padding: 6px 0; font-size: 24px; font-weight: 600; color: var(--aniki-text); border-radius: 10px; }
@@ -358,7 +364,7 @@
 .aniki-menu-items .aniki-icon { width: 30px; font-size: 24px; color: var(--aniki-glyph); }
 .fullscreen-shell .aniki-menu-items button:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
 @keyframes aniki-menu-in { from { transform: translateX(-40px); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .aniki-main-menu, .aniki-side-panel { animation: none; } .aniki-trailer { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .aniki-main-menu, .aniki-side-panel, .aniki-quick-options { animation: none; } .aniki-trailer { transition: none; } }
 
 /* Detalhes no layout Signature do Aniki (GameDetails.xaml): painel de vidro de 22 px de canto e trailer em miniatura. */
 .aniki-signature { position: relative; height: 1000px; }
@@ -425,3 +431,47 @@
 .aniki-trophy-when { display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 600; }
 .aniki-trophy-grade { width: 44px !important; height: 44px !important; }
 .aniki-trophies-total { height: 70px; margin: 0 -100px; display: grid; place-items: center; font-size: 30px; font-weight: 700; background: var(--aniki-control-dark); }
+
+/* Perfil, Welcome Hub e os painéis rápidos do Aniki (Quick Access à esquerda, Quick Options à direita). */
+.aniki-avatar { flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; color: var(--aniki-light); background: var(--aniki-avatar-bg); box-shadow: inset 0 0 0 2px var(--aniki-avatar-border); }
+.aniki-hub { position: absolute; inset: 0 0 auto; height: 1000px; background: var(--aniki-hub-bg); }
+.aniki-hub-profile { position: absolute; left: 375px; top: 67px; width: 1170px; height: 287px; display: grid; grid-template-columns: 120px 1fr auto; align-items: center; gap: 32px; padding: 0 34px; border-radius: 22px; background: var(--aniki-hub-card); box-shadow: inset 0 0 0 2px var(--aniki-avatar-border); }
+.aniki-hub-identity h2 { font-size: 34px; font-weight: 700; }
+.aniki-hub-identity p { font-size: 22px; color: var(--aniki-text-secondary); margin-top: 6px; }
+.aniki-hub-rank { color: var(--aniki-glyph) !important; font-weight: 600; }
+.aniki-hub-tags span { display: inline-block; margin-top: 8px; padding: 2px 10px; font-size: 17px; border: 1px solid var(--fs-border); border-radius: 6px; }
+.aniki-hub-tiles { display: grid; grid-template-columns: repeat(3, 140px); gap: 12px; }
+.aniki-hub-tiles div { height: 102px; padding: 14px; border-radius: 12px; background: var(--aniki-hub-tile); display: flex; flex-direction: column; justify-content: space-between; }
+.aniki-hub-tiles dt { font-size: 15px; color: var(--aniki-text-secondary); }
+.aniki-hub-tiles dd { font-size: 30px; font-weight: 800; }
+.aniki-hub-activity { position: absolute; left: 220px; right: 220px; top: 60px; }
+.aniki-hub-activity h2 { font-size: 34px; font-weight: 700; margin-bottom: 26px; text-align: center; }
+.aniki-hub-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; }
+.fullscreen-shell .aniki-hub-card { position: relative; height: 330px; padding: 0; border-radius: 18px; overflow: hidden; text-align: left; background: var(--aniki-control); }
+.aniki-hub-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.aniki-hub-card-band { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 2px; padding: 16px 22px; background: var(--aniki-hub-card); }
+.aniki-hub-card-band small { font-size: 16px; color: var(--aniki-glyph); text-transform: uppercase; letter-spacing: .08em; }
+.aniki-hub-card-band strong { font-size: 26px; }
+.aniki-hub-card-band span { font-size: 18px; color: var(--aniki-text-secondary); }
+.fullscreen-shell .aniki-hub-card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 34px var(--aniki-focus-glow); }
+.aniki-hub-dots { position: absolute; left: 0; right: 0; top: 832px; display: flex; justify-content: center; gap: 12px; }
+.aniki-hub-dots li { width: 10px; height: 10px; border-radius: 50%; background: var(--aniki-separator-bar); }
+.aniki-hub-dots .aniki-hub-dot-active { background: var(--aniki-light); }
+.aniki-hub .aniki-shortcuts { top: 880px; border-bottom: 0; }
+.aniki-quick-profile { display: flex; align-items: center; gap: 18px; padding-bottom: 22px; margin-bottom: 18px; font-size: 28px; border-bottom: 1px solid var(--aniki-separator-bar); }
+.aniki-quick-options-panel { position: absolute; right: 0; top: 0; bottom: 0; }
+.aniki-quick-options { width: 560px; height: 100%; padding: 60px 40px; background: linear-gradient(var(--aniki-menu-top), var(--aniki-menu-bottom)); border-left: 1px solid var(--aniki-focus-right); box-shadow: -20px 0 60px var(--fs-shadow); animation: aniki-options-in .22s ease-out; }
+.aniki-quick-options h2 { font-size: 30px; font-weight: 700; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--aniki-separator-bar); }
+.fullscreen-shell .aniki-quick-options .aniki-menu-items button { display: flex; align-items: center; gap: 22px; padding: 16px 20px; border-radius: 12px; font-size: 25px; text-align: left; }
+.fullscreen-shell .aniki-quick-options .aniki-menu-items button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--aniki-focus-right); }
+.fullscreen-shell .aniki-quick-options .aniki-menu-items button:focus-visible, .fullscreen-shell .aniki-quick-volume button:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-quick-volume { display: flex; align-items: center; gap: 14px; padding: 10px 20px; font-size: 24px; }
+.aniki-quick-volume span { margin-right: auto; }
+.fullscreen-shell .aniki-quick-volume button { width: 48px; height: 48px; padding: 0; border-radius: 12px; background: var(--aniki-button-idle); }
+@keyframes aniki-options-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.fs-choice { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; }
+.fs-choice > span { margin-right: auto; }
+.fs-avatars { display: flex; flex-wrap: wrap; gap: .5em; }
+.fullscreen-shell .fs-avatars button { padding: .2em; border-radius: 50%; }
+.fs-profile-name { text-align: left; }
+.fs-profile-name input { margin-left: 1em; }
