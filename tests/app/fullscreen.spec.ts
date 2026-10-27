@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test"
+import { expect, test, type Page } from "@playwright/test"
 import { writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { ControllerButton } from "../../src/shared/controllers"
@@ -43,6 +43,12 @@ async function input(app: AppProcess, buttons: ControllerButton[] = [], connecte
   return app.invoke<{ generation: number; controllerKey: number | null; buttons: ControllerButton[] }>("test_controller_input", { connected, buttons })
 }
 
+/** Abre o menu principal do tema Playtrove pela barra do topo e escolhe um item. */
+async function menuItem(page: Page, item: string, menu = "Menu") {
+  await page.getByTestId("fullscreen-shell").getByRole("button", { name: menu, exact: true }).click()
+  await page.getByTestId("playtrove-menu").getByRole("button", { name: item, exact: true }).click()
+}
+
 async function press(app: AppProcess, button: ControllerButton) {
   await input(app)
   await input(app, [button])
@@ -65,7 +71,7 @@ for (const maximized of [false, true]) {
       const cover = page.getByTestId("fullscreen-library").getByRole("button", { name: "Mar de Estrelas", exact: true })
       await cover.click()
       await expect(page.getByTestId("fullscreen-details").getByRole("heading", { name: "Mar de Estrelas", exact: true })).toBeVisible()
-      await page.getByRole("button", { name: "Sair da tela cheia", exact: true }).click()
+      await menuItem(page, "Voltar ao modo janela")
       await expect.poll(async () => (await app.window()).fullscreen).toBe(false)
       await expect.poll(async () => (await app.window()).maximized).toBe(previous.maximized)
       await expect.poll(async () => (await app.window()).size).toEqual(previous.size)
@@ -207,7 +213,7 @@ test("análise longa conserva Unicode, permite cancelar e aparece também no des
     await dialog.getByRole("textbox", { name: "Minha análise" }).fill("Não salvar")
     await dialog.getByRole("button", { name: "Cancelar", exact: true }).click()
     await expect(page.locator(".fs-review-text")).toHaveText(review.trim())
-    await page.getByRole("button", { name: "Sair da tela cheia", exact: true }).click()
+    await menuItem(page, "Voltar ao modo janela")
     await page.locator("main button[aria-pressed]", { hasText: "Mar de Estrelas" }).click()
     await expect(page.getByRole("region", { name: "Minha análise" }).locator("p")).toHaveText(review.trim())
   } finally {
@@ -221,7 +227,7 @@ test("preferência de iniciar fullscreen persiste e usa áudio separado do deskt
   try {
     const desktopMusic = await page.evaluate(() => window.api.music.getConfig())
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
-    await page.getByRole("button", { name: "Preferências da tela cheia", exact: true }).click()
+    await menuItem(page, "Configurações")
     const dialog = page.getByRole("dialog")
     await dialog.getByRole("checkbox", { name: "Abrir em tela cheia ao iniciar" }).check()
     for (const volume of [25, 30, 35]) {
@@ -234,7 +240,7 @@ test("preferência de iniciar fullscreen persiste e usa áudio separado do deskt
     ;({ app, page } = await launchApp({ dataDir }))
     await expect(page.getByTestId("fullscreen-shell")).toBeVisible()
     expect((await app.window()).fullscreen).toBe(true)
-    await page.getByRole("button", { name: "Sair da tela cheia", exact: true }).click()
+    await menuItem(page, "Voltar ao modo janela")
     await expect(page.getByRole("button", { name: "Tela cheia", exact: true })).toBeVisible()
   } finally {
     await app.close()
@@ -247,8 +253,8 @@ test("tela cheia vazia e interface em inglês continuam navegáveis", async () =
   try {
     await page.getByRole("button", { name: "Fullscreen", exact: true }).click()
     await expect(page.getByTestId("fullscreen-shell")).toBeVisible()
-    await expect(page.getByRole("button", { name: "Exit fullscreen", exact: true })).toBeVisible()
-    await page.getByRole("button", { name: "Exit fullscreen", exact: true }).click()
+    await expect(page.getByTestId("fullscreen-shell").getByRole("button", { name: "Menu", exact: true })).toBeVisible()
+    await menuItem(page, "Back to window mode")
     await expect(page.getByRole("button", { name: "Fullscreen", exact: true })).toBeVisible()
   } finally {
     await app.close()
@@ -354,13 +360,119 @@ test("mídia local pausa fora do app e durante execução simulada, com retorno 
     await expect(page.getByTestId("fullscreen-details").getByRole("heading", { name: configured.title, exact: true })).toBeVisible()
     await expect(play).toBeFocused()
     await expect.poll(() => music.evaluate((node: HTMLAudioElement) => !node.paused)).toBe(true)
-    await page.getByRole("button", { name: "Sair da tela cheia", exact: true }).click()
+    await menuItem(page, "Voltar ao modo janela")
     await expect.poll(() => music.evaluate((node: HTMLAudioElement) => node.paused)).toBe(true)
     await expect.poll(() => desktopMusic.evaluate((node: HTMLAudioElement) => !node.paused)).toBe(true)
   } finally {
     await app.close()
     removeDataDir(dataDir)
     if (files) removeDataDir(files)
+  }
+})
+
+test("menu principal do tema Playtrove: energia com confirmação, ajuda e avisos", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    await expect(page.getByTestId("fullscreen-library")).toBeVisible()
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    await press(app, "options")
+    const menu = page.getByTestId("playtrove-menu")
+    await expect(menu.getByRole("button", { name: "Voltar ao modo janela", exact: true })).toBeFocused()
+    await menu.getByRole("button", { name: "Desligar", exact: true }).click()
+    const confirm = page.getByRole("dialog", { name: "Desligar" })
+    await expect(confirm.getByText(/Desligar o computador agora/)).toBeVisible()
+    await expect(confirm.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused()
+    // Voltar da confirmação devolve ao menu, sem pedir nada ao Windows.
+    await press(app, "circle")
+    await expect(menu).toBeVisible()
+    expect(await app.opened()).toEqual([])
+    await menu.getByRole("button", { name: "Desligar", exact: true }).click()
+    await confirm.getByRole("button", { name: "Desligar", exact: true }).click()
+    // Nos testes, a ação só é anotada: o computador do robô continua ligado.
+    await expect.poll(() => app.opened()).toContain("power:shutdown")
+    await expect(menu).toHaveCount(0)
+    await press(app, "options")
+    await menu.getByRole("button", { name: "Ajuda", exact: true }).click()
+    await expect(page.getByRole("dialog", { name: "Ajuda" }).getByText("Menu principal", { exact: true })).toBeVisible()
+    await press(app, "circle")
+    await menu.getByRole("button", { name: "Atualizar biblioteca", exact: true }).click()
+    await expect(page.locator(".fs-notice-banner")).toContainText("Biblioteca atualizada.")
+    await page.getByTestId("fullscreen-shell").getByRole("button", { name: "Avisos", exact: true }).click()
+    await expect(page.getByRole("dialog", { name: "Avisos" }).getByText("Biblioteca atualizada.", { exact: true })).toBeVisible()
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("filtros e ordem do modo janela também valem na tela cheia do tema Playtrove", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    const games = await page.evaluate(async () => (await window.api.library.get()).games.map((game) => ({ title: game.title, platform: game.platform, playtime: game.playtimeMinutes })))
+    const counts = new Map<string, number>()
+    for (const game of games) if (game.platform) counts.set(game.platform, (counts.get(game.platform) ?? 0) + 1)
+    const [platform, count] = [...counts].sort((a, b) => a[1] - b[1] || a[0].localeCompare(b[0]))[0]
+    const mostPlayed = [...games].sort((a, b) => b.playtime - a.playtime || a.title.localeCompare(b.title, "pt-BR", { sensitivity: "base" }))[0].title
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    const covers = page.getByTestId("fullscreen-library").locator(".fs-cover")
+    await expect(covers).toHaveCount(games.length)
+    await page.getByTestId("fullscreen-shell").getByRole("button", { name: "Filtros", exact: true }).click()
+    const filters = page.getByTestId("playtrove-filters")
+    await filters.getByRole("region", { name: "Ordenar" }).getByRole("button", { name: "Tempo jogado", exact: true }).click()
+    await expect(covers.first()).toHaveAttribute("aria-label", mostPlayed)
+    await filters.getByRole("region", { name: "Plataforma" }).getByRole("button", { name: `${platform} ${count}`, exact: true }).click()
+    await expect(covers).toHaveCount(count)
+    await page.keyboard.press("Escape")
+    await expect(page.getByTestId("fullscreen-shell").getByRole("button", { name: "Filtros", exact: true })).toHaveAttribute("aria-pressed", "true")
+    await page.getByTestId("fullscreen-shell").getByRole("button", { name: "Filtros", exact: true }).click()
+    await filters.getByRole("button", { name: "Limpar", exact: true }).click()
+    await expect(covers).toHaveCount(games.length)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("linhas de capas, relógio e ✕/○ trocados ficam nas configurações do tema Playtrove", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    await page.getByRole("button", { name: "Configurações", exact: true }).click()
+    await page.getByRole("radiogroup", { name: "Linhas de capas" }).getByRole("radio", { name: "2", exact: true }).check()
+    await page.getByRole("checkbox", { name: "Mostrar o relógio na barra do topo" }).uncheck()
+    await page.getByRole("checkbox", { name: /Trocar ✕ e ○/ }).check()
+    await expect.poll(() => page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ coverRows: 2, showClock: false, swapConfirm: true })
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    const library = page.getByTestId("fullscreen-library")
+    await expect(library.locator(".fs-cover-rail")).toHaveAttribute("data-rows", "2")
+    await expect(page.locator(".fs-clock")).toHaveCount(0)
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    // Com a troca, ○ abre o jogo e ✕ volta para a biblioteca.
+    await press(app, "circle")
+    await expect(page.getByTestId("fullscreen-details")).toBeVisible()
+    await press(app, "cross")
+    await expect(library).toBeVisible()
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("menu do jogo do tema Playtrove mostra a ROM no Explorador", async () => {
+  const session = await launchApp()
+  const { app, page, dataDir } = session
+  try {
+    const configured = await configuredGame(session)
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    await page.getByTestId(`fullscreen-game-${configured.id}`).click()
+    await page.getByTestId("fullscreen-details").getByRole("button", { name: "Opções do jogo", exact: true }).click()
+    await page.getByRole("dialog", { name: "Opções do jogo" }).getByRole("button", { name: "Mostrar a ROM no Explorador", exact: true }).click()
+    await expect.poll(async () => (await app.opened()).some((path) => path.endsWith("Controle Sintetico.bin"))).toBe(true)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
   }
 })
 

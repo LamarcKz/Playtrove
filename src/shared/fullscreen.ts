@@ -45,7 +45,17 @@ export interface FullscreenConfig {
   trailers: FullscreenTrailers
   /** O assistente inicial já foi concluído (ou pulado). */
   setupDone: boolean
+  /** Tema Playtrove: linhas de capas (1 a 3), relógio na barra, sons da navegação (volume de 0 a 100) e ○ confirma/× volta. */
+  coverRows: number
+  showClock: boolean
+  uiSounds: boolean
+  uiSoundsVolume: number
+  swapConfirm: boolean
 }
+
+/** As opções de energia do menu principal (a mesma lista do Rust, em src-tauri/src/power.rs). */
+export const POWER_ACTIONS = ["lock", "sleep", "restart", "shutdown"] as const
+export type PowerAction = (typeof POWER_ACTIONS)[number]
 
 /** O pacote oficial do Aniki: instalado, baixando ("download") ou extraindo as mídias ("extract"). */
 export interface AnikiPackStatus {

@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react"
 import { TROPHY_GRADES } from "@shared/achievements"
 import type { Game } from "@shared/types"
 import { ControllerIndicator } from "@/components/ControllerIndicator"
@@ -6,6 +5,7 @@ import { TrophyIcon } from "@/components/AchievementParts"
 import { useAchievementsOverview } from "@/hooks/useAchievements"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { useI18n } from "@/hooks/useI18n"
+import { FullscreenClock } from "./FullscreenClock"
 import { devMark } from "@/lib/devBuild"
 import { AnikiAvatar } from "./AnikiAvatar"
 
@@ -38,17 +38,7 @@ export function AnikiTopBar({ games, hub, layoutLabel, onLayout, onHub, onProfil
         {grades.map((item) => <span key={item.grade}><TrophyIcon grade={item.grade} />{item.unlocked}</span>)}
       </button>}
       <ControllerIndicator />
-      <AnikiClock />
+      <FullscreenClock className="aniki-clock" />
     </div>
   </header>
-}
-
-function AnikiClock() {
-  const { t } = useI18n()
-  const [now, setNow] = useState(() => new Date())
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 15000)
-    return () => clearInterval(timer)
-  }, [])
-  return <time className="aniki-clock" dateTime={now.toISOString()}>{now.toLocaleTimeString(t.locale, { hour: "2-digit", minute: "2-digit" })}</time>
 }

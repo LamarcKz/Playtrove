@@ -70,6 +70,28 @@ export function fullscreenGames<T extends { title: string; favorite: boolean; la
   if (collection === "recent") return games.filter((game) => game.lastPlayedAt && Date.now() - Date.parse(game.lastPlayedAt) < 30 * 86400000).sort((a, b) => Date.parse(b.lastPlayedAt!) - Date.parse(a.lastPlayedAt!))
   return games
 }
+/** As ordens da biblioteca do tema Playtrove; "collection" mantém a da coleção (Recentes pela última vez jogado). */
+export const FULLSCREEN_SORTS = ["collection", "name", "lastPlayed", "playtime", "added", "rating"] as const
+export type FullscreenSort = (typeof FULLSCREEN_SORTS)[number]
+/** Ordena sem mudar a lista recebida; empates e jogos sem o dado ficam pelo nome. */
+export function sortFullscreenGames<T extends { title: string; lastPlayedAt: string | null; playtimeMinutes: number; addedAt: string; rating: number | null }>(games: T[], sort: FullscreenSort, locale: string): T[] {
+  if (sort === "collection") return games
+  const byName = (a: T, b: T) => a.title.localeCompare(b.title, locale, { sensitivity: "base" })
+  const time = (value: string | null) => (value ? Date.parse(value) : -Infinity)
+  const newer = (a: number, b: number) => (a === b ? 0 : a > b ? -1 : 1)
+  const compare: Record<Exclude<FullscreenSort, "collection">, (a: T, b: T) => number> = {
+    name: byName,
+    lastPlayed: (a, b) => newer(time(a.lastPlayedAt), time(b.lastPlayedAt)) || byName(a, b),
+    playtime: (a, b) => b.playtimeMinutes - a.playtimeMinutes || byName(a, b),
+    added: (a, b) => newer(time(a.addedAt), time(b.addedAt)) || byName(a, b),
+    rating: (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || byName(a, b),
+  }
+  return [...games].sort(compare[sort])
+}
+/** Com a troca ligada, ○ confirma e × volta (só no controle; Enter e Esc continuam iguais). */
+export function swapConfirmAction(action: FullscreenAction): FullscreenAction {
+  return action === "cross" ? "circle" : action === "circle" ? "cross" : action
+}
 export function restoreFullscreenSelection(games: { id: number }[], id: number | null): number | null {
   return games.some((game) => game.id === id) ? id : games[0]?.id ?? null
 }

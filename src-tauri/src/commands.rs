@@ -173,6 +173,22 @@ pub fn fullscreen_set_config(
     Ok(config)
 }
 
+/// Bloqueia, suspende, reinicia ou desliga o Windows (o menu principal da tela cheia confirma antes).
+/// Nos testes do app, só anota a ação, como os endereços que iriam para o navegador.
+#[tauri::command]
+pub fn system_power(state: State<'_, AppState>, hooks: State<'_, crate::test_hooks::TestHooks>, action: Value) -> AppResult<()> {
+    let language = state.language();
+    let action = action
+        .as_str()
+        .filter(|action| crate::power::ACTIONS.contains(action))
+        .ok_or_else(|| AppError::text(language, "errors.invalidValue", &[]))?;
+    if crate::test_hooks::active() {
+        hooks.record_opened(&format!("power:{action}"));
+        return Ok(());
+    }
+    crate::power::run(action).map_err(|_| AppError::text(language, "errors.powerFailed", &[]))
+}
+
 #[tauri::command]
 pub fn themes_aniki_status(pack: State<'_, AnikiPack>) -> AnikiPackStatus {
     pack.status()

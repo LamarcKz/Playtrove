@@ -175,3 +175,40 @@
 .playtrove-fullscreen .fs-library-stats dt { font-size: .65em; color: var(--fs-muted); margin-bottom: .35em; }
 .playtrove-fullscreen .fs-library-stats dd { font-size: .85em; font-weight: 550; display: flex; align-items: center; gap: .3em; overflow-wrap: anywhere; }
 .playtrove-fullscreen .fs-game-info h1, .playtrove-fullscreen .fs-signature-heading h1, .playtrove-fullscreen .fs-description { overflow-wrap: anywhere; }
+
+/* Barra do topo: relógio, avisos e o botão do menu principal. */
+.playtrove-fullscreen .fs-clock { font-size: 1.05em; font-weight: 600; font-variant-numeric: tabular-nums; margin-right: .4em; }
+.playtrove-fullscreen .fs-notices-button { position: relative; }
+.playtrove-fullscreen .fs-badge { position: absolute; top: .1em; right: .1em; min-width: 1.3em; padding: 0 .3em; border-radius: 1em; font-size: .65em; font-weight: 700; line-height: 1.3em; text-align: center; color: var(--fs-background); background: var(--fs-focus); }
+.playtrove-fullscreen .fs-menu-button { display: flex; align-items: center; gap: .5em; font-weight: 600; }
+.playtrove-fullscreen .fs-header-tools button[aria-pressed="true"] { border-color: var(--fs-focus); }
+/* Linhas de capas (1 a 3), rolando para o lado como no Playnite. */
+.playtrove-fullscreen .fs-cover-rail[data-rows] { display: grid; grid-auto-flow: column; grid-auto-columns: max-content; align-content: start; }
+.playtrove-fullscreen .fs-cover-rail[data-rows="1"] { grid-template-rows: auto; }
+.playtrove-fullscreen .fs-cover-rail[data-rows="2"] { grid-template-rows: repeat(2, auto); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="3"] { grid-template-rows: repeat(3, auto); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="2"] .fs-cover { width: clamp(6.5rem, 10vw, 12rem); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="3"] .fs-cover { width: clamp(5.5rem, 7.5vw, 9.5rem); }
+.playtrove-fullscreen .fs-library:has(.fs-cover-rail[data-rows="2"]) .fs-game-info, .playtrove-fullscreen .fs-library:has(.fs-cover-rail[data-rows="3"]) .fs-game-info { padding-top: 4vh; }
+/* Menu principal e a confirmação de energia. */
+.playtrove-fullscreen .fs-menu h3, .playtrove-fullscreen .fs-filters h3 { margin: 1.2em 0 .5em; font-size: .85em; text-transform: uppercase; letter-spacing: .12em; color: var(--fs-muted); }
+.playtrove-fullscreen .fs-menu-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(15em, 1fr)); gap: .5em; }
+.playtrove-fullscreen .fs-menu-items button { display: flex; align-items: center; gap: .8em; text-align: left; background: var(--fs-border); }
+.playtrove-fullscreen .fs-power-confirm p { color: var(--fs-muted); max-width: 40em; }
+/* Filtros e ordem: cada opção é um botão de ligar e desligar, com a quantidade de jogos. */
+.playtrove-fullscreen .fs-filters-head { display: flex; align-items: center; gap: 1em; }
+.playtrove-fullscreen .fs-filters-head h2 { margin-right: auto; }
+.playtrove-fullscreen .fs-chips { display: flex; flex-wrap: wrap; gap: .45em; }
+.playtrove-fullscreen .fs-chips button { display: flex; align-items: center; gap: .5em; background: var(--fs-border); }
+.playtrove-fullscreen .fs-chips small { color: var(--fs-muted); font-variant-numeric: tabular-nums; }
+.playtrove-fullscreen .fs-filters-empty { color: var(--fs-muted); font-size: .85em; }
+/* Ajuda e avisos. */
+.playtrove-fullscreen .fs-help dl { display: grid; grid-template-columns: max-content 1fr; gap: .7em 2em; }
+.playtrove-fullscreen .fs-help dl > div { display: contents; }
+.playtrove-fullscreen .fs-help dt { font-weight: 700; }
+.playtrove-fullscreen .fs-help dd { color: var(--fs-muted); }
+.playtrove-fullscreen .fs-notices ul { display: flex; flex-direction: column; gap: .5em; margin-top: 1em; }
+.playtrove-fullscreen .fs-notices li, .playtrove-fullscreen .fs-notice-banner { display: flex; flex-direction: column; gap: .2em; padding: .8em 1em; border-radius: .6em; background: var(--fs-surface); border: 1px solid var(--fs-border); }
+.playtrove-fullscreen .fs-notices li span, .playtrove-fullscreen .fs-notice-banner span { color: var(--fs-muted); font-size: .85em; }
+.playtrove-fullscreen .fs-notices li:focus-visible { outline: 3px solid var(--fs-focus); outline-offset: 2px; }
+.playtrove-fullscreen .fs-notice-banner { position: absolute; right: 3vw; bottom: 4rem; z-index: 3; max-width: min(28rem, 90vw); box-shadow: 0 1em 2em var(--fs-shadow); }

@@ -6,7 +6,7 @@
 import type { AchievementsConfig, AchievementsOverview, GameAchievements, UnlockedAchievement } from "./achievements"
 import type { ConnectedController, ControllerInputSnapshot } from "./controllers"
 import type { GameEvaluation } from "./evaluation"
-import type { AnikiPackStatus, FullscreenConfig } from "./fullscreen"
+import type { AnikiPackStatus, FullscreenConfig, PowerAction } from "./fullscreen"
 import type { Language } from "./i18n"
 import type {
   DailyPlaytime,
@@ -96,6 +96,10 @@ export interface AppApi {
     getConfig: () => Promise<FullscreenConfig>
     setConfig: (patch: Partial<FullscreenConfig>) => Promise<FullscreenConfig>
     onConfigChange: (callback: (config: FullscreenConfig) => void) => () => void
+  }
+  /** O Windows: bloquear, suspender, reiniciar e desligar (a tela pede confirmação antes). */
+  system: {
+    power: (action: PowerAction) => Promise<void>
   }
   /** O tema Aniki ReMake: o pacote oficial vem da release do autor, como no Playnite. */
   themes: {

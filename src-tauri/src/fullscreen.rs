@@ -70,6 +70,8 @@ pub const TRAILERS: [&str; 3] = ["details", "off", "all"];
 /// Os temas da tela cheia, como os do Playnite: o próprio Playtrove (padrão) e o Aniki ReMake, que só vale
 /// com o pacote oficial baixado (`theme_pack.rs`).
 pub const THEMES: [&str; 2] = ["playtrove", "aniki"];
+/// Quantas linhas de capas a biblioteca do tema Playtrove mostra (como no Playnite).
+const COVER_ROWS: std::ops::RangeInclusive<u8> = 1..=3;
 /// Tamanho máximo do nome do perfil, em caracteres.
 const PROFILE_NAME_MAX: usize = 32;
 
@@ -104,6 +106,13 @@ pub struct FullscreenConfig {
     pub trailers: String,
     /// O assistente inicial já foi concluído (ou pulado): ele não abre sozinho de novo.
     pub setup_done: bool,
+    /// Tema Playtrove: linhas de capas, relógio na barra do topo, sons da navegação (e o volume deles) e
+    /// a troca de × por ○ no controle (× volta e ○ confirma).
+    pub cover_rows: u8,
+    pub show_clock: bool,
+    pub ui_sounds: bool,
+    pub ui_sounds_volume: u8,
+    pub swap_confirm: bool,
 }
 
 pub fn get_config(db: &Connection) -> FullscreenConfig {
@@ -141,7 +150,16 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
         login_screen: boolean("fullscreenLoginScreen", false),
         trailers: choice(db, "fullscreenTrailers", &TRAILERS),
         setup_done: boolean("fullscreenSetupDone", false),
+        cover_rows: number(db, "fullscreenCoverRows").filter(|rows| COVER_ROWS.contains(rows)).unwrap_or(1),
+        show_clock: boolean("fullscreenShowClock", true),
+        ui_sounds: boolean("fullscreenUiSounds", true),
+        ui_sounds_volume: number(db, "fullscreenUiSoundsVolume").filter(|volume| *volume <= 100).unwrap_or(40),
+        swap_confirm: boolean("fullscreenSwapConfirm", false),
     }
+}
+
+fn number(db: &Connection, key: &str) -> Option<u8> {
+    get_setting(db, key).ok().flatten().and_then(|value| value.parse::<u8>().ok())
 }
 
 /// Um valor salvo que precisa estar na lista; qualquer outro volta ao primeiro (o padrão).
@@ -201,6 +219,16 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
             "dynamicColors" => config.dynamic_colors = to_bool(value, language)?,
             "loginScreen" => config.login_screen = to_bool(value, language)?,
             "setupDone" => config.setup_done = to_bool(value, language)?,
+            "coverRows" => {
+                config.cover_rows =
+                    value.as_u64().filter(|rows| COVER_ROWS.contains(&(*rows as u8)) && *rows <= 3).ok_or_else(invalid)? as u8;
+            }
+            "showClock" => config.show_clock = to_bool(value, language)?,
+            "uiSounds" => config.ui_sounds = to_bool(value, language)?,
+            "uiSoundsVolume" => {
+                config.ui_sounds_volume = value.as_u64().filter(|volume| *volume <= 100).ok_or_else(invalid)? as u8;
+            }
+            "swapConfirm" => config.swap_confirm = to_bool(value, language)?,
             "interface" => {
                 config.interface =
                     value.as_str().filter(|interface| INTERFACES.contains(interface)).ok_or_else(invalid)?.to_string();
@@ -239,6 +267,11 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenLoginScreen", Some(if config.login_screen { "1" } else { "0" }))?;
     set_setting(&transaction, "fullscreenTrailers", Some(&config.trailers))?;
     set_setting(&transaction, "fullscreenSetupDone", Some(if config.setup_done { "1" } else { "0" }))?;
+    set_setting(&transaction, "fullscreenCoverRows", Some(&config.cover_rows.to_string()))?;
+    set_setting(&transaction, "fullscreenShowClock", Some(if config.show_clock { "1" } else { "0" }))?;
+    set_setting(&transaction, "fullscreenUiSounds", Some(if config.ui_sounds { "1" } else { "0" }))?;
+    set_setting(&transaction, "fullscreenUiSoundsVolume", Some(&config.ui_sounds_volume.to_string()))?;
+    set_setting(&transaction, "fullscreenSwapConfirm", Some(if config.swap_confirm { "1" } else { "0" }))?;
     transaction.commit()?;
     Ok(config)
 }
@@ -261,6 +294,7 @@ mod tests {
                 "libraryLayout": "horizontal", "detailsLayout": "signature",
                 "colorPreset": "default", "dynamicColors": false, "effects": "balanced",
                 "interface": "standard", "loginScreen": false, "trailers": "details", "setupDone": false,
+                "coverRows": 1, "showClock": true, "uiSounds": true, "uiSoundsVolume": 40, "swapConfirm": false,
             })
         );
     }
@@ -320,6 +354,12 @@ mod tests {
             json!({"loginScreen": 1}),
             json!({"setupDone": null}),
             json!({"theme": "Aniki"}),
+            json!({"coverRows": 0}),
+            json!({"coverRows": 4}),
+            json!({"coverRows": 260}),
+            json!({"showClock": "sim"}),
+            json!({"uiSoundsVolume": 101}),
+            json!({"swapConfirm": 1}),
             json!({"theme": null}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
@@ -414,6 +454,24 @@ mod tests {
             ("complete", true, "all", true)
         );
         assert_eq!(get_config(&db), saved);
+    }
+
+    #[test]
+    fn preferencias_do_tema_playtrove_persistem() {
+        let db = memory_database();
+        let saved = set_config(
+            &db,
+            &json!({"coverRows": 3, "showClock": false, "uiSounds": false, "uiSoundsVolume": 0, "swapConfirm": true}),
+            Language::PtBr,
+        )
+        .unwrap();
+        assert_eq!(
+            (saved.cover_rows, saved.show_clock, saved.ui_sounds, saved.ui_sounds_volume, saved.swap_confirm),
+            (3, false, false, 0, true)
+        );
+        assert_eq!(get_config(&db), saved);
+        set_setting(&db, "fullscreenCoverRows", Some("9")).unwrap();
+        assert_eq!(get_config(&db).cover_rows, 1);
     }
 
     #[test]

@@ -35,6 +35,7 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `games_accent_color` | `hooks/useDynamicPalette.ts` | A cor de destaque tirada da arte de fundo (ou da capa) do jogo, ou null sem imagem |
 | `window_set_fullscreen` | `hooks/useDynamicPalette.ts` | A cor dinâmica do jogo selecionado: pede a cor ao Rust 800 ms depois de a seleção parar e devolve as variáveis CSS |
 | `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
+| `system_power` | `fullscreen/PlaytroveShell.tsx` | Bloqueia, suspende, reinicia ou desliga o Windows depois da confirmação do menu principal (nos testes do app, só anota) |
 | `themes_aniki_status`, `themes_aniki_install`, `themes_aniki_cancel` e `themes_aniki_remove` | `hooks/useAnikiPack.ts` | O pacote oficial do tema Aniki: estado, download conferido (no fim, troca o tema), cancelar e apagar (volta o tema Playtrove) |
 | `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar), os layouts da biblioteca e dos detalhes, a paleta, a cor dinâmica, os efeitos, o estilo da interface, a tela de boas-vindas, os trailers e se o assistente inicial já foi feito, com validação integral do patch e transação |
 | `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
@@ -177,7 +178,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
 | `controllers.ts` | Controle/bateria (`ConnectedController`), botões normalizados (`ControllerButton`) e snapshot de entrada (`ControllerInputSnapshot`, com sequência, geração e chave do controle) |
 | `anikiColors.ts` | As 41 paletas do Aniki (id e nome), a mesma lista do Rust (`COLOR_PRESETS`) |
-| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), `colorPreset`, `dynamicColors` e `effects` (de `FULLSCREEN_EFFECTS`), `interface` (de `FULLSCREEN_INTERFACES`), `loginScreen`, `trailers` (de `FULLSCREEN_TRAILERS`) e `setupDone` (o assistente inicial), independentes do desktop |
+| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), `colorPreset`, `dynamicColors` e `effects` (de `FULLSCREEN_EFFECTS`), `interface` (de `FULLSCREEN_INTERFACES`), `loginScreen`, `trailers` (de `FULLSCREEN_TRAILERS`), `setupDone` (o assistente inicial) e as do tema Playtrove (`coverRows`, `showClock`, `uiSounds`, `uiSoundsVolume` e `swapConfirm`), independentes do desktop; `POWER_ACTIONS`, as opções de energia |
 
 ### `src/renderer`: interface React
 
@@ -197,7 +198,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `hooks/useFullscreen.ts` | `useFullscreenMode()` acompanha o estado nativo, serializa transições e restaura o foco do desktop; `useFullscreenConfig()` carrega, grava e sincroniza preferências por `fullscreen:config` |
 | `hooks/useAnikiPack.ts` | O pacote do tema Aniki: estado e progresso (`themes:aniki-progress`), instalar, cancelar e remover |
 | `lib/fullscreenConfig.ts` | Fila de preferências: resposta otimista, patches serializados e reconciliação de eventos, falhas e leituras antigas sem perder mudanças pendentes |
-| `hooks/useFullscreenInput.ts` | Atividade da janela, habilitação do input nativo, navegação espacial restrita ao painel visível, confirmação, teclas e repetição direcional |
+| `hooks/useFullscreenNotices.ts` | Os avisos da sessão do tema Playtrove: conquistas novas, fim dos metadados, versão nova e os da própria tela, com o aviso no canto e os não lidos |
+| `hooks/useFullscreenInput.ts` |, habilitação do input nativo, navegação espacial restrita ao painel visível, confirmação, teclas e repetição direcional |
 | `hooks/useEmulators.ts` | Os dados da aba Emuladores (emuladores, cores do RetroArch e pastas de ROMs) e as ações de cada um |
 | `hooks/useRunningGames.ts` | Os jogos abertos agora (o Rust avisa quando um abre ou fecha) |
 | `hooks/useToast.ts` | `useToast()`: mostra um aviso rápido no canto da tela (ex.: "3 jogos novos na biblioteca") |
@@ -208,7 +210,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/utils.ts` | `cn()`: junta classes do Tailwind sem conflito |
 | `lib/devBuild.ts` | `devMark`: a janela roda o código em desenvolvimento, no `npm run dev` (`?dev=library`, com a cópia da biblioteca) ou nos testes automáticos (`?dev=tests`). A barra do topo mostra a marca DEV |
 | `lib/format.ts` | Textos no idioma do app: `formatPlaytime()` ("12 h 30 min" ou "12h 30m"), `formatLastPlayed()` ("Hoje", "Há 5 dias", "12/08/2026"), `formatReleaseDate()` ("14/10/2003" ou "10/14/2003"), `formatDateTime()`, `formatTime()`, `listTitles()` (os primeiros nomes e "e mais 2", nos avisos) e `shortCoreName()` (o nome curto de um core do RetroArch, como "mGBA") |
-| `lib/filters.ts` | A busca e os filtros: `LibraryFilters` (o que pode ser filtrado), `filterGames()` (quem passa), as faixas de tempo jogado, as de nota e dificuldade (`SCORE_RANGES`) e o período de "Recentes" (`RECENT_DAYS`, 30 dias) |
+| `lib/filters.ts` | A busca e os filtros: `LibraryFilters` (o que pode ser filtrado), `filterGames()` (quem passa), as faixas de tempo jogado, as de nota e dificuldade (`SCORE_RANGES`) e o período de "Recentes" (`RECENT_DAYS`, 30 dias); `VALUE_FILTERS` e `SCORE_FILTERS` são os mesmos no painel do modo janela e nos filtros da tela cheia |
 | `lib/errors.ts` | `errorMessage()`: a mensagem de um erro para mostrar ao usuário |
 | `lib/tauriApi.ts` | A ponte com o Rust (`createTauriApi()`): o `window.api`, com cada função chamando o comando do Rust de mesmo nome (em snake_case) e cada `on...` ouvindo um aviso de `EVENTS` |
 | `lib/metadata.ts` | `describeMetadataResult()`: o aviso que resume uma leva de downloads de metadados |
@@ -216,7 +218,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/musicConfigSaveQueue.ts` | Grava patches de preferências em uma fila compartilhada entre telas, sem reenviar alterações pendentes de componentes desmontados ou sobrescrever campos com um estado antigo |
 | `lib/musicPreviewPlayer.ts` | Player da prévia, cancelamento/respostas antigas, volume e exclusão de áudio ambiente, mantendo cache ao confirmar |
 | `lib/musicReview.ts`, `lib/musicReviewsLoader.ts` | Classificação de pendências/contagem e leitura compartilhada sem tratar desconhecido/falha como lista vazia |
-| `lib/fullscreenNavigation.ts` | Coleções/busca global, restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda e repetição só direcional |
+| `lib/uiSounds.ts` | Os sons da navegação do tema Playtrove, criados pelo Web Audio (sem arquivos); sem áudio no computador, ficam em silêncio |
+| `lib/fullscreenNavigation.ts` |, restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda e repetição só direcional |
 | `lib/dynamicColors.ts` | Os tons da cor dinâmica a partir da cor de destaque, como o BuildPalette do Aniki Helper |
 | `lib/collectorLevel.ts` | Pontos de colecionador (pela raridade) e de troféu (pelo tipo) e a curva de níveis com as patentes, recriando a regra do PlayniteAchievements |
 | `lib/fullscreenHub.ts` | Os números do perfil e os cartões de atividade do Welcome Hub, calculados com os jogos e a atividade diária |
@@ -231,10 +234,14 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | Arquivo | O que faz |
 |---|---|
 | `FullscreenShell.tsx` | Escolhe o tema da tela cheia pela preferência `theme`: o Playtrove (padrão) ou o Aniki, se o pacote estiver instalado |
-| `PlaytroveShell.tsx` | Tema Playtrove: biblioteca horizontal, detalhes, coleções, busca, análise, conquistas (`FullscreenAchievements.tsx`), preferências e o mapa de botões próprio; o visual fica em `styles/fullscreenPlaytrove.css`, dentro de `.playtrove-fullscreen` |
+| `PlaytroveShell.tsx` | Tema Playtrove: barra do topo (coleções, relógio, Buscar, Filtros, Avisos e Menu), biblioteca com 1 a 3 linhas de capas, detalhes, opções do jogo, busca, análise, conquistas (`FullscreenAchievements.tsx`), preferências, sons, a troca de ✕/○ e o mapa de botões próprio; o visual fica em `styles/fullscreenPlaytrove.css`, dentro de `.playtrove-fullscreen` |
 | `FullscreenThemePicker.tsx` | Escolha do tema, com a confirmação do download do Aniki, o progresso, cancelar e remover o pacote |
 | `AnikiShell.tsx` | Tema Aniki. Estado da sessão: biblioteca horizontal, Detalhes Signature, coleções, busca global, seleção por coleção, painéis, menu principal, mapa de botões do Aniki, dados comuns e lançamento/retorno. Restringe input ao painel atual e suspende interação durante execução |
 | `AnikiStage.tsx` | Palco de 1920×1080 do tema, ajustado ao monitor como no Playnite |
+| `PlaytroveMenu.tsx` | Menu principal do tema Playtrove (modo janela, configurações, biblioteca, jogo aleatório, ajuda, minimizar, sair e energia) e a confirmação de energia |
+| `PlaytroveFilters.tsx` | Filtros (os mesmos do modo janela, de `lib/filters.ts`) e a ordem dos jogos, em botões de ligar e desligar |
+| `PlaytroveInfoPanels.tsx` | Ajuda (o que cada botão faz) e a lista de avisos da sessão |
+| `FullscreenClock.tsx` | O relógio da barra do topo, usado pelos dois temas |
 | `AnikiTopBar.tsx` | Barra do topo da interface Padrão: coleção, Menu, Buscar, troféus desbloqueados, controle e relógio |
 | `AnikiLibrary.tsx` | Biblioteca nos três layouts do Aniki: Horizontal (nome sobre a arte, etiquetas, legenda e faixa de capas), Vertical (capas em grade) e Lista (a lista à esquerda e o jogo à direita), com o painel lateral do estilo Completo e o trailer de fundo |
 | `AnikiShortcutBar.tsx` | Legenda dos botões do controle, com a ação de segurar |
@@ -416,6 +423,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/metadata/service.rs` | A ligação com o app: a sessão do IGDB guardada entre os downloads, a fila e os avisos `metadata:progress` |
 | `src/controllers.rs` | Descoberta HID a cada segundo, indicador DualSense/Edge e bateria econômica a cada 5 s (`controllers:changed`). Input opt-in mantém um leitor por aparelho com timeout de 20 ms, dá prioridade sobre a bateria e publica mudanças (`controllers:input`). Só DualSense navega; Edge continua como indicador. Não inicializa hardware nos testes |
 | `src/controller_input.rs` | Parser puro dos relatórios DualSense USB 0x01 e Bluetooth simples 0x01/completo 0x31; botões e analógico esquerdo com zona morta, neutralidade, sequência/geração e invalidação após desconexão/reativação |
+| `src/power.rs` | Opções de energia do menu principal: bloquear (`LockWorkStation`), suspender (`SetSuspendState`), reiniciar e desligar (`shutdown.exe`, sem forçar) |
 | `src/theme_pack.rs` | O pacote do tema Aniki: download da release oficial com SHA-256 fixo, extração só das mídias para `themes/aniki-3.6.0`, cancelamento, remoção e o protocolo `playtrove-theme` |
 | `src/fullscreen.rs` | Preferências próprias na tabela `settings` (o tema, `playtrove` ou `aniki`, entre elas): início desligado, música ligada e volume 20%; valida todo o patch antes de gravar em transação e mantém os dados desktop separados |
 | `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, com os mesmos nomes do `src/shared/ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |

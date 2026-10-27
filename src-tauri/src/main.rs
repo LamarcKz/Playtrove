@@ -26,6 +26,7 @@ mod music;
 mod music_previews;
 mod music_search;
 mod playtime_sync;
+mod power;
 mod rom_scanner;
 mod sample_games;
 mod secrets;
@@ -121,6 +122,7 @@ fn main() {
             commands::window_set_fullscreen,
             commands::fullscreen_get_config,
             commands::fullscreen_set_config,
+            commands::system_power,
             commands::themes_aniki_status,
             commands::themes_aniki_install,
             commands::themes_aniki_cancel,

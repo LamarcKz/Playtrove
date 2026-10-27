@@ -42,6 +42,9 @@ export function createTauriApi(): AppApi {
       setConfig: (patch) => invoke("fullscreen_set_config", { patch }),
       onConfigChange: (callback) => subscribe(EVENTS.fullscreenConfig, callback),
     },
+    system: {
+      power: (action) => invoke("system_power", { action }),
+    },
     themes: {
       anikiStatus: () => invoke("themes_aniki_status"),
       installAniki: () => invoke("themes_aniki_install"),
