@@ -67,6 +67,9 @@ pub const EFFECTS: [&str; 4] = ["balanced", "full", "animated", "performance"];
 pub const INTERFACES: [&str; 4] = ["standard", "clean", "enhanced", "complete"];
 /// Onde os trailers tocam sozinhos: só nos detalhes (padrão), em nenhum lugar ou também na biblioteca.
 pub const TRAILERS: [&str; 3] = ["details", "off", "all"];
+/// Os temas da tela cheia, como os do Playnite: o próprio Playtrove (padrão) e o Aniki ReMake, que só vale
+/// com o pacote oficial baixado (`theme_pack.rs`).
+pub const THEMES: [&str; 2] = ["playtrove", "aniki"];
 /// Tamanho máximo do nome do perfil, em caracteres.
 const PROFILE_NAME_MAX: usize = 32;
 
@@ -81,6 +84,7 @@ pub enum StartDestination {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FullscreenConfig {
+    pub theme: String,
     pub start_on_launch: bool,
     pub music_playback: bool,
     pub music_volume: u8,
@@ -109,6 +113,7 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
         _ => default,
     };
     FullscreenConfig {
+        theme: choice(db, "fullscreenTheme", &THEMES),
         start_on_launch: boolean("fullscreenStartOnLaunch", false),
         music_playback: boolean("fullscreenMusicPlayback", true),
         music_volume: get_setting(db, "fullscreenMusicVolume")
@@ -159,6 +164,9 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     let mut config = get_config(db);
     for (name, value) in fields {
         match name.as_str() {
+            "theme" => {
+                config.theme = value.as_str().filter(|theme| THEMES.contains(theme)).ok_or_else(invalid)?.to_string();
+            }
             "startOnLaunch" => config.start_on_launch = to_bool(value, language)?,
             "musicPlayback" => config.music_playback = to_bool(value, language)?,
             "musicVolume" => {
@@ -211,6 +219,7 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
         }
     }
     let transaction = db.unchecked_transaction()?;
+    set_setting(&transaction, "fullscreenTheme", Some(&config.theme))?;
     set_setting(&transaction, "fullscreenStartOnLaunch", Some(if config.start_on_launch { "1" } else { "0" }))?;
     set_setting(&transaction, "fullscreenMusicPlayback", Some(if config.music_playback { "1" } else { "0" }))?;
     set_setting(&transaction, "fullscreenMusicVolume", Some(&config.music_volume.to_string()))?;
@@ -247,7 +256,7 @@ mod tests {
         assert_eq!(
             serde_json::to_value(get_config(&db)).unwrap(),
             json!({
-                "startOnLaunch": false, "musicPlayback": true, "musicVolume": 20,
+                "theme": "playtrove", "startOnLaunch": false, "musicPlayback": true, "musicVolume": 20,
                 "startDestination": "hub", "profileName": "", "profileAvatar": "gamepad",
                 "libraryLayout": "horizontal", "detailsLayout": "signature",
                 "colorPreset": "default", "dynamicColors": false, "effects": "balanced",
@@ -310,6 +319,8 @@ mod tests {
             json!({"trailers": "sempre"}),
             json!({"loginScreen": 1}),
             json!({"setupDone": null}),
+            json!({"theme": "Aniki"}),
+            json!({"theme": null}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
             assert_eq!(get_config(&db), before);
@@ -403,5 +414,14 @@ mod tests {
             ("complete", true, "all", true)
         );
         assert_eq!(get_config(&db), saved);
+    }
+
+    #[test]
+    fn tema_persiste_e_valor_desconhecido_volta_ao_playtrove() {
+        let db = memory_database();
+        assert_eq!(set_config(&db, &json!({"theme": "aniki"}), Language::PtBr).unwrap().theme, "aniki");
+        assert_eq!(get_config(&db).theme, "aniki");
+        set_setting(&db, "fullscreenTheme", Some("outro")).unwrap();
+        assert_eq!(get_config(&db).theme, "playtrove");
     }
 }

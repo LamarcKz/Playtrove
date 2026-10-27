@@ -33,6 +33,7 @@ export function AnikiSettings({ category, onCategory, onEditName, onRunSetup }: 
     <button type="button" className="aniki-setting" {...describe(key)} onClick={change}><span>{label}</span><strong>{value}</strong></button>
   const rows: Record<(typeof SETTINGS_CATEGORIES)[number], ReactNode> = {
     general: <>
+      {choice("theme", t.fullscreen.theme, t.fullscreen.themeNames[config.theme], () => void save({ theme: "playtrove" }))}
       {toggle("startOnLaunch", t.fullscreen.startup, config.startOnLaunch, (value) => void save({ startOnLaunch: value }))}
       {choice("startDestination", t.fullscreen.startIn, config.startDestination === "hub" ? t.fullscreen.hub : t.fullscreen.library, () => void save({ startDestination: config.startDestination === "hub" ? "library" : "hub" }))}
       {toggle("loginScreen", t.fullscreen.loginScreen, config.loginScreen, (value) => void save({ loginScreen: value }))}

@@ -37,6 +37,7 @@ mod test_hooks;
 mod test_mode;
 #[cfg(test)]
 mod test_support;
+mod theme_pack;
 mod updates;
 mod validation;
 mod videos;
@@ -66,6 +67,7 @@ fn main() {
         .register_asynchronous_uri_scheme_protocol(videos::VIDEO_PROTOCOL, videos::handle_request)
         .register_asynchronous_uri_scheme_protocol(music::MUSIC_PROTOCOL, music::handle_request)
         .register_asynchronous_uri_scheme_protocol(music_previews::PREVIEW_PROTOCOL, music_previews::handle_request)
+        .register_asynchronous_uri_scheme_protocol(theme_pack::THEME_PROTOCOL, theme_pack::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
             // idioma (o escolhido ou o do Windows).
@@ -81,6 +83,7 @@ fn main() {
                 sample_games::seed_sample_games(&db)?;
             }
             app.manage(images::ImagesDir(folder.join("images")));
+            app.manage(theme_pack::AnikiPack::new(folder.join("themes")));
             app.manage(music_previews::MusicPreviewCache::new(folder.join("music-previews"))?);
             app.manage(test_hooks::TestHooks::default());
             app.manage(secrets::Secrets::new(&folder));
@@ -118,6 +121,10 @@ fn main() {
             commands::window_set_fullscreen,
             commands::fullscreen_get_config,
             commands::fullscreen_set_config,
+            commands::themes_aniki_status,
+            commands::themes_aniki_install,
+            commands::themes_aniki_cancel,
+            commands::themes_aniki_remove,
             commands::library_get,
             commands::games_set_status,
             commands::games_set_favorite,

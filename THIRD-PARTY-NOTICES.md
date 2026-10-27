@@ -2,6 +2,8 @@
 
 Playtrove's fullscreen mode is a port of the Aniki ReMake theme and of its companion plugin, Aniki Helper, both by Mike Aniki. The layouts, measurements, colors and behavior were rewritten for Playtrove (React/TypeScript and Rust); images, sounds and avatars that contain third-party artwork were not copied.
 
+Playtrove does not ship the Aniki ReMake package itself. When a user picks the Aniki ReMake fullscreen theme, the app downloads the official package from the author's GitHub release (checked against a fixed SHA-256) and keeps only its media files in the user's app data, the same way Playnite installs themes.
+
 - Aniki ReMake: https://github.com/Mike-Aniki/Aniki-ReMake
 - Aniki Helper: https://github.com/Mike-Aniki/AnikiHelper
 

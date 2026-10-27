@@ -40,6 +40,7 @@ use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
 use crate::test_hooks::{self, TestHooks, open_in_browser, show_in_explorer};
 use crate::test_mode::test_mode;
+use crate::theme_pack::{self, AnikiPack, AnikiPackStatus, InstallError};
 use crate::updates::{UpdateService, UpdateStatus};
 use crate::validation::{
     to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_ra_account,
@@ -157,10 +158,64 @@ pub fn fullscreen_get_config(state: State<'_, AppState>) -> FullscreenConfig {
 }
 
 #[tauri::command]
-pub fn fullscreen_set_config(app: AppHandle, state: State<'_, AppState>, patch: Value) -> AppResult<FullscreenConfig> {
+pub fn fullscreen_set_config(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    pack: State<'_, AnikiPack>,
+    patch: Value,
+) -> AppResult<FullscreenConfig> {
+    // O tema Aniki só vale com o pacote oficial instalado (a instalação já troca o tema sozinha).
+    if patch.get("theme").and_then(Value::as_str) == Some("aniki") && !pack.installed() {
+        return Err(AppError::text(state.language(), "errors.anikiMissing", &[]));
+    }
     let config = fullscreen::set_config(&state.db(), &patch, state.language())?;
     let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
     Ok(config)
+}
+
+#[tauri::command]
+pub fn themes_aniki_status(pack: State<'_, AnikiPack>) -> AnikiPackStatus {
+    pack.status()
+}
+
+/// Baixa o pacote oficial do Aniki da release do autor e, quando termina, troca o tema da tela cheia.
+#[tauri::command(async)]
+pub fn themes_aniki_install(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    pack: State<'_, AnikiPack>,
+) -> AppResult<AnikiPackStatus> {
+    let report = |status: AnikiPackStatus| {
+        let _ = app.emit(theme_pack::PROGRESS_EVENT, status);
+    };
+    match pack.install(&theme_pack::download, &report) {
+        Ok(()) => {
+            let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "aniki"}), state.language())?;
+            let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
+        }
+        // Cancelar não é erro, e um segundo pedido acompanha o download que já está em andamento.
+        Err(InstallError::Cancelled | InstallError::Busy) => {}
+        Err(error) => return Err(AppError::text(state.language(), error.message_key(), &[])),
+    }
+    Ok(pack.status())
+}
+
+#[tauri::command]
+pub fn themes_aniki_cancel(pack: State<'_, AnikiPack>) {
+    pack.cancel();
+}
+
+/// Apaga o pacote do Aniki; se ele era o tema escolhido, a tela cheia volta ao tema Playtrove.
+#[tauri::command(async)]
+pub fn themes_aniki_remove(app: AppHandle, state: State<'_, AppState>, pack: State<'_, AnikiPack>) -> AppResult<AnikiPackStatus> {
+    pack.remove().map_err(|error| AppError::text(state.language(), error.message_key(), &[]))?;
+    if fullscreen::get_config(&state.db()).theme == "aniki" {
+        let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "playtrove"}), state.language())?;
+        let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
+    }
+    let status = pack.status();
+    let _ = app.emit(theme_pack::PROGRESS_EVENT, &status);
+    Ok(status)
 }
 
 // ---------------------------------------------------------------- biblioteca e jogos

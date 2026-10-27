@@ -312,6 +312,11 @@ fn video_response(root: &Path, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
         Some("mp4") => "video/mp4",
         _ => "video/webm",
     };
+    file_response(&path, mime, &request)
+}
+
+/// Responde com um arquivo já conferido, em intervalos de até 2 MiB (também usado pelas mídias do tema Aniki).
+pub(crate) fn file_response(path: &Path, mime: &str, request: &Request<Vec<u8>>) -> Response<Vec<u8>> {
     let mut file = match File::open(path) {
         Ok(file) => file,
         Err(_) => return empty_response(StatusCode::NOT_FOUND),

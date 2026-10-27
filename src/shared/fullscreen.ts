@@ -1,5 +1,8 @@
 import type { AnikiColorPreset } from "./anikiColors"
 
+/** Os temas da tela cheia, como os do Playnite: o do Playtrove (padrão) e o Aniki ReMake, baixado da release do autor. */
+export const FULLSCREEN_THEMES = ["playtrove", "aniki"] as const
+export type FullscreenTheme = (typeof FULLSCREEN_THEMES)[number]
 /** Avatares próprios do Playtrove para o perfil do Aniki (a mesma lista do Rust, em src-tauri/src/fullscreen.rs). */
 export const PROFILE_AVATARS = ["gamepad", "trophy", "star", "crown", "ghost", "swords", "rocket", "flame", "skull", "sparkles", "shield", "zap"] as const
 export type ProfileAvatar = (typeof PROFILE_AVATARS)[number]
@@ -20,6 +23,8 @@ export type FullscreenTrailers = (typeof FULLSCREEN_TRAILERS)[number]
 
 /** Preferências próprias do modo de tela cheia, independentes do desktop. */
 export interface FullscreenConfig {
+  /** "aniki" só é aceito com o pacote do Aniki instalado. */
+  theme: FullscreenTheme
   startOnLaunch: boolean
   musicPlayback: boolean
   musicVolume: number
@@ -40,4 +45,16 @@ export interface FullscreenConfig {
   trailers: FullscreenTrailers
   /** O assistente inicial já foi concluído (ou pulado). */
   setupDone: boolean
+}
+
+/** O pacote oficial do Aniki: instalado, baixando ("download") ou extraindo as mídias ("extract"). */
+export interface AnikiPackStatus {
+  version: string
+  /** Tamanho do pacote oficial, em bytes. */
+  size: number
+  installed: boolean
+  installing: boolean
+  phase: "download" | "extract" | null
+  received: number
+  total: number
 }

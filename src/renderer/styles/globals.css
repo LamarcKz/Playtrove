@@ -4,6 +4,7 @@
 @import "@fontsource-variable/geist";
 @import "@fontsource-variable/exo-2";
 @import "./anikiColors.css";
+@import "./fullscreenPlaytrove.css";
 
 /* A classe "dark" no <html> (ver index.html) liga o tema escuro, que é o padrão do app. */
 @custom-variant dark (&:is(.dark *));
@@ -426,6 +427,12 @@
 @keyframes aniki-options-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
 .fs-choice { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; }
 .fs-choice > span { margin-right: auto; }
+.fs-theme { display: flex; flex-direction: column; gap: .7em; }
+.fs-theme small { opacity: .75; }
+.fs-theme-confirm p { margin-bottom: .2em; }
+.fs-theme-progress { display: flex; align-items: center; gap: 1em; flex-wrap: wrap; }
+.fs-theme-progress progress { flex: 1; min-width: 10em; accent-color: var(--fs-focus); }
+.fs-theme-remove { align-self: flex-start; }
 .fs-avatars { display: flex; flex-wrap: wrap; gap: .5em; }
 .fullscreen-shell .fs-avatars button { padding: .2em; border-radius: 50%; }
 .fs-profile-name { text-align: left; }
