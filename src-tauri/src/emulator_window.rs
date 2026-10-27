@@ -25,9 +25,14 @@ const STILL_ACTIVE: u32 = 259;
 /// mexe numa janela que tem o botão de maximizar: um emulador em tela cheia fica como está. Se o
 /// processo fechar antes, desiste.
 pub fn maximize_window(pid: u32) {
+    maximize_window_within(pid, TIMEOUT);
+}
+
+/// O mesmo, com o prazo dado (os testes esperam mais: no robô, a janela de teste pode levar mais de 10 s).
+fn maximize_window_within(pid: u32, timeout: Duration) {
     thread::spawn(move || {
         let start = Instant::now();
-        while start.elapsed() < TIMEOUT && is_running(pid) {
+        while start.elapsed() < timeout && is_running(pid) {
             if let Some(window) = main_window(pid) {
                 // SAFETY: a janela veio do EnumWindows agora; se ela fechar no meio, as funções só falham.
                 unsafe {
@@ -123,7 +128,8 @@ $form.add_Shown({{ $timer.Start() }})
             .spawn()
             .unwrap();
         let pid = child.id();
-        maximize_window(pid);
+        // O prazo do teste é o mesmo da espera abaixo: no robô, o PowerShell às vezes passa dos 10 s do app.
+        maximize_window_within(pid, Duration::from_secs(60));
         // Espera a janela de verdade, e não um tempo fixo: no robô dos testes, o PowerShell pode levar
         // mais de 4 s para mostrar a janela, e ela fecharia antes de ser maximizada.
         let start = Instant::now();
