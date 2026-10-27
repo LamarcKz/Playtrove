@@ -5,6 +5,7 @@ import { GameCover } from "@/components/GameCover"
 import { AchievementBadge, ProgressBar, TrophyIcon } from "@/components/AchievementParts"
 import { useGameAchievements } from "@/hooks/useAchievements"
 import { useI18n } from "@/hooks/useI18n"
+import { AnikiLogo } from "./AnikiLogo"
 import { formatPercent, progressPercent, sortAchievements, type AchievementSort } from "@/lib/achievements"
 import { formatDate, formatTime } from "@/lib/format"
 
@@ -28,7 +29,7 @@ export function AnikiTrophies({ game }: { game: Game }) {
     <header className="aniki-trophies-header">
       <div className="aniki-trophies-cover"><GameCover title={game.title} src={game.coverUrl} /></div>
       <div className="aniki-trophies-title">
-        <h2>{source.titleOf(game.title)}</h2>
+        <h2><AnikiLogo game={game} label={source.titleOf(game.title)} /></h2>
         <ProgressBar value={percent} label={source.progress} className="aniki-trophies-progress" />
         <p>{percent}%</p>
       </div>

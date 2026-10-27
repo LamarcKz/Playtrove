@@ -66,6 +66,7 @@ struct Game {
     release_date: Option<String>,
     cover_url: Option<String>,
     background_url: Option<String>,
+    logo_url: Option<String>,
     background_video_url: Option<String>,
     background_video_mode: String,
     background_video_checked_at: Option<String>,
@@ -92,7 +93,7 @@ fn list_games(db: &Connection) -> rusqlite::Result<Vec<Game>> {
     let mut query = db.prepare(
         "SELECT id, title, status_id, favorite, playtime_seconds, last_played_at, added_at, platform, library,
                 rom_path, emulator_id, description, genres, developer, publisher, release_date, cover_image,
-                background_image, metadata_updated_at, emulator_playtime_seconds, emulator_last_played_at,
+                background_image, logo_image, metadata_updated_at, emulator_playtime_seconds, emulator_last_played_at,
                 rating, difficulty, review, background_video, background_video_mode, background_video_checked_at,
                 theme_music, theme_music_mode, theme_music_checked_at
          FROM games",
@@ -125,6 +126,7 @@ fn list_games(db: &Connection) -> rusqlite::Result<Vec<Game>> {
                 release_date: row.get("release_date")?,
                 cover_url: image(row.get("cover_image")?),
                 background_url: image(row.get("background_image")?),
+                logo_url: image(row.get("logo_image")?),
                 background_video_url: row.get::<_, Option<String>>("background_video")?.and_then(|file| video_url(id, &file)),
                 background_video_mode: row.get("background_video_mode")?,
                 background_video_checked_at: row.get("background_video_checked_at")?,
@@ -394,6 +396,7 @@ pub fn save_game_metadata(db: &Connection, game_id: i64, metadata: &GameMetadata
            sgdb_id = COALESCE(?7, sgdb_id),
            cover_image = COALESCE(?8, cover_image),
            background_image = COALESCE(?9, background_image),
+           logo_image = COALESCE(?12, logo_image),
            metadata_updated_at = ?10
          WHERE id = ?11",
         rusqlite::params![
@@ -408,8 +411,15 @@ pub fn save_game_metadata(db: &Connection, game_id: i64, metadata: &GameMetadata
             metadata.images.get(&ImageKind::Background),
             updated_at,
             game_id,
+            metadata.images.get(&ImageKind::Logo),
         ],
     )?;
+    Ok(())
+}
+
+/// Anota que a logo foi procurada (no SteamGridDB), achada ou não: o jogo sai da lista dos sem logo.
+pub fn mark_logo_checked(db: &Connection, game_id: i64, checked_at: &str) -> rusqlite::Result<()> {
+    db.execute("UPDATE games SET logo_checked_at = ?1 WHERE id = ?2", (checked_at, game_id))?;
     Ok(())
 }
 
@@ -423,17 +433,19 @@ pub fn list_games_without_metadata(db: &Connection) -> rusqlite::Result<Vec<i64>
     Ok(rows.into_iter().map(|(id, _)| id).collect())
 }
 
-/// Metadados nunca consultados e, com IGDB configurado, trailers automáticos ainda não consultados.
-pub fn list_games_needing_metadata(db: &Connection, include_videos: bool) -> rusqlite::Result<Vec<i64>> {
-    if !include_videos {
+/// Metadados nunca consultados; com IGDB configurado, trailers automáticos ainda não consultados; e,
+/// com SteamGridDB configurado, logos ainda não procuradas.
+pub fn list_games_needing_metadata(db: &Connection, include_videos: bool, include_logos: bool) -> rusqlite::Result<Vec<i64>> {
+    if !include_videos && !include_logos {
         return list_games_without_metadata(db);
     }
     let mut rows: Vec<(i64, String)> = db
         .prepare(
             "SELECT id, title FROM games WHERE metadata_updated_at IS NULL OR
-        (background_video_mode = 'auto' AND background_video IS NULL AND background_video_checked_at IS NULL)",
+        (?1 AND background_video_mode = 'auto' AND background_video IS NULL AND background_video_checked_at IS NULL) OR
+        (?2 AND logo_image IS NULL AND logo_checked_at IS NULL)",
         )?
-        .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+        .query_map((include_videos, include_logos), |row| Ok((row.get(0)?, row.get(1)?)))?
         .collect::<rusqlite::Result<_>>()?;
     rows.sort_by(|a, b| compare_titles(&a.1, &b.1));
     Ok(rows.into_iter().map(|(id, _)| id).collect())
@@ -765,8 +777,24 @@ mod tests {
         )
         .unwrap();
         assert_eq!(list_games_without_metadata(&db).unwrap(), [fresh]);
-        assert_eq!(list_games_needing_metadata(&db, false).unwrap(), [fresh]);
-        assert_eq!(list_games_needing_metadata(&db, true).unwrap(), [fresh, legacy]);
+        assert_eq!(list_games_needing_metadata(&db, false, false).unwrap(), [fresh]);
+        assert_eq!(list_games_needing_metadata(&db, true, false).unwrap(), [fresh, legacy]);
+    }
+
+    #[test]
+    fn faltantes_incluem_logos_so_com_steamgriddb_e_sem_busca_anterior() {
+        let db = library_database();
+        let without = add_game(&db, "A");
+        let checked = add_game(&db, "B");
+        let with_logo = add_game(&db, "C");
+        db.execute("UPDATE games SET metadata_updated_at = '2026-01-01', background_video_checked_at = '2026-01-01'", [])
+            .unwrap();
+        mark_logo_checked(&db, checked, "2026-01-02").unwrap();
+        db.execute("UPDATE games SET logo_image = 'logo.png' WHERE id = ?1", [with_logo]).unwrap();
+        assert!(list_games_needing_metadata(&db, true, false).unwrap().is_empty());
+        assert_eq!(list_games_needing_metadata(&db, false, true).unwrap(), [without]);
+        let game = get_library(&db, Language::PtBr).unwrap().games.into_iter().find(|game| game.id == with_logo).unwrap();
+        assert!(game.logo_url.unwrap().contains("/logo.png"));
     }
 
     #[test]

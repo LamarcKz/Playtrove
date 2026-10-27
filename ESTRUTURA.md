@@ -229,6 +229,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `AnikiQuickPanels.tsx` | Acesso rápido (perfil, configurações, jogo aleatório, atualizar biblioteca e energia) e Opções rápidas (música, volume e onde abrir) |
 | `AnikiProfile.tsx` | Tela de perfil: nível de colecionador, números, troféus, desbloqueadas por último e mais raras, prateleiras e jogos por plataforma |
 | `AnikiTrophyOverview.tsx` | Tela geral de troféus: nível, totais por tipo e raridade e os jogos com progresso, ordenação e filtro |
+| `AnikiLogo.tsx` | A logo do jogo no lugar do nome (biblioteca, detalhes e troféus), com o nome em texto quando não há logo |
 | `AnikiAvatar.tsx` | Avatares próprios do Playtrove para o perfil, no círculo dourado do Aniki |
 | `AnikiMainMenu.tsx` | Menu principal: configurações, jogo aleatório, minimizar, voltar ao modo janela e sair |
 | `AnikiGlyph.tsx` | Ícones (Segoe Fluent Icons, os códigos do Aniki) e glifos dos botões do DualSense |
@@ -402,7 +403,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, com os mesmos nomes do `src/shared/ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma das versões em Electron) |
 | `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
-| `src/migrations.rs` | Migrações SQLite, sempre acrescentadas ao fim: 1–8 mantêm compatibilidade com Electron; 9 vídeo local; 10 modos/consulta de trailers; 11 música local/modos/revisão; 12 buscas/candidatas persistentes e origem das músicas em `music_searches`/`music_sources` |
+| `src/migrations.rs` | Migrações SQLite, sempre acrescentadas ao fim: 1–8 mantêm compatibilidade com Electron; 9 vídeo local; 10 modos/consulta de trailers; 11 música local/modos/revisão; 12 buscas/candidatas persistentes e origem das músicas em `music_searches`/`music_sources`; 13 logo do jogo (`logo_image`) e a última busca por ela (`logo_checked_at`) |
 | `src/settings.rs` | Ler e gravar na tabela `settings` |
 | `src/i18n.rs` | O idioma (o escolhido ou o do Windows) e `text()`, que busca os textos no `messages.json` |
 | `src/library.rs` | A biblioteca que a tela mostra (`LibrarySnapshot`): jogos, status com o nome no idioma, regras e o progresso nas conquistas e nos troféus. Também muda o status, o favorito e a avaliação de um jogo, e cria, renomeia, reordena e apaga status e troca as regras automáticas |

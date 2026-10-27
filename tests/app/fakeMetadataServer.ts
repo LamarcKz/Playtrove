@@ -323,9 +323,9 @@ async function handle(
       const found = STEAMGRIDDB_GAMES.filter((game) => game.name.toLowerCase() === term || term === "mario")
       return send(response, 200, { success: true, data: found.map(({ id, name }) => ({ id, name })) })
     }
-    const images = /^\/sgdb\/(grids|heroes|icons)\/game\/(\d+)$/.exec(path)
+    const images = /^\/sgdb\/(grids|heroes|icons|logos)\/game\/(\d+)$/.exec(path)
     if (images) {
-      const kind = { grids: "cover", heroes: "background", icons: "icon" }[images[1]]
+      const kind = { grids: "cover", heroes: "background", icons: "icon", logos: "logo" }[images[1]]
       const game = STEAMGRIDDB_GAMES.find((item) => item.id === Number(images[2]))
       return send(response, 200, { success: true, data: game ? [{ url: `${base}/cdn/${game.id}-${kind}.png` }] : [] })
     }
@@ -340,12 +340,13 @@ async function handle(
   }
 
   // As imagens: geradas na hora, em degradê (capa em retrato, fundo largo, ícone quadrado).
-  const cdn = /^\/cdn\/(\d+)-(cover|background|icon)\.png$/.exec(path)
+  const cdn = /^\/cdn\/(\d+)-(cover|background|icon|logo)\.png$/.exec(path)
   if (cdn) {
     const game = STEAMGRIDDB_GAMES.find((item) => item.id === Number(cdn[1]))
-    const kind = cdn[2] as "cover" | "background" | "icon"
     if (!game) return send(response, 404, { erro: "não encontrado" })
-    const size = { cover: [120, 180], background: [384, 124], icon: [64, 64] }[kind]
+    // A logo é uma faixa larga com as cores do fundo (o SteamGridDB devolve PNG transparente).
+    const kind = cdn[2] === "logo" ? "background" : cdn[2] as "cover" | "background" | "icon"
+    const size = cdn[2] === "logo" ? [300, 90] : { cover: [120, 180], background: [384, 124], icon: [64, 64] }[kind]
     return sendPng(response, makePng(size[0], size[1], game[kind][0], game[kind][1]))
   }
   if (path.startsWith("/igdb-images/")) {

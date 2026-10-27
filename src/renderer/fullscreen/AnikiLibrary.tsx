@@ -7,6 +7,7 @@ import { GameCover } from "@/components/GameCover"
 import { useI18n } from "@/hooks/useI18n"
 import { formatLastPlayed, formatPlaytime } from "@/lib/format"
 import { AnikiIcon } from "./AnikiGlyph"
+import { AnikiLogo } from "./AnikiLogo"
 import { AnikiShortcutBar, type AnikiShortcut } from "./AnikiShortcutBar"
 
 interface Props {
@@ -80,7 +81,7 @@ export function AnikiLibrary({ layout, game, games, visible, selectedId, query, 
   </div>
   if (layout === "vertical") return <div className="aniki-library aniki-library-vertical" data-testid="fullscreen-library">
     <p className="aniki-preset">{collectionLabel}</p>
-    <h1 className="aniki-vertical-title">{game?.title ?? t.library.emptyTitle}</h1>
+    <h1 className="aniki-vertical-title">{game ? <AnikiLogo game={game} /> : t.library.emptyTitle}</h1>
     {clear}
     <div className="aniki-grid">{visible.map((entry) => item(entry, cover(entry)))}</div>
     {empty}
@@ -89,7 +90,7 @@ export function AnikiLibrary({ layout, game, games, visible, selectedId, query, 
   return <div className="aniki-library" data-testid="fullscreen-library">
     <p className="aniki-preset">{collectionLabel}</p>
     <div className="aniki-hero">
-      <h1 className="aniki-game-title">{game?.title ?? t.library.emptyTitle}</h1>
+      <h1 className="aniki-game-title">{game ? <AnikiLogo game={game} /> : t.library.emptyTitle}</h1>
     </div>
     {game && <div className="aniki-chips">
       {clear}

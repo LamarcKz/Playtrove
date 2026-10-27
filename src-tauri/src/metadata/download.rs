@@ -111,6 +111,7 @@ pub fn download_game_metadata_with_music(
                 igdb_image("t_1080p", igdb_game.as_ref().and_then(|game| game.background_image_ids.first())),
             ],
         ),
+        (ImageKind::Logo, vec![sgdb_images.get(&ImageKind::Logo).cloned()]),
     ];
     let mut images = HashMap::new();
     let mut found_on_libretro = false;
@@ -135,6 +136,10 @@ pub fn download_game_metadata_with_music(
     };
     save_game_metadata(&lock(db), game_id, &metadata, &iso(Utc::now()))
         .map_err(|error| MetadataError::Skip(error.to_string()))?;
+    if services.steam_grid_db.is_some() {
+        crate::library::mark_logo_checked(&lock(db), game_id, &iso(Utc::now()))
+            .map_err(|error| MetadataError::Skip(error.to_string()))?;
+    }
     let mut warnings = Vec::new();
     if services.igdb.is_some() {
         let video_id = igdb_game.as_ref().and_then(|game| game.trailer_video_id.as_deref());
@@ -269,6 +274,9 @@ pub mod tests {
                 }
                 "/sgdb/heroes/game/55" => {
                     json_response(json!({ "success": true, "data": [{ "url": "https://cdn.test/fundo.jpg" }] }), 200)
+                }
+                "/sgdb/logos/game/55" => {
+                    json_response(json!({ "success": true, "data": [{ "url": "https://cdn.test/logo.png" }] }), 200)
                 }
                 _ if url.host_str() == Some("cdn.test") => image(if path.ends_with(".png") { "image/png" } else { "image/jpeg" }),
                 _ if path.starts_with("/igdb-images/") => image("image/jpeg"),
@@ -478,7 +486,7 @@ pub mod tests {
         assert_eq!(field(&db, "background_video_checked_at"), None);
         assert!(field(&db, "metadata_updated_at").is_some());
         assert!(field(&db, "cover_image").is_some());
-        assert_eq!(crate::library::list_games_needing_metadata(&lock(&db), true).unwrap(), [id]);
+        assert_eq!(crate::library::list_games_needing_metadata(&lock(&db), true, false).unwrap(), [id]);
     }
 
     #[test]
@@ -489,7 +497,7 @@ pub mod tests {
         services.trailer_downloader = Some(Arc::new(FakeTrailerDownloader { failure: true }));
         assert!(download_game_metadata(&db, Language::PtBr, id, &services).unwrap().warnings.is_empty());
         assert!(field(&db, "background_video_checked_at").is_some());
-        assert!(crate::library::list_games_needing_metadata(&lock(&db), true).unwrap().is_empty());
+        assert!(crate::library::list_games_needing_metadata(&lock(&db), true, false).unwrap().is_empty());
         lock(&db).execute("UPDATE games SET background_video_checked_at = NULL", []).unwrap();
         services.igdb = None;
         assert!(download_game_metadata(&db, Language::PtBr, id, &services).unwrap().warnings.is_empty());
@@ -509,7 +517,9 @@ pub mod tests {
         assert_eq!(field(&db, "release_date").as_deref(), Some("2003-10-14"));
         assert_eq!(field(&db, "cover_image").as_deref(), Some("cover.png"));
         assert_eq!(field(&db, "background_image").as_deref(), Some("background.jpg"));
-        assert_eq!(files(&images, game_id), ["background.jpg", "cover.png"]);
+        assert_eq!(field(&db, "logo_image").as_deref(), Some("logo.png"));
+        assert!(field(&db, "logo_checked_at").is_some());
+        assert_eq!(files(&images, game_id), ["background.jpg", "cover.png", "logo.png"]);
         assert!(crate::library::list_games_without_metadata(&lock(&db)).unwrap().is_empty());
     }
 

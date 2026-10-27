@@ -11,6 +11,7 @@ import { formatLastPlayed, formatPlaytime, formatReleaseDate } from "@/lib/forma
 import { progressPercent } from "@/lib/achievements"
 import { AnikiIcon } from "./AnikiGlyph"
 import { AnikiTrailerCard } from "./AnikiTrailerCard"
+import { AnikiLogo } from "./AnikiLogo"
 
 interface Props {
   layout: DetailsLayout
@@ -40,7 +41,7 @@ export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDis
   const rating = game.rating !== null ? `${(game.rating / 2).toLocaleString(t.locale)} / 5` : null
   const difficulty = game.difficulty !== null ? `${(game.difficulty / 2).toLocaleString(t.locale)} / 5` : null
 
-  const title = <h1 className="aniki-details-title">{game.title}{game.favorite && <AnikiIcon icon="heartFilled" />}</h1>
+  const title = <h1 className="aniki-details-title"><AnikiLogo game={game} />{game.favorite && <AnikiIcon icon="heartFilled" />}</h1>
   const studio = (game.developers.length > 0 || year) && <p className="aniki-details-studio">{game.developers.join(", ")} <strong>{year}</strong></p>
   const cover = <div className="aniki-details-cover">
     <GameCover title={game.title} src={game.coverUrl} />
@@ -135,7 +136,7 @@ export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDis
       {trailer("aniki-trailer-mini")}
     </>}
     {layout === "showcase" && <>
-      <h1 className="aniki-showcase-title">{game.title}</h1>
+      <h1 className="aniki-showcase-title"><AnikiLogo game={game} /></h1>
       <div className="aniki-showcase-bar"><div className="aniki-details-buttons">{play}{icons}</div></div>
       <section className="aniki-showcase-bottom">
         {cover}

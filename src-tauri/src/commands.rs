@@ -732,8 +732,8 @@ pub fn metadata_download(
     game_ids: Value,
 ) -> AppResult<usize> {
     let (metadata_ids, music_only_ids) = if game_ids.is_null() {
-        let has_igdb = credentials::read_metadata_credentials(&state.db(), &secrets).igdb.is_some();
-        let ids = library::list_games_needing_metadata(&state.db(), has_igdb)?;
+        let keys = credentials::read_metadata_credentials(&state.db(), &secrets);
+        let ids = library::list_games_needing_metadata(&state.db(), keys.igdb.is_some(), keys.steam_grid_db_key.is_some())?;
         let music = prepare_missing_music(&state)?.into_iter().filter(|id| !ids.contains(id)).collect();
         (ids, music)
     } else {
