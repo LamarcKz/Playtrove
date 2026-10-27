@@ -51,8 +51,21 @@ export function TopBar({ children, onEnterFullscreen, fullscreenPending }: TopBa
       {/* Controle conectado (DualSense): conexão e bateria. Some quando não há controle. */}
       <ControllerIndicator />
 
+      {/* Como o item "Mudar para o modo tela cheia" do Playnite: com texto, e não só um ícone. */}
+      {onEnterFullscreen && (
+        <button
+          type="button"
+          title={t.fullscreen.enterHint}
+          disabled={fullscreenPending}
+          onClick={onEnterFullscreen}
+          className="mx-1 flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors outline-none hover:bg-foreground/10 hover:text-foreground focus-visible:bg-foreground/10 disabled:opacity-50 [&_svg]:size-4"
+        >
+          <Maximize2 />
+          {t.fullscreen.enter}
+        </button>
+      )}
+
       <div className="flex h-full">
-        {onEnterFullscreen && <WindowButton label={t.fullscreen.enter} disabled={fullscreenPending} onClick={onEnterFullscreen}><Maximize2 /></WindowButton>}
         <WindowButton label={t.topBar.minimize} onClick={() => minimize()}>
           <Minus />
         </WindowButton>

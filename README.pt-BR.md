@@ -222,6 +222,7 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 ## Créditos
 
 - O visual é inspirado no [Playnite](https://playnite.link/), um projeto independente, sem ligação com este.
+- A tela cheia é um porte do tema [Aniki ReMake](https://github.com/Mike-Aniki/Aniki-ReMake) e do [Aniki Helper](https://github.com/Mike-Aniki/AnikiHelper), de Mike Aniki (licença MIT; ver [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). A fonte [Exo 2](https://fonts.google.com/specimen/Exo+2) tem a licença SIL Open Font License.
 - Os ícones vêm do [Lucide](https://lucide.dev/) (licença ISC).
 - Os metadados dos jogos vêm do [IGDB](https://www.igdb.com/) (da Twitch); as capas, do [libretro-thumbnails](https://thumbnails.libretro.com/), o acervo da comunidade do [RetroArch](https://www.retroarch.com/); e as artes de fundo (e as capas que faltarem), do [SteamGridDB](https://www.steamgriddb.com/), feitas pela comunidade.
 - O download de trailers e músicas tema usa [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [Deno](https://github.com/denoland/deno), baixados das releases oficiais e verificados antes do uso.

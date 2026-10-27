@@ -146,6 +146,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `vitest.config.ts` e `playwright.config.ts` | Configuração dos dois tipos de teste da interface |
 | `README.md` e `README.pt-BR.md` | Página de apresentação do projeto no GitHub, em inglês (a que o GitHub mostra) e em português: logo, sobre, recursos, capturas de tela, download, privacidade, bugs, como compilar e roadmap |
 | `LICENSE` | A licença do código (MIT) |
+| `THIRD-PARTY-NOTICES.md` | Os avisos de licença do que vem de terceiros: o Aniki ReMake e o Aniki Helper (MIT), portados na tela cheia, e a fonte Exo 2 (OFL) |
 | `SECURITY.md` | Como avisar de um problema de segurança (em particular, pelo GitHub) |
 | `.github/workflows/tests.yml` | O robô dos testes (GitHub Actions): a cada envio para a `main` ou a `desenvolvimento` e a cada Pull Request, prepara o Rust e roda o `npm test` num Windows limpo do GitHub, e marca o commit com ✓ ou ✗ |
 | `.github/workflows/website.yml` | Pede ao repositório separado `LamarcKz/Playtrove-site` uma publicação após lançar uma estável ou editar, remover ou despublicar uma release (inclusive converter uma estável em pré-lançamento), ou por execução manual. Publicações iniciais de pré-lançamentos são ignoradas; o site seleciona só releases publicadas e estáveis. Usa um GitHub App limitado a Actions no site; não compila o app nem altera sua versão |
@@ -217,7 +218,13 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 
 | Arquivo | O que faz |
 |---|---|
-| `FullscreenShell.tsx` | Biblioteca horizontal, Detalhes Signature, coleções, busca global, seleção por coleção, painéis, dados comuns e lançamento/retorno. Guarda o estado da sessão, restringe input ao painel atual e suspende interação durante execução |
+| `FullscreenShell.tsx` | Estado da sessão: biblioteca horizontal, Detalhes Signature, coleções, busca global, seleção por coleção, painéis, menu principal, mapa de botões do Aniki, dados comuns e lançamento/retorno. Restringe input ao painel atual e suspende interação durante execução |
+| `AnikiStage.tsx` | Palco de 1920×1080 do tema, ajustado ao monitor como no Playnite |
+| `AnikiTopBar.tsx` | Barra do topo da interface Padrão: coleção, Menu, Buscar, troféus desbloqueados, controle e relógio |
+| `AnikiLibrary.tsx` | Biblioteca horizontal: nome do jogo sobre a arte, etiquetas, legenda dos botões e faixa de capas |
+| `AnikiShortcutBar.tsx` | Legenda dos botões do controle, com a ação de segurar |
+| `AnikiMainMenu.tsx` | Menu principal: configurações, jogo aleatório, minimizar, voltar ao modo janela e sair |
+| `AnikiGlyph.tsx` | Ícones (Segoe Fluent Icons, os códigos do Aniki) e glifos dos botões do DualSense |
 | `FullscreenKeyboard.tsx` | Editor de busca/análise com teclado virtual e físico: maiúsculas, acentos, pontuação, espaço, cursor, exclusão e quebra de linha na análise; aplicar/salvar e cancelar preservam o rascunho separado |
 | `FullscreenPreferences.tsx` | Início em tela cheia e reprodução/volume independentes, usado no painel fullscreen e em Configurações → Geral |
 | `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, música salva com preferências fullscreen, imagem de fundo e vídeo sem som nos detalhes após 600 ms; respeita movimento reduzido, foco, visibilidade e suspensão |
@@ -441,7 +448,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | Mudar o vídeo de fundo | `src-tauri/src/videos.rs` (importação, modos, associação e protocolo por intervalos), `metadata/download.rs` e `metadata/trailer_downloader.rs` (trailer automático), `metadata/trailer_tools.rs` (ferramentas e hashes), `metadata/trailer_tools_process.rs` (processo e descendentes), `GameActionsMenu.tsx` (ações) e `GameDetailsBackdrop.tsx` (reprodução e imagem de reserva) |
 | Mudar a música tema | `src-tauri/src/music.rs` (preferências/importação/protocolo), `music_search.rs`/`music_previews.rs` (candidatas/escolhas/prévias), `metadata/theme_downloader.rs` (busca/áudio), `metadata/queue.rs` (fila), `MusicReviewDialog.tsx`/`MusicReviewPanel.tsx`/`MetadataSettings.tsx` (revisão e aquisição), `LibraryThemeMusic.tsx`/`lib/themeMusicPlayer.ts`/`lib/musicPreviewPlayer.ts` (reprodução) |
 | Ampliar a tela cheia (hub, configuração completa, perfil, layouts, temas, ferramentas ou conectores) | `src/renderer/fullscreen/FullscreenShell.tsx` e seus painéis; transições em `hooks/useFullscreen.ts`/`src-tauri/src/window.rs`, preferências em `src-tauri/src/fullscreen.rs` e `src/shared/fullscreen.ts`. Esses recursos ainda ficam no roadmap |
-| Mudar a navegação por controle | `src-tauri/src/controller_input.rs` (pacotes), `controllers.rs` (serviço opt-in), `src/renderer/lib/fullscreenNavigation.ts` (ações/repetição) e `hooks/useFullscreenInput.ts` (foco/escopo) |
+| Mudar a navegação por controle | `src-tauri/src/controller_input.rs` (pacotes), `controllers.rs` (serviço opt-in), `src/renderer/lib/fullscreenNavigation.ts` (ações, toque/segurar e repetição), `hooks/useFullscreenInput.ts` (foco/escopo) e o mapa em `fullscreen/FullscreenShell.tsx` |
 | Lembrar o modo de exibição e os filtros ao reabrir o app | `src/renderer/App.tsx` → estados `libraryView` e `libraryFilters` (salvar em algum lugar, ex.: na tabela `settings`, por um comando) |
 | Criar outro modo de exibição | `src/renderer/components/LibraryTools.tsx` (`LibraryView` e `VIEWS`) e `src/renderer/pages/LibraryPage.tsx` |
 | Opções em Configurações (ex.: tema claro/escuro) | `src/renderer/pages/SettingsPage.tsx`, seção "Geral". O tema é a classe `dark` do `<html>` (`src/renderer/index.html`) |

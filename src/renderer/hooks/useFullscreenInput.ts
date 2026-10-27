@@ -96,9 +96,9 @@ export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled
       if (!enabled || event.altKey || event.ctrlKey || event.metaKey) return
       const target = event.target as HTMLElement
       const editing = target.matches("textarea,input")
-      const keys: Record<string, FullscreenAction> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "cross", Escape: "circle", F11: "create" }
+      const keys: Record<string, FullscreenAction> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "cross", Escape: "circle", F11: "window" }
       const mapped = keys[event.key]
-      if (!mapped || editing && mapped !== "circle" && mapped !== "create") return
+      if (!mapped || editing && mapped !== "circle" && mapped !== "window") return
       event.preventDefault()
       if (event.repeat && !["up", "down", "left", "right"].includes(mapped)) return
       dispatch([mapped])

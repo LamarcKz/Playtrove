@@ -222,6 +222,7 @@ Want to understand the code? The guide to every folder and file, and where to bu
 ## Credits
 
 - The look is inspired by [Playnite](https://playnite.link/), an independent project with no connection to this one.
+- Fullscreen mode is a port of the [Aniki ReMake](https://github.com/Mike-Aniki/Aniki-ReMake) theme and its [Aniki Helper](https://github.com/Mike-Aniki/AnikiHelper), by Mike Aniki (MIT license; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). The [Exo 2](https://fonts.google.com/specimen/Exo+2) font is under the SIL Open Font License.
 - The icons come from [Lucide](https://lucide.dev/) (ISC license).
 - Game metadata comes from [IGDB](https://www.igdb.com/) (by Twitch); covers from [libretro-thumbnails](https://thumbnails.libretro.com/), the [RetroArch](https://www.retroarch.com/) community's collection; and background art (and any missing covers) from [SteamGridDB](https://www.steamgriddb.com/), made by its community.
 - Trailer and theme music downloads use [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [Deno](https://github.com/denoland/deno), downloaded from their official releases and verified before use.

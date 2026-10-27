@@ -3,7 +3,8 @@ import type { ControllerButton } from "@shared/controllers"
 /** Botões com duas ações, como no Aniki: o toque age ao soltar; segurar dispara a segunda ação. */
 const holdable = ["options", "create", "triangle"] as const
 type HoldableButton = (typeof holdable)[number]
-export type FullscreenAction = ControllerButton | `${HoldableButton}-hold`
+/** "window" vem só do teclado (F11): volta ao modo janela. */
+export type FullscreenAction = ControllerButton | `${HoldableButton}-hold` | "window"
 export type FullscreenCollection = "all" | "recent" | "favorites"
 interface InputSnapshot { sequence: number; generation: number; controllerKey: number | null; buttons: string[] }
 const directions = new Set(["up", "down", "left", "right"])
