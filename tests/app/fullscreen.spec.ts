@@ -202,6 +202,7 @@ test("Welcome Hub abre primeiro, troca de página, abre um jogo e chega aos pain
     await expect(hub).toBeVisible()
     await expect(hub.getByRole("heading", { name: "Jogador", exact: true })).toBeVisible()
     await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
     await press(app, "r1")
     await expect(hub.getByRole("heading", { name: "Sua atividade", exact: true })).toBeVisible()
     await hub.getByRole("button", { name: /Adicionado por último/ }).click()
