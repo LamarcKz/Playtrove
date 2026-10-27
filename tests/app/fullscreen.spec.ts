@@ -396,7 +396,9 @@ test("menu principal do tema Playtrove: energia com confirmação, ajuda e aviso
     await press(app, "options")
     await menu.getByRole("button", { name: "Ajuda", exact: true }).click()
     await expect(page.getByRole("dialog", { name: "Ajuda" }).getByText("Menu principal", { exact: true })).toBeVisible()
-    await press(app, "circle")
+    // O "Voltar" da tela faz o mesmo que o ○: volta ao menu de onde o painel abriu.
+    await page.getByRole("dialog", { name: "Ajuda" }).getByRole("button", { name: "Voltar", exact: true }).click()
+    await expect(menu).toBeVisible()
     await menu.getByRole("button", { name: "Atualizar biblioteca", exact: true }).click()
     await expect(page.locator(".fs-notice-banner")).toContainText("Biblioteca atualizada.")
     await page.getByTestId("fullscreen-shell").getByRole("button", { name: "Avisos", exact: true }).click()

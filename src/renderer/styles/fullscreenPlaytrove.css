@@ -212,3 +212,8 @@
 .playtrove-fullscreen .fs-notices li span, .playtrove-fullscreen .fs-notice-banner span { color: var(--fs-muted); font-size: .85em; }
 .playtrove-fullscreen .fs-notices li:focus-visible { outline: 3px solid var(--fs-focus); outline-offset: 2px; }
 .playtrove-fullscreen .fs-notice-banner { position: absolute; right: 3vw; bottom: 4rem; z-index: 3; max-width: min(28rem, 90vw); box-shadow: 0 1em 2em var(--fs-shadow); }
+/* O botão principal de um diálogo (ex.: Desligar) continua em destaque, acima da regra dos botões do diálogo. */
+.playtrove-fullscreen .fs-dialog-actions .fs-primary { color: var(--fs-background); background: var(--fs-focus); }
+.playtrove-fullscreen .fs-dialog-actions .fs-primary:hover { background: var(--fs-foreground); }
+/* Favoritos e Recentes não têm título: o espaço separa da ordem. */
+.playtrove-fullscreen .fs-filters section:not(:has(h3)) { margin-top: 1.2em; }
