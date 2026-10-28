@@ -2,38 +2,66 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "re
 import { FullscreenInput, scrollFullscreenText, swapConfirmAction, type FullscreenAction } from "@/lib/fullscreenNavigation"
 
 /** O foco nativo é obrigatório; DOM e visibilidade só podem suspender, nunca o substituir. */
-export function useFullscreenActive() {
+export function useFullscreenActive(source: "main" | "gameOverlay" = "main") {
   const [active, setActive] = useState(false)
   useEffect(() => {
     let listening = true
-    let received = false
+    let revision = 0
+    let frame: number | null = null
+    let retry: ReturnType<typeof setTimeout> | null = null
+    let settleUntil = 0
     let nativeFocused = false
     let focused = document.hasFocus()
     const update = () => { if (listening) setActive(nativeFocused && focused && !document.hidden) }
-    const focus = () => { focused = true; update() }
-    const blur = () => { focused = false; update() }
-    const visibility = () => { focused = document.hasFocus(); update() }
+    // WebView e foreground do Windows podem concluir a transição em momentos diferentes.
+    // Reconfere por até um segundo após cada transição, sem ativar a janela ou ler foco DOM como autorização.
+    const readFocus = () => {
+      frame = null
+      retry = null
+      const requested = revision
+      void nativeWindow.getState().then((state) => {
+        if (!listening || revision !== requested) return
+        receive(state)
+        if (performance.now() < settleUntil) retry = setTimeout(readFocus, 50)
+      }).catch(() => {
+        if (!listening || revision !== requested) return
+        nativeFocused = false
+        update()
+        if (performance.now() < settleUntil) retry = setTimeout(readFocus, 50)
+      })
+    }
+    const resync = () => {
+      revision++
+      if (frame !== null) cancelAnimationFrame(frame)
+      if (retry !== null) clearTimeout(retry)
+      settleUntil = performance.now() + 1000
+      frame = requestAnimationFrame(readFocus)
+    }
+    const focus = () => { focused = true; update(); resync() }
+    const blur = () => { focused = false; update(); resync() }
+    const visibility = () => { focused = document.hasFocus(); update(); if (!document.hidden) resync() }
     const receive = (state: { isFocused: boolean }) => {
       nativeFocused = state.isFocused
       focused = document.hasFocus()
       update()
     }
-    const stop = window.api.windowControls.onStateChange((state) => { received = true; receive(state) })
-    void window.api.windowControls.getState().then((state) => {
-      if (listening && !received) receive(state)
-    }).catch(() => { /* Sem confirmação nativa, input e mídia permanecem suspensos. */ })
+    const nativeWindow = source === "gameOverlay" ? window.api.gameOverlay : window.api.windowControls
+    const stop = nativeWindow.onStateChange((state) => { receive(state); resync() })
     window.addEventListener("focus", focus)
     window.addEventListener("blur", blur)
     document.addEventListener("visibilitychange", visibility)
     update()
+    resync()
     return () => {
       listening = false
+      if (frame !== null) cancelAnimationFrame(frame)
+      if (retry !== null) clearTimeout(retry)
       stop()
       window.removeEventListener("focus", focus)
       window.removeEventListener("blur", blur)
       document.removeEventListener("visibilitychange", visibility)
     }
-  }, [])
+  }, [source])
   return active
 }
 /** Busca o alvo no escopo atual; nunca entrega uma ação a um painel encoberto. */
@@ -63,13 +91,16 @@ export function moveFullscreenFocus(scope: HTMLElement, direction: FullscreenAct
   best?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" })
 }
 
-export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled: boolean, context: string, onAction: (action: FullscreenAction) => boolean | void, swapConfirm = false) {
+export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled: boolean, context: string, onAction: (action: FullscreenAction) => boolean | void, swapConfirm = false, source: "main" | "gameOverlay" = "main", onActivity?: () => boolean) {
   const input = useRef(new FullscreenInput())
   const action = useRef(onAction)
   action.current = onAction
+  const activity = useRef(onActivity)
+  activity.current = onActivity
   const swap = useRef(swapConfirm)
   swap.current = swapConfirm
   const neutral = useRef(false)
+  const pressed = useRef(false)
   useLayoutEffect(() => { input.current.reset(neutral.current) }, [context, enabled])
   useEffect(() => {
     const dispatch = (actions: FullscreenAction[]) => {
@@ -85,15 +116,25 @@ export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled
     }
     let active = true
     const receive = (snapshot: Parameters<FullscreenInput["update"]>[0]) => {
+      pressed.current = snapshot.controllerKey !== null && snapshot.buttons.length > 0
+      if (enabled && snapshot.buttons.length > 0 && activity.current?.()) {
+        input.current.reset(false)
+        neutral.current = false
+        return
+      }
       const actions = input.current.update(snapshot, performance.now())
       neutral.current = input.current.neutral
       if (enabled) dispatch(swap.current ? actions.map(swapConfirmAction) : actions)
       else input.current.reset()
     }
-    const stop = window.api.controllers.onInputChange(receive)
-    void window.api.controllers.setInputEnabled(enabled).catch(() => {})
-    void window.api.controllers.getInput().then((snapshot) => { if (active) receive(snapshot) }).catch(() => {})
-    const timer = window.setInterval(() => dispatch(input.current.repeat(performance.now())), 40)
+    const controller = source === "gameOverlay" ? window.api.gameOverlay : window.api.controllers
+    const stop = controller.onInputChange(receive)
+    if (source === "main") void window.api.controllers.setInputEnabled(enabled).catch(() => {})
+    void controller.getInput().then((snapshot) => { if (active) receive(snapshot) }).catch(() => {})
+    const timer = window.setInterval(() => {
+      if (enabled && pressed.current) activity.current?.()
+      dispatch(input.current.repeat(performance.now()))
+    }, 40)
     const keydown = (event: KeyboardEvent) => {
       if (!enabled || event.altKey || event.ctrlKey || event.metaKey) return
       const target = event.target as HTMLElement
@@ -106,6 +147,6 @@ export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled
       dispatch([mapped])
     }
     window.addEventListener("keydown", keydown)
-    return () => { active = false; stop(); clearInterval(timer); input.current.reset(); window.removeEventListener("keydown", keydown); void window.api.controllers.setInputEnabled(false).catch(() => {}) }
-  }, [enabled, scope])
+    return () => { active = false; pressed.current = false; stop(); clearInterval(timer); input.current.reset(); window.removeEventListener("keydown", keydown); if (source === "main") void window.api.controllers.setInputEnabled(false).catch(() => {}) }
+  }, [enabled, scope, source])
 }

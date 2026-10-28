@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "O que a janela do app pode pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar a janela pela barra do topo. Os comandos do próprio app ficam em src/commands.rs.",
-  "windows": ["main"],
+  "windows": ["main", "game-overlay"],
   "permissions": [
     "core:event:default",
     "core:window:allow-start-dragging",

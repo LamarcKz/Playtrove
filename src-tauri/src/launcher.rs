@@ -11,10 +11,13 @@ use std::thread;
 
 use chrono::{DateTime, Utc};
 use rusqlite::Connection;
+use serde::Serialize;
 
+use crate::dates::iso;
 use crate::emulator_window::maximize_window;
 use crate::emulators::{build_launch_command, get_emulator_paths, get_preset};
 use crate::errors::{AppError, AppResult};
+use crate::game_window::{GameProcessControl, SessionControlError, control_for_child};
 use crate::i18n::Language;
 use crate::library::get_launch_info;
 
@@ -23,6 +26,8 @@ pub trait RunningProcess: Send {
     fn id(&self) -> u32;
     /// Espera o programa fechar.
     fn wait(&mut self);
+    /// Controle preso à identidade original, independente da espera bloqueante pelo encerramento.
+    fn control(&self) -> io::Result<Arc<dyn GameProcessControl>>;
 }
 
 /// Quem abre os programas (o Windows; os testes trocam por um de mentira).
@@ -57,6 +62,10 @@ impl RunningProcess for Child {
     fn wait(&mut self) {
         let _ = Child::wait(self);
     }
+
+    fn control(&self) -> io::Result<Arc<dyn GameProcessControl>> {
+        control_for_child(self)
+    }
 }
 
 /// Uma vez que o jogo foi jogado: quanto tempo e quando terminou.
@@ -67,12 +76,28 @@ pub struct PlayedSession {
     pub ended_at: DateTime<Utc>,
 }
 
+/// Dados públicos da sessão; o handle que a identifica nunca sai do Rust.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RunningSession {
+    pub game_id: i64,
+    pub process_id: u32,
+    pub started_at: String,
+    pub can_control: bool,
+}
+
+struct ProcessSession {
+    started_at: DateTime<Utc>,
+    process_id: u32,
+    control: Option<Arc<dyn GameProcessControl>>,
+}
+
 /// O relógio (os testes passam um de mentira, para "passar o tempo").
 pub type Clock = Arc<dyn Fn() -> DateTime<Utc> + Send + Sync>;
 
-/// Os jogos abertos agora: id do jogo → quando começou.
+/// Os jogos abertos agora: id do jogo → início e identidade original do processo.
 pub struct Launcher {
-    sessions: Arc<Mutex<HashMap<i64, DateTime<Utc>>>>,
+    sessions: Arc<Mutex<HashMap<i64, ProcessSession>>>,
     clock: Clock,
 }
 
@@ -86,6 +111,41 @@ impl Launcher {
         let mut ids: Vec<i64> = self.sessions.lock().unwrap_or_else(PoisonError::into_inner).keys().copied().collect();
         ids.sort();
         ids
+    }
+
+    pub fn running_sessions(&self) -> Vec<RunningSession> {
+        let mut sessions: Vec<_> = self
+            .sessions
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .iter()
+            .map(|(&game_id, session)| RunningSession {
+                game_id,
+                process_id: session.process_id,
+                started_at: iso(session.started_at),
+                can_control: session.control.as_ref().is_some_and(|control| control.is_running()),
+            })
+            .collect();
+        sessions.sort_by_key(|session| session.game_id);
+        sessions
+    }
+
+    pub fn resume_game(&self, game_id: i64) -> Result<(), SessionControlError> {
+        self.session_control(game_id)?.resume()
+    }
+
+    pub fn request_close(&self, game_id: i64) -> Result<(), SessionControlError> {
+        self.session_control(game_id)?.request_close()
+    }
+
+    pub(crate) fn session_control(&self, game_id: i64) -> Result<Arc<dyn GameProcessControl>, SessionControlError> {
+        let sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
+        let session = sessions.get(&game_id).ok_or(SessionControlError::NotRunning)?;
+        let control = session.control.clone().ok_or(SessionControlError::ControlUnavailable)?;
+        if !control.is_running() {
+            return Err(SessionControlError::NotRunning);
+        }
+        Ok(control)
     }
 
     /// Abre um jogo no emulador dele e, numa linha de execução à parte, espera o emulador fechar; aí chama
@@ -120,7 +180,14 @@ impl Launcher {
         let cwd = Path::new(&command).parent().unwrap_or(Path::new("."));
         let mut process =
             starter.start(&command, &args, cwd).map_err(|failure| error("launchFailed", &[preset.name, &failure.to_string()]))?;
-        self.sessions.lock().unwrap_or_else(PoisonError::into_inner).insert(game_id, (self.clock)());
+        let process_id = process.id();
+        // Falha ao preparar o controle não perde um processo que já foi aberto: a sessão continua
+        // contando o tempo, apenas sem comandos de janela. Nunca há um fallback por busca de PID.
+        let control = process.control().ok().filter(|control| control.process_id() == process_id);
+        self.sessions
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .insert(game_id, ProcessSession { started_at: (self.clock)(), process_id, control });
         // Emulador que abre maximizado (ex.: o RetroArch): a janela dele é maximizada quando aparecer.
         if preset.maximize {
             maximize_window(process.id());
@@ -130,11 +197,11 @@ impl Launcher {
         let clock = Arc::clone(&self.clock);
         thread::spawn(move || {
             process.wait();
-            let started = sessions.lock().unwrap_or_else(PoisonError::into_inner).remove(&game_id);
+            let session = sessions.lock().unwrap_or_else(PoisonError::into_inner).remove(&game_id);
             // Sem a sessão, o tempo já foi registrado (o app fechou com o jogo aberto).
-            if let Some(started) = started {
+            if let Some(session) = session {
                 let ended_at = clock();
-                on_exit(PlayedSession { game_id, seconds: seconds_between(started, ended_at), ended_at });
+                on_exit(PlayedSession { game_id, seconds: seconds_between(session.started_at, ended_at), ended_at });
             }
         });
         Ok(())
@@ -146,7 +213,7 @@ impl Launcher {
         let mut sessions = self.sessions.lock().unwrap_or_else(PoisonError::into_inner);
         sessions
             .drain()
-            .map(|(game_id, started)| PlayedSession { game_id, seconds: seconds_between(started, now), ended_at: now })
+            .map(|(game_id, session)| PlayedSession { game_id, seconds: seconds_between(session.started_at, now), ended_at: now })
             .collect()
     }
 }
@@ -157,25 +224,57 @@ fn seconds_between(start: DateTime<Utc>, end: DateTime<Utc>) -> f64 {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::mpsc::{Receiver, Sender, channel};
     use std::time::Duration;
 
     use super::*;
     use crate::emulators::{EmulatorId, set_emulator_path};
+    use crate::game_window::{GameProcessControl, SessionControlError};
     use crate::library::{EmulatedGame, add_emulated_game};
     use crate::test_support::{create_files, memory_database, temp_folder};
 
     const PT: Language = Language::PtBr;
 
     /// Um programa de mentira: fecha quando o teste mandar.
-    struct FakeProcess(Receiver<()>);
+    struct FakeProcess {
+        closed: Receiver<()>,
+        control: Arc<FakeControl>,
+        control_failure: bool,
+    }
+
+    struct FakeControl {
+        alive: AtomicBool,
+        actions: Mutex<Vec<&'static str>>,
+    }
+
+    impl GameProcessControl for FakeControl {
+        fn process_id(&self) -> u32 {
+            4242
+        }
+        fn is_running(&self) -> bool {
+            self.alive.load(Ordering::SeqCst)
+        }
+        fn resume(&self) -> Result<(), SessionControlError> {
+            self.actions.lock().unwrap().push("resume");
+            Ok(())
+        }
+        fn request_close(&self) -> Result<(), SessionControlError> {
+            self.actions.lock().unwrap().push("close");
+            Ok(())
+        }
+    }
 
     impl RunningProcess for FakeProcess {
         fn id(&self) -> u32 {
             4242
         }
         fn wait(&mut self) {
-            let _ = self.0.recv();
+            let _ = self.closed.recv();
+            self.control.alive.store(false, Ordering::SeqCst);
+        }
+        fn control(&self) -> io::Result<Arc<dyn GameProcessControl>> {
+            if self.control_failure { Err(io::Error::other("handle indisponível")) } else { Ok(self.control.clone()) }
         }
     }
 
@@ -184,6 +283,8 @@ mod tests {
     struct FakeStarter {
         calls: Mutex<Vec<(String, Vec<String>, String)>>,
         closers: Mutex<Vec<Sender<()>>>,
+        controls: Mutex<Vec<Arc<FakeControl>>>,
+        control_failure: bool,
         failure: Option<String>,
     }
 
@@ -195,7 +296,9 @@ mod tests {
             }
             let (close, closed) = channel();
             self.closers.lock().unwrap().push(close);
-            Ok(Box::new(FakeProcess(closed)))
+            let control = Arc::new(FakeControl { alive: AtomicBool::new(true), actions: Mutex::default() });
+            self.controls.lock().unwrap().push(control.clone());
+            Ok(Box::new(FakeProcess { closed, control, control_failure: self.control_failure }))
         }
     }
 
@@ -306,5 +409,77 @@ mod tests {
         db.execute("UPDATE games SET rom_path = NULL, emulator_id = NULL WHERE id = ?1", [game_id]).unwrap();
         assert!(error(&db).contains("Esse jogo não tem ROM"));
         assert!(starter.calls.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn sessao_publica_identifica_o_processo_iniciado_e_pede_fechamento_sem_finaliza_la() {
+        let db = memory_database();
+        let (_, _, game_id) = setup_game(&db, "sessao-controle");
+        let (clock, now) = fake_clock();
+        let launcher = Launcher::new(clock);
+        let starter = FakeStarter::default();
+        let (ended, sessions) = channel();
+        launcher.launch(&db, PT, game_id, &starter, Box::new(move |session| ended.send(session).unwrap())).unwrap();
+        assert_eq!(
+            serde_json::to_value(launcher.running_sessions()).unwrap(),
+            serde_json::json!([{"gameId": game_id, "processId": 4242, "startedAt": "2026-09-19T20:00:00.000Z", "canControl": true}])
+        );
+
+        launcher.resume_game(game_id).unwrap();
+        launcher.request_close(game_id).unwrap();
+        assert_eq!(*starter.controls.lock().unwrap()[0].actions.lock().unwrap(), ["resume", "close"]);
+        assert_eq!(launcher.running(), [game_id]);
+        assert!(sessions.try_recv().is_err());
+
+        *now.lock().unwrap() += chrono::Duration::minutes(10);
+        starter.closers.lock().unwrap()[0].send(()).unwrap();
+        assert_eq!(sessions.recv_timeout(Duration::from_secs(5)).unwrap().seconds, 600.0);
+        assert!(launcher.running_sessions().is_empty());
+        assert_eq!(launcher.resume_game(game_id), Err(SessionControlError::NotRunning));
+    }
+
+    #[test]
+    fn pid_igual_nao_autoriza_controlar_outra_identidade_de_processo() {
+        let db = memory_database();
+        let (_, _, game_id) = setup_game(&db, "sessao-identidade");
+        let launcher = Launcher::new(fake_clock().0);
+        let starter = FakeStarter::default();
+        launcher.launch(&db, PT, game_id, &starter, Box::new(|_| ())).unwrap();
+        let original = starter.controls.lock().unwrap()[0].clone();
+        original.alive.store(false, Ordering::SeqCst);
+        // Outra identidade pode apresentar o mesmo número; ela nunca substitui o handle da sessão.
+        let other = FakeControl { alive: AtomicBool::new(true), actions: Mutex::default() };
+        assert_eq!(original.process_id(), other.process_id());
+        assert_eq!(launcher.resume_game(game_id), Err(SessionControlError::NotRunning));
+        assert_eq!(launcher.request_close(game_id), Err(SessionControlError::NotRunning));
+        assert!(!launcher.running_sessions()[0].can_control);
+        assert!(original.actions.lock().unwrap().is_empty());
+        assert!(other.actions.lock().unwrap().is_empty());
+        starter.closers.lock().unwrap()[0].send(()).unwrap();
+    }
+
+    #[test]
+    fn comando_exige_uma_sessao_iniciada_pelo_app() {
+        let launcher = Launcher::new(fake_clock().0);
+        assert_eq!(launcher.resume_game(77), Err(SessionControlError::NotRunning));
+        assert_eq!(launcher.request_close(77), Err(SessionControlError::NotRunning));
+    }
+
+    #[test]
+    fn falha_ao_copiar_o_handle_preserva_a_sessao_e_o_tempo_jogado() {
+        let db = memory_database();
+        let (_, _, game_id) = setup_game(&db, "sessao-sem-handle");
+        let (clock, now) = fake_clock();
+        let launcher = Launcher::new(clock);
+        let starter = FakeStarter { control_failure: true, ..Default::default() };
+        let (ended, sessions) = channel();
+        launcher.launch(&db, PT, game_id, &starter, Box::new(move |session| ended.send(session).unwrap())).unwrap();
+        assert_eq!(launcher.running(), [game_id]);
+        assert!(!launcher.running_sessions()[0].can_control);
+        assert_eq!(launcher.resume_game(game_id), Err(SessionControlError::ControlUnavailable));
+        assert_eq!(launcher.request_close(game_id), Err(SessionControlError::ControlUnavailable));
+        *now.lock().unwrap() += chrono::Duration::minutes(2);
+        starter.closers.lock().unwrap()[0].send(()).unwrap();
+        assert_eq!(sessions.recv_timeout(Duration::from_secs(5)).unwrap().seconds, 120.0);
     }
 }

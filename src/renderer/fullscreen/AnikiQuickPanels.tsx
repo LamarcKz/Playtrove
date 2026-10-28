@@ -5,10 +5,10 @@ import { useFullscreenConfig } from "@/hooks/useFullscreen"
 import { AnikiIcon } from "./AnikiGlyph"
 import { AnikiAvatar } from "./AnikiAvatar"
 
-interface QuickAccessProps { canRandom: boolean; updating: boolean; onProfile: () => void; onTrophies: () => void; onSettings: () => void; onRandom: () => void; onUpdate: () => void; onPower: () => void }
+interface QuickAccessProps { canRandom: boolean; updating: boolean; onProfile: () => void; onTrophies: () => void; onSettings: () => void; onRandom: () => void; onUpdate: () => void; onPower: () => void; onAudio: () => void; onMusic: () => void; onNotices: () => void; onHelp: () => void; onMaintenance: () => void }
 
 /** Quick Access do Aniki (Options): painel à esquerda com o perfil e os atalhos do app. */
-export function AnikiQuickAccess({ canRandom, updating, onProfile, onTrophies, onSettings, onRandom, onUpdate, onPower }: QuickAccessProps) {
+export function AnikiQuickAccess({ canRandom, updating, onProfile, onTrophies, onSettings, onRandom, onUpdate, onPower, onAudio, onMusic, onNotices, onHelp, onMaintenance }: QuickAccessProps) {
   const { t } = useI18n()
   const { config } = useFullscreenConfig()
   return <div className="aniki-main-menu aniki-quick-access" data-testid="aniki-quick-access">
@@ -17,6 +17,11 @@ export function AnikiQuickAccess({ canRandom, updating, onProfile, onTrophies, o
       <button type="button" data-fs-default onClick={onProfile}><AnikiIcon icon="contact" /><span>{t.fullscreen.profile}</span></button>
       <button type="button" onClick={onTrophies}><AnikiIcon icon="trophy" /><span>{t.fullscreen.trophiesTitle}</span></button>
       <button type="button" onClick={onSettings}><AnikiIcon icon="settings" /><span>{t.fullscreen.settings}</span></button>
+      <button type="button" onClick={onAudio}><AnikiIcon icon="audio" /><span>{t.audioOutput.title}</span></button>
+      <button type="button" onClick={onMusic}><AnikiIcon icon="music" /><span>{t.musicPlayer.title}</span></button>
+      <button type="button" onClick={onNotices}><AnikiIcon icon="notices" /><span>{t.fullscreen.notices}</span></button>
+      <button type="button" onClick={onHelp}><AnikiIcon icon="help" /><span>{t.fullscreen.help}</span></button>
+      <button type="button" onClick={onMaintenance}><AnikiIcon icon="settings" /><span>{t.fullscreenProfiles.title}</span></button>
       <button type="button" disabled={!canRandom} onClick={onRandom}><AnikiIcon icon="random" /><span>{t.fullscreen.randomGame}</span></button>
       <button type="button" disabled={updating} onClick={onUpdate}><AnikiIcon icon="refresh" /><span>{updating ? t.fullscreen.updatingLibrary : t.fullscreen.updateLibrary}</span></button>
       <button type="button" onClick={onPower}><AnikiIcon icon="power" /><span>{t.fullscreen.power}</span></button>

@@ -243,6 +243,8 @@ pub fn test_focus_window(window: WebviewWindow) -> crate::errors::AppResult<Opti
     window.unminimize()?;
     window.show()?;
     window.set_focus()?;
+    crate::window::focus_content(&window)?;
+    let _ = crate::window::reconcile_state(&window)?;
     Ok(test_window(window))
 }
 /// Tira a janela do maximizado e deixa a área da página com este tamanho (os testes usam 1280×800).
@@ -298,4 +300,41 @@ pub fn test_controller_input(
     let buttons = serde_json::from_value::<Vec<crate::controller_input::ControllerButton>>(buttons)
         .map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))?;
     Ok(Some(controllers.inject_test_input(connected, buttons)))
+}
+
+/// Janela própria com processo sintético: não registra atalhos nem abre ou controla processos reais.
+#[tauri::command(async)]
+pub fn test_open_game_overlay(
+    state: State<'_, crate::state::AppState>,
+    overlay: State<'_, crate::game_overlay::GameOverlay>,
+    game_id: Value,
+) -> crate::errors::AppResult<Option<crate::game_overlay::OverlayState>> {
+    if !active() {
+        return Ok(None);
+    }
+    let game_id = crate::validation::to_id(&game_id, state.language())?;
+    overlay
+        .open_test_game(game_id)
+        .map(Some)
+        .map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))
+}
+
+/// Entrada exclusiva da janela de overlay na prova GUI; o leitor de controles real fica desligado.
+#[tauri::command(async)]
+pub fn test_game_overlay_input(
+    state: State<'_, crate::state::AppState>,
+    overlay: State<'_, crate::game_overlay::GameOverlay>,
+    connected: Value,
+    buttons: Value,
+) -> crate::errors::AppResult<Option<crate::controller_input::ControllerInputSnapshot>> {
+    if !active() {
+        return Ok(None);
+    }
+    let connected = crate::validation::to_bool(&connected, state.language())?;
+    let buttons = serde_json::from_value::<Vec<crate::controller_input::ControllerButton>>(buttons)
+        .map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))?;
+    overlay
+        .inject_test_input(connected, buttons)
+        .map(Some)
+        .map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))
 }

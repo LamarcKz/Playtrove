@@ -1,4 +1,7 @@
 import type { ControllerButton } from "@shared/controllers"
+import { anikiControllerImage, type ControllerIconStyle } from "@shared/anikiAppearance"
+import { useAnikiAppearance } from "./AnikiAppearanceContext"
+import { AnikiImage } from "./AnikiImage"
 
 /** Ícones da fonte de símbolos do Windows (Segoe Fluent Icons), os mesmos códigos que o Aniki usa. */
 export const ANIKI_ICONS = {
@@ -18,6 +21,14 @@ export const ANIKI_ICONS = {
   layout: "\uE80A",
   color: "\uE790",
   effects: "\uE945",
+  filter: "\uE71C",
+  notices: "\uE7F4",
+  audio: "\uE767",
+  help: "\uE897",
+  lock: "\uE72E",
+  sleep: "\uE708",
+  restart: "\uE777",
+  gallery: "\uE91B",
 } as const
 
 export function AnikiIcon({ icon }: { icon: keyof typeof ANIKI_ICONS }) {
@@ -36,8 +47,10 @@ const symbols: Partial<Record<ControllerButton, string>> = {
   r3: "R3",
 }
 const icons: Partial<Record<ControllerButton, string>> = { options: "\uE700", create: "\uE8A1" }
-
-export function AnikiGlyph({ button }: { button: ControllerButton }) {
+export function AnikiGlyph({ button, iconStyle }: { button: ControllerButton; iconStyle?: ControllerIconStyle }) {
+  const { controllerIconStyle } = useAnikiAppearance()
   const icon = icons[button]
-  return <span className={`aniki-glyph aniki-glyph-${button}`} aria-hidden="true">{icon ? <span className="aniki-icon">{icon}</span> : symbols[button]}</span>
+  const fallback = icon ? <span className="aniki-icon">{icon}</span> : symbols[button]
+  const path = anikiControllerImage(iconStyle ?? controllerIconStyle, button)
+  return <span className={`aniki-glyph aniki-glyph-${button}`} aria-hidden="true">{path ? <AnikiImage path={path} fallback={fallback} /> : fallback}</span>
 }

@@ -17,6 +17,27 @@ const MAIN_WINDOW: &str = "main";
 
 /// O aviso de quando a janela maximiza ou restaura (o canal window:state da interface).
 const WINDOW_STATE_EVENT: &str = "window:state";
+pub const CLOSE_REQUEST_EVENT: &str = "window:close-request";
+
+#[derive(Default)]
+struct CloseGate(AtomicU8);
+impl CloseGate {
+    fn request(&self, animate: bool) -> u8 {
+        if !animate || self.0.load(Ordering::Acquire) == 2 {
+            return 2;
+        }
+        if self.0.compare_exchange(0, 1, Ordering::AcqRel, Ordering::Acquire).is_ok() { 0 } else { 1 }
+    }
+    fn allow(&self) {
+        self.0.store(2, Ordering::Release);
+    }
+}
+
+/// Finaliza uma saída já solicitada; não altera ações de energia nem interrompe os jogos.
+pub fn finish_close(window: &WebviewWindow) -> tauri::Result<()> {
+    window.state::<CloseGate>().allow();
+    window.close()
+}
 
 /// Cor de fundo da janela enquanto a interface carrega: a mesma de --background no tema escuro.
 const BACKGROUND_COLOR: Color = Color(0x12, 0x16, 0x1d, 0xff);
@@ -90,6 +111,7 @@ fn restored_size(app: &AppHandle) -> (f64, f64) {
 /// Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
 pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: PathBuf) -> tauri::Result<WebviewWindow> {
     app.manage(WindowStateTracker::default());
+    app.manage(CloseGate::default());
     let start_fullscreen = crate::fullscreen::get_config(&app.state::<AppState>().db()).start_on_launch;
     let mut query = format!("lang={}", language.id());
     if let Some(mark) = dev_mark() {
@@ -123,6 +145,7 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
         // Abrindo direto na tela cheia, ninguém clicou na janela: sem pedir o primeiro plano, o Windows deixa o
         // foco com quem abriu o app, e o controle, a música e os trailers ficam parados até um Alt+Tab.
         let _ = window.set_focus();
+        let _ = focus_content(&window);
     } else {
         reconcile_state(&window)?;
     }
@@ -136,6 +159,7 @@ pub fn bring_to_front(app: &AppHandle) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+        let _ = focus_content(&window);
     }
 }
 
@@ -154,6 +178,15 @@ pub fn has_input_focus(window: &WebviewWindow) -> tauri::Result<bool> {
     let hwnd = window.hwnd()?;
     // SAFETY: consulta somente o identificador da janela ativa, sem alterar foco ou acessar seu conteúdo.
     Ok(unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() == hwnd })
+}
+
+/// O HWND principal já precisa estar em primeiro plano; o WebView recebe o foco de entrada interno.
+pub fn focus_content(window: &WebviewWindow) -> tauri::Result<()> {
+    if has_input_focus(window)? {
+        let webview: &tauri::Webview = window.as_ref();
+        webview.set_focus()?;
+    }
+    Ok(())
 }
 /// Consulta o estado nativo e publica mudanças de maximização, tela cheia ou foco na própria janela.
 pub fn reconcile_state(window: &WebviewWindow) -> tauri::Result<WindowState> {
@@ -177,6 +210,7 @@ pub fn reconcile_state(window: &WebviewWindow) -> tauri::Result<WindowState> {
 /// restaurado e o estado maximizado. Não redimensionamos por cima desse estado nativo.
 pub fn set_fullscreen(window: &WebviewWindow, enabled: bool) -> tauri::Result<WindowState> {
     let previous = window.is_fullscreen()?;
+    let had_focus = has_input_focus(window)?;
     if previous == enabled {
         return reconcile_state(window);
     }
@@ -188,6 +222,11 @@ pub fn set_fullscreen(window: &WebviewWindow, enabled: bool) -> tauri::Result<Wi
         let _ = window.set_fullscreen(previous);
     }
     tracker.transitioning.store(false, Ordering::Release);
+    // A mudança de estilo pode soltar o foreground. Só o restaura se a transição começou na janela ativa.
+    if had_focus {
+        let _ = window.set_focus();
+    }
+    let _ = focus_content(window);
     let reconciled = reconcile_state(window);
     result?;
     reconciled
@@ -198,6 +237,34 @@ pub fn set_fullscreen(window: &WebviewWindow, enabled: bool) -> tauri::Result<Wi
 fn send_state_changes(window: &WebviewWindow) {
     let handle = window.clone();
     window.on_window_event(move |event| {
+        if let WindowEvent::CloseRequested { api, .. } = event {
+            let config = crate::fullscreen::get_config(&handle.state::<AppState>().db());
+            let animate = config.theme == "aniki"
+                && handle.state::<crate::theme_pack::AnikiPack>().installed()
+                && config.shutdown_video_enabled
+                && handle.is_fullscreen().unwrap_or(false)
+                && has_input_focus(&handle).unwrap_or(false);
+            match handle.state::<CloseGate>().request(animate) {
+                0 => {
+                    api.prevent_close();
+                    let _ = handle.emit(CLOSE_REQUEST_EVENT, ());
+                    let fallback = handle.clone();
+                    // A mesma guarda de30s do Helper evita prender a saída se o renderer falhar.
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_secs(30));
+                        if fallback.state::<CloseGate>().0.load(Ordering::Acquire) == 1 {
+                            let _ = finish_close(&fallback);
+                        }
+                    });
+                }
+                1 => api.prevent_close(),
+                _ => {
+                    if let Some(overlay) = handle.try_state::<crate::game_overlay::GameOverlay>() {
+                        overlay.shutdown();
+                    }
+                }
+            }
+        }
         if matches!(event, WindowEvent::Destroyed)
             || (matches!(event, WindowEvent::Focused(false)) && !has_input_focus(&handle).unwrap_or(false))
         {
@@ -212,6 +279,16 @@ fn send_state_changes(window: &WebviewWindow) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saida_animada_e_unica_e_confirmacao_libera_o_fechamento() {
+        let gate = CloseGate::default();
+        assert_eq!(gate.request(true), 0);
+        assert_eq!(gate.request(true), 1);
+        gate.allow();
+        assert_eq!(gate.request(true), 2);
+        assert_eq!(CloseGate::default().request(false), 2);
+    }
 
     #[test]
     fn contrato_de_janela_inclui_modo_e_foco_nativos() {

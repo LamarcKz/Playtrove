@@ -1,4 +1,7 @@
 import type { AnikiColorPreset } from "./anikiColors"
+import type { ControllerIconStyle } from "./anikiAppearance"
+import type { InGameOverlayHotkey } from "./gameOverlay"
+import type { AnikiPresentationConfig } from "./anikiPresentation"
 
 /** Os temas da tela cheia, como os do Playnite: o do Playtrove (padrão) e o Aniki ReMake, baixado da release do autor. */
 export const FULLSCREEN_THEMES = ["playtrove", "aniki"] as const
@@ -22,7 +25,7 @@ export const FULLSCREEN_TRAILERS = ["off", "details", "all"] as const
 export type FullscreenTrailers = (typeof FULLSCREEN_TRAILERS)[number]
 
 /** Preferências próprias do modo de tela cheia, independentes do desktop. */
-export interface FullscreenConfig {
+export interface FullscreenConfig extends AnikiPresentationConfig {
   /** "aniki" só é aceito com o pacote do Aniki instalado. */
   theme: FullscreenTheme
   startOnLaunch: boolean
@@ -33,6 +36,12 @@ export interface FullscreenConfig {
   /** Nome do perfil; vazio usa o nome padrão da tela. */
   profileName: string
   profileAvatar: ProfileAvatar
+  /** Imagem do pacote Aniki (1 a 61); null mantém o avatar próprio do perfil. */
+  anikiAvatarIndex: number | null
+  /** Estilo visual dos ícones; não altera o controle nem o mapa de entrada. */
+  controllerIconStyle: ControllerIconStyle
+  inGameOverlayEnabled: boolean
+  inGameOverlayHotkey: InGameOverlayHotkey
   libraryLayout: LibraryLayout
   detailsLayout: DetailsLayout
   colorPreset: AnikiColorPreset
@@ -45,11 +54,13 @@ export interface FullscreenConfig {
   trailers: FullscreenTrailers
   /** O assistente inicial já foi concluído (ou pulado). */
   setupDone: boolean
-  /** Tema Playtrove: linhas de capas (1 a 3), relógio na barra, sons da navegação (volume de 0 a 100) e ○ confirma/× volta. */
+  /** Tema Playtrove: linhas de capas (1 a 3) e relógio na barra. */
   coverRows: number
   showClock: boolean
+  /** Sons da navegação dos dois temas (volume de 0 a 100). */
   uiSounds: boolean
   uiSoundsVolume: number
+  /** Tema Playtrove: ○ confirma e × volta. */
   swapConfirm: boolean
   /** Onde o trailer toca no tema Playtrove (o padrão é a biblioteca e os detalhes; o do Aniki é `trailers`). */
   playtroveTrailers: FullscreenTrailers

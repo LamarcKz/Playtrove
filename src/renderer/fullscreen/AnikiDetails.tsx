@@ -25,6 +25,7 @@ interface Props {
   showTrailer: boolean
   onPlay: () => void
   onTrophies: () => void
+  onGallery: () => void
   onDescription: () => void
   onOptions: () => void
   onReview: () => void
@@ -34,7 +35,7 @@ interface Props {
  * Detalhes nos seis layouts do Aniki (GameDetails e os de "7.Other Views"): Signature, Moderno, Clássico,
  * Original, Showcase e Painéis. Todos usam as mesmas peças, em lugares diferentes.
  */
-export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDisabled, playVideo, showTrailer, onPlay, onTrophies, onDescription, onOptions, onReview }: Props) {
+export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDisabled, playVideo, showTrailer, onPlay, onTrophies, onGallery, onDescription, onOptions, onReview }: Props) {
   const { t } = useI18n()
   const year = game.releaseDate?.slice(0, 4)
   const achievements = game.achievements
@@ -55,6 +56,7 @@ export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDis
   const play = <button type="button" data-fs-default className="aniki-details-play" disabled={!canPlay || playDisabled} onClick={onPlay}><Play />{playLabel}</button>
   const icons = <>
     {achievements && <button type="button" aria-label={t.fields.achievements} title={t.fields.achievements} onClick={onTrophies}><Trophy /></button>}
+    <button type="button" aria-label={t.gameMedia.title} title={t.gameMedia.title} onClick={onGallery}><AnikiIcon icon="gallery" /></button>
     <button type="button" aria-label={t.details.description} title={t.details.description} onClick={onDescription}><Info /></button>
     <button type="button" data-fs-fallback aria-label={t.fullscreen.options} title={t.fullscreen.options} onClick={onOptions}><SlidersHorizontal /></button>
   </>
@@ -81,21 +83,23 @@ export function AnikiDetails({ layout, game, status, canPlay, playLabel, playDis
 
   return <div className={`aniki-details aniki-details-${layout}`} data-testid="fullscreen-details" data-layout={layout}>
     {layout === "signature" && <>
-      {title}
-      <section className="aniki-sig-panel">
-        {cover}
-        <div className="aniki-sig-content">
-          {studio}
-          <div className="aniki-details-buttons">{play}{icons}</div>
-          <dl className="aniki-sig-facts">
-            <div><dt>{t.fields.playtime}</dt><dd>{formatPlaytime(game.playtimeMinutes, t)}</dd></div>
-            <div><dt>{t.fields.lastPlayed}</dt><dd>{formatLastPlayed(game.lastPlayedAt, t)}</dd></div>
-            <div><dt>{t.fields.status}</dt><dd>{status}</dd></div>
-            {genres.length > 0 && <div className="aniki-sig-wide"><dt>{t.fields.genre}</dt><dd>{genres.join(" / ")}</dd></div>}
-          </dl>
-          {achievementBar}
-        </div>
-      </section>
+      <div className="aniki-signature-stack">
+        {title}
+        <section className="aniki-sig-panel">
+          {cover}
+          <div className="aniki-sig-content">
+            {studio}
+            <div className="aniki-details-buttons">{play}{icons}</div>
+            <dl className="aniki-sig-facts">
+              <div><dt>{t.fields.playtime}</dt><dd>{formatPlaytime(game.playtimeMinutes, t)}</dd></div>
+              <div><dt>{t.fields.lastPlayed}</dt><dd>{formatLastPlayed(game.lastPlayedAt, t)}</dd></div>
+              <div><dt>{t.fields.status}</dt><dd>{status}</dd></div>
+              {genres.length > 0 && <div className="aniki-sig-wide"><dt>{t.fields.genre}</dt><dd>{genres.join(" / ")}</dd></div>}
+            </dl>
+            {achievementBar}
+          </div>
+        </section>
+      </div>
       {trailer("aniki-trailer-mini")}
     </>}
     {layout === "modern" && <>

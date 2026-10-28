@@ -7,6 +7,7 @@ import { GameCover } from "@/components/GameCover"
 import { useI18n } from "@/hooks/useI18n"
 import { formatLastPlayed, formatPlaytime } from "@/lib/format"
 import { AnikiIcon } from "./AnikiGlyph"
+import { AnikiPlatformImage } from "./AnikiImage"
 import { AnikiLogo } from "./AnikiLogo"
 import { IconFact } from "./AnikiDetails"
 import { AnikiTrailerCard } from "./AnikiTrailerCard"
@@ -115,7 +116,7 @@ export function AnikiLibrary({ layout, interfaceStyle, trailer, playVideo, game,
       {clear}
       {game.favorite && <span className="aniki-chip"><AnikiIcon icon="heartFilled" />{t.fullscreen.favorite}</span>}
       {game.achievements && <span className="aniki-chip"><AnikiIcon icon="trophy" />{game.achievements.unlocked} / {game.achievements.total}</span>}
-      {(game.platform ?? game.library) && <span className="aniki-chip aniki-chip-source">{game.platform ?? game.library}</span>}
+      {(game.platform ?? game.library) && <span className="aniki-chip aniki-chip-source"><AnikiPlatformImage platform={(game.platform ?? game.library)!} />{game.platform ?? game.library}</span>}
     </div>}
     <AnikiShortcutBar shortcuts={shortcuts} />
     <div className="aniki-rail">{visible.map((entry) => item(entry, cover(entry)))}</div>

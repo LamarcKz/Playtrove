@@ -22,6 +22,21 @@ function subscribe<T>(event: string, callback: (payload: T) => void): () => void
  */
 export function createTauriApi(): AppApi {
   return {
+    gameOverlay: {
+      getState: () => invoke("game_overlay_get_state"),
+      open: (gameId) => invoke("game_overlay_open", { gameId }),
+      returnToGame: () => invoke("game_overlay_return_to_game"),
+      returnToApp: () => invoke("game_overlay_return_to_app"),
+      requestCloseGame: () => invoke("game_overlay_request_close_game"),
+      getInput: () => invoke("game_overlay_get_input"),
+      onStateChange: (callback) => subscribe(EVENTS.gameOverlayState, callback),
+      onInputChange: (callback) => subscribe(EVENTS.gameOverlayInput, callback),
+    },
+    fullscreenProfiles: {
+      export: () => invoke("fullscreen_profiles_export"),
+      import: () => invoke("fullscreen_profiles_import"),
+      reset: () => invoke("fullscreen_profiles_reset"),
+    },
     app: {
       getVersion: () => invoke("app_version"),
       openLink: (link) => void invoke("app_open_link", { link }),
@@ -33,6 +48,8 @@ export function createTauriApi(): AppApi {
       minimize: () => void invoke("window_minimize"),
       toggleMaximize: () => void invoke("window_toggle_maximize"),
       close: () => void invoke("window_close"),
+      finishClose: () => invoke("window_finish_close"),
+      onCloseRequest: (callback) => subscribe(EVENTS.windowCloseRequest, callback),
       getState: () => invoke("window_get_state"),
       setFullscreen: (enabled) => invoke("window_set_fullscreen", { enabled }),
       onStateChange: (callback) => subscribe(EVENTS.windowState, callback),
@@ -44,6 +61,17 @@ export function createTauriApi(): AppApi {
     },
     system: {
       power: (action) => invoke("system_power", { action }),
+    },
+    audioOutput: {
+      get: () => invoke("audio_output_get"),
+      setDevice: (id) => invoke("audio_output_set_device", { id }),
+      setVolume: (volume) => invoke("audio_output_set_volume", { volume }),
+      setMuted: (muted) => invoke("audio_output_set_muted", { muted }),
+    },
+    gameMedia: {
+      list: (gameId) => invoke("game_media_list", { gameId }),
+      import: (gameId) => invoke("game_media_import", { gameId }),
+      remove: (gameId, mediaId) => invoke("game_media_remove", { gameId, mediaId }),
     },
     themes: {
       anikiStatus: () => invoke("themes_aniki_status"),
@@ -60,6 +88,9 @@ export function createTauriApi(): AppApi {
       setStatus: (gameId, statusId) => invoke("games_set_status", { gameId, statusId }),
       play: (gameId) => invoke("games_play", { gameId }),
       getRunning: () => invoke("games_get_running"),
+      getRunningSessions: () => invoke("games_get_running_sessions"),
+      resume: (gameId) => invoke("games_resume", { gameId }),
+      requestClose: (gameId) => invoke("games_request_close", { gameId }),
       onRunningChange: (callback) => subscribe(EVENTS.gamesRunning, callback),
       setFavorite: (gameId, favorite) => invoke("games_set_favorite", { gameId, favorite }),
       showRom: (gameId) => invoke("games_show_rom", { gameId }),
@@ -106,6 +137,7 @@ export function createTauriApi(): AppApi {
       scan: (id) => invoke("rom_folders_scan", { id: id ?? null }),
     },
     stats: {
+      hubGameActivity: () => invoke("stats_hub_game_activity"),
       dailyPlaytime: () => invoke("stats_daily_playtime"),
     },
     achievements: {

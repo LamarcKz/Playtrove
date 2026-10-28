@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import { writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { ControllerButton } from "../../src/shared/controllers"
 import { type AppProcess, type TestApp, createFiles, launchApp, mockOpenDialog, removeDataDir } from "./helpers"
@@ -10,9 +10,161 @@ let pack: FakeAnikiPack
 test.beforeAll(async () => { pack = await startFakeAnikiPack() })
 test.afterAll(async () => { await pack.close() })
 
+test("o centro de controle usa janela própria, respeita o voltar e confirma o fechamento", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await installAniki(page)
+    await page.evaluate(() => window.api.fullscreen.setConfig({ setupDone: true, inGameOverlayEnabled: true }))
+    const gameId = await page.evaluate(async () => (await window.api.library.get()).games[0].id)
+    const open = async () => {
+      // A janela principal é o alvo fictício; ela representa o jogo em primeiro plano.
+      await app.focus()
+      const created = page.context().waitForEvent("page")
+      await app.invoke("test_open_game_overlay", { gameId })
+      const overlay = await created
+      await expect(overlay.getByTestId("aniki-game-overlay")).toBeVisible()
+      await expect.poll(() => overlay.evaluate(() => window.api.gameOverlay.getState().then((state) => state.isFocused))).toBe(true)
+      return overlay
+    }
+    let overlay = await open()
+    await overlay.getByRole("button", { name: "Áudio do Windows", exact: true }).click()
+    await expect(overlay.getByTestId("aniki-audio-output")).toBeVisible()
+    await overlay.getByRole("button", { name: "Aumentar o volume do Windows", exact: true }).click()
+    await expect(overlay.getByTestId("aniki-audio-output").getByRole("status")).toHaveText("45%")
+    await overlay.keyboard.press("Escape")
+    await expect(overlay.getByTestId("aniki-audio-output")).toHaveCount(0)
+    await overlay.getByRole("button", { name: "Retomar jogo", exact: true }).click()
+    await expect.poll(() => app.opened()).toContain("overlay:resume")
+    await expect.poll(() => page.context().pages().length).toBe(1)
+    overlay = await open()
+    await overlay.getByRole("button", { name: "Encerrar jogo", exact: true }).click()
+    await expect(overlay.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused()
+    await overlay.keyboard.press("Enter")
+    expect(await app.opened()).not.toContain("overlay:close")
+    await overlay.getByRole("button", { name: "Encerrar jogo", exact: true }).click()
+    await overlay.getByRole("button", { name: "Confirmar", exact: true }).click()
+    await expect.poll(() => app.opened()).toContain("overlay:close")
+    await expect.poll(() => page.context().pages().length).toBe(1)
+  } finally { await app.close(); removeDataDir(dataDir) }
+})
+
 function launchAniki(options: Parameters<typeof launchApp>[0] = {}) {
   return launchApp({ ...options, env: { ...pack.env, ...options.env } })
 }
+
+test("o player controla o único áudio e a prévia da proteção consome teclado e controle", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await page.evaluate(async () => {
+      const snapshot = await window.api.library.get()
+      snapshot.games[0].backgroundUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+      window.api.library.get = async () => snapshot
+      await window.api.games.setFavorite(snapshot.games[0].id, true)
+      await window.api.fullscreen.setConfig({ musicPlayback: true, startupIntroVideoEnabled: false, screenSaverSource: "all" })
+    })
+    await enterFullscreen(page)
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    await press(app, "options")
+    await page.getByTestId("aniki-quick-access").getByRole("button", { name: "Player de música", exact: true }).click()
+    const player = page.getByTestId("aniki-music-player")
+    const audio = page.locator("audio[data-fullscreen-music]")
+    await expect(audio).toHaveCount(1)
+    await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).paused)).toBe(false)
+    await player.getByRole("button", { name: "Pausar", exact: true }).click()
+    await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).paused)).toBe(true)
+    await player.getByRole("button", { name: "Reproduzir", exact: true }).click()
+    await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).paused)).toBe(false)
+    await player.getByRole("button", { name: "Silenciar música", exact: true }).click()
+    await expect.poll(() => audio.evaluate((node) => (node as HTMLAudioElement).muted)).toBe(true)
+    await page.keyboard.press("Escape")
+    await page.keyboard.press("Escape")
+    await openMenuItem(page, "Configurações")
+    await page.getByRole("button", { name: "Proteção de tela", exact: true }).click()
+    const preview = page.getByRole("button", { name: "Prévia da proteção de tela", exact: true })
+    await preview.click()
+    const saver = page.getByTestId("aniki-screen-saver")
+    await expect(saver).toBeVisible()
+    await expect(saver.locator(".aniki-screen-saver-background")).toBeVisible()
+    await expect(audio).toHaveAttribute("src", /ScreenSaverOST\.mp3$/)
+    await press(app, "r2")
+    await expect(saver).toHaveCount(0)
+    await expect(preview).toBeVisible()
+    await preview.click()
+    await expect(saver).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(saver).toHaveCount(0)
+    await expect(preview).toBeVisible()
+  } finally { await app.close(); removeDataDir(dataDir) }
+})
+
+test("as preferências exportam, importam e recusam arquivo inválido sem gravação parcial", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  const files = createFiles({ "preferencias.json": "", "invalido.json": "" })
+  try {
+    await enterFullscreen(page)
+    await page.evaluate(() => window.api.fullscreen.setConfig({ musicVolume: 35, controllerIconStyle: "playstation-dark", anikiAvatarIndex: 2 }))
+    await mockOpenDialog(app, join(files, "preferencias.json"))
+    expect(await page.evaluate(() => window.api.fullscreenProfiles.export())).toBe(true)
+    const document = JSON.parse(readFileSync(join(files, "preferencias.json"), "utf8"))
+    expect(document.format).toBe("playtrove-fullscreen-preferences")
+    expect(Object.keys(document).sort()).toEqual(["config", "format", "version"])
+    await page.evaluate(() => window.api.fullscreen.setConfig({ musicVolume: 70, anikiAvatarIndex: null }))
+    await mockOpenDialog(app, join(files, "preferencias.json"))
+    const restored = await page.evaluate(() => window.api.fullscreenProfiles.import())
+    expect(restored?.musicVolume).toBe(35)
+    expect(restored?.anikiAvatarIndex).toBe(2)
+    document.config.musicVolume = 101
+    document.config.controllerIconStyle = "native"
+    writeFileSync(join(files, "invalido.json"), JSON.stringify(document))
+    await mockOpenDialog(app, join(files, "invalido.json"))
+    await expect(page.evaluate(() => window.api.fullscreenProfiles.import())).rejects.toThrow()
+    expect(await page.evaluate(() => window.api.fullscreen.getConfig())).toEqual(restored)
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    await press(app, "options")
+    await page.getByTestId("aniki-quick-access").getByRole("button", { name: "Manutenção de preferências", exact: true }).click()
+    await page.getByRole("button", { name: "Restaurar padrões", exact: true }).click()
+    const cancel = page.getByRole("alertdialog").getByRole("button", { name: "Cancelar", exact: true })
+    await expect(cancel).toBeFocused()
+    await page.keyboard.press("Enter")
+    expect(await page.evaluate(() => window.api.fullscreen.getConfig())).toEqual(restored)
+  } finally { await app.close(); removeDataDir(dataDir); removeDataDir(files) }
+})
+
+test("o Signature respeita as medidas da capa e ancora logo e cartão acima da base", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await page.evaluate(async () => {
+      const snapshot = await window.api.library.get()
+      const image = (width: number, height: number) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="100%" height="100%" fill="#46536a"/></svg>`)}`
+      snapshot.games.forEach((game) => { game.coverUrl = image(200, 300); game.logoUrl = image(1000, 500) })
+      window.api.library.get = async () => snapshot
+      await window.api.games.setFavorite(snapshot.games[0].id, true)
+      await window.api.fullscreen.setConfig({ startupIntroVideoEnabled: false, startDestination: "library" })
+    })
+    await enterFullscreen(page)
+    await page.getByTestId("fullscreen-library").locator(".aniki-cover").first().click()
+    await expect.poll(() => page.locator(".aniki-details-title .aniki-logo").evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBe(1000)
+    const measures = await page.evaluate(() => {
+      const stage = document.querySelector(".aniki-stage")!.getBoundingClientRect()
+      const scale = stage.width / 1920
+      const rect = (selector: string) => {
+        const box = document.querySelector(selector)!.getBoundingClientRect()
+        return { left: (box.left - stage.left) / scale, top: (box.top - stage.top) / scale, width: box.width / scale, height: box.height / scale, bottom: (box.bottom - stage.top) / scale }
+      }
+      return { cover: rect('.aniki-details-cover [data-slot="game-cover"]'), panel: rect(".aniki-sig-panel"), title: rect(".aniki-details-title"), logo: rect(".aniki-details-title .aniki-logo") }
+    })
+    expect(measures.cover.height).toBeLessThanOrEqual(350.5)
+    expect(measures.cover.width).toBeLessThanOrEqual(300.5)
+    expect(measures.panel.bottom).toBeCloseTo(1030, 0)
+    expect(measures.logo.height).toBeLessThanOrEqual(250.5)
+    expect(measures.logo.width).toBeLessThanOrEqual(600.5)
+    expect(measures.panel.top - measures.title.bottom).toBeCloseTo(40, 0)
+    await expect(page.locator(".aniki-topbar-center")).toHaveCount(0)
+    await expect(page.getByTestId("fullscreen-shell").getByRole("button", { name: "Menu", exact: true })).toBeVisible()
+  } finally { await app.close(); removeDataDir(dataDir) }
+})
 
 /** Instala o pacote de mentira; a instalação já troca o tema da tela cheia para o Aniki. */
 async function installAniki(page: Page) {
@@ -68,6 +220,7 @@ async function enterFullscreen(page: Page, button = "Tela cheia") {
   await installAniki(page)
   await page.evaluate(() => window.api.fullscreen.setConfig({ setupDone: true }))
   await page.getByRole("button", { name: button, exact: true }).click()
+  await expect(page.getByTestId("aniki-stage")).not.toHaveAttribute("inert", "")
 }
 
 /** A tela cheia abre no Hub, como no Aniki; os testes da biblioteca começam nela. */
@@ -80,6 +233,163 @@ async function openMenuItem(page: Page, item: string, menu = "Menu") {
   await page.getByTestId("fullscreen-shell").getByRole("button", { name: menu, exact: true }).click()
   await page.getByTestId("aniki-main-menu").getByRole("button", { name: item, exact: true }).click()
 }
+
+test("as telas usam as imagens do pacote instalado e conservam o conteúdo se uma mídia falhar", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await startInLibrary(page)
+    await enterFullscreen(page)
+    const library = page.getByTestId("fullscreen-library")
+    const glyph = library.locator(".aniki-glyph-cross img")
+    await expect(glyph).toBeVisible()
+    await expect.poll(() => glyph.evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+    expect(await glyph.getAttribute("src")).toContain("/aniki/Images/Buttons/Controller/PlayStation/Button-A.png")
+    await library.getByRole("button", { name: "Mar de Estrelas", exact: true }).hover()
+    const source = library.locator(".aniki-chip-source img")
+    await expect(source).toBeVisible()
+    await expect.poll(() => source.evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+    // Falhar uma imagem decorativa não deve deixar um ícone quebrado ou apagar o texto.
+    await glyph.evaluate((node) => node.dispatchEvent(new Event("error")))
+    await expect(glyph).toHaveCount(0)
+    await expect(library.locator(".aniki-glyph-cross")).toContainText("✕")
+    await source.evaluate((node) => node.dispatchEvent(new Event("error")))
+    await expect(source).toHaveCount(0)
+    await expect(library.locator(".aniki-chip-source")).not.toBeEmpty()
+    await page.getByTestId("fullscreen-shell").getByRole("button", { name: "Hub", exact: true }).click()
+    const rank = page.getByTestId("aniki-hub").locator(".aniki-rank-image")
+    await expect(rank).toBeVisible()
+    await expect.poll(() => rank.evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+    await app.focus()
+    await page.getByRole("button", { name: "Troféus e conquistas desbloqueados", exact: true }).click()
+    const trophies = page.getByTestId("aniki-trophy-overview").locator(".aniki-trophy-icon")
+    await expect(trophies).toHaveCount(4)
+    await expect.poll(() => trophies.evaluateAll((nodes) => nodes.every((node) => (node as HTMLImageElement).naturalWidth > 0))).toBe(true)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("o Aniki toca os sons do pacote ao navegar, abrir detalhes e voltar e respeita a preferência", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await page.evaluate(() => {
+      const played: HTMLMediaElement[] = []
+      const original = HTMLMediaElement.prototype.play
+      HTMLMediaElement.prototype.play = function () {
+        if (this.src.startsWith("http://playtrove-theme.localhost/")) played.push(this)
+        return original.call(this)
+      }
+      Object.assign(window, { anikiPlayedAudio: played })
+    })
+    await startInLibrary(page)
+    await enterFullscreen(page)
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    const files = () => page.evaluate(() => (window as unknown as { anikiPlayedAudio: HTMLMediaElement[] }).anikiPlayedAudio.map((audio) => decodeURIComponent(audio.src).split("/").at(-1)))
+    const covers = page.getByTestId("fullscreen-library").locator(".aniki-cover")
+    await covers.nth(2).hover()
+    await expect.poll(files).toContain("navigation.wav")
+    await covers.nth(2).click()
+    await expect(page.getByTestId("fullscreen-details")).toBeVisible()
+    await expect.poll(files).toContain("EnterGameDetails.wav")
+    await expect.poll(() => page.evaluate(() => (window as unknown as { anikiPlayedAudio: HTMLMediaElement[] }).anikiPlayedAudio.every((audio) => audio.readyState >= 2))).toBe(true)
+    await page.keyboard.press("Escape")
+    await expect(page.getByTestId("fullscreen-library")).toBeVisible()
+    await expect.poll(files).toContain("ExitGameDetails.wav")
+    await page.evaluate(() => window.api.fullscreen.setConfig({ uiSounds: false }))
+    const before = (await files()).length
+    await covers.nth(3).hover()
+    await covers.nth(3).click()
+    await expect(page.getByTestId("fullscreen-details")).toBeVisible()
+    expect((await files()).length).toBe(before)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("o Aniki filtra e ordena a biblioteca e volta sem perder a escolha", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    const count = await page.evaluate(async () => (await window.api.library.get()).games.filter((game) => game.platform === "PlayStation 2").length)
+    await startInLibrary(page)
+    await enterFullscreen(page)
+    await page.getByTestId("fullscreen-shell").getByRole("button", { name: "Filtros", exact: true }).click()
+    const panel = page.getByRole("dialog", { name: "Filtros", exact: true })
+    await panel.getByRole("region", { name: "Ordenar", exact: true }).getByRole("button", { name: "Tempo jogado", exact: true }).click()
+    await panel.getByRole("region", { name: "Plataforma", exact: true }).getByRole("button", { name: `PlayStation 2 ${count}`, exact: true }).click()
+    const covers = page.getByTestId("fullscreen-library").locator(".aniki-cover")
+    await expect(covers).toHaveCount(count)
+    await expect(covers.first()).toHaveAttribute("aria-label", "Mar de Estrelas")
+    await panel.getByRole("button", { name: "Voltar", exact: true }).click()
+    await expect(panel).toHaveCount(0)
+    await expect(covers).toHaveCount(count)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("o menu de energia do Aniki confirma a ação e o cancelar devolve ao menu", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await enterFullscreen(page)
+    await app.focus()
+    await expect.poll(() => page.evaluate(async () => (await window.api.controllers.getInput()).generation)).toBeGreaterThan(0)
+    await openMenuItem(page, "Desligar")
+    const confirmation = page.getByRole("dialog", { name: "Desligar", exact: true })
+    await expect(confirmation.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused()
+    await confirmation.getByRole("button", { name: "Cancelar", exact: true }).click()
+    const menu = page.getByTestId("aniki-main-menu")
+    await expect(menu).toBeVisible()
+    expect(await app.opened()).toEqual([])
+    await menu.getByRole("button", { name: "Desligar", exact: true }).click()
+    await confirmation.getByRole("button", { name: "Desligar", exact: true }).click()
+    await expect.poll(() => app.opened()).toContain("power:shutdown")
+    await expect(confirmation).toHaveCount(0)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})
+
+test("a galeria importa uma cópia, amplia e remove sem apagar o original", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  const files = createFiles({ "captura.png": "" })
+  const original = join(files, "captura.png")
+  writeFileSync(original, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"))
+  try {
+    await startInLibrary(page)
+    await enterFullscreen(page)
+    await app.focus()
+    await page.getByTestId("fullscreen-library").getByRole("button", { name: "Mar de Estrelas", exact: true }).click()
+    const open = page.getByTestId("fullscreen-details").getByRole("button", { name: "Galeria de capturas", exact: true })
+    await expect(open).toBeVisible()
+    await open.click()
+    const gallery = page.getByTestId("aniki-gallery")
+    await mockOpenDialog(app, original)
+    await gallery.getByRole("button", { name: "Importar imagens…", exact: true }).click()
+    const picture = gallery.getByRole("button", { name: "Captura 1 de 1", exact: true })
+    await expect(picture).toBeVisible()
+    await expect.poll(() => picture.locator("img").evaluate((node) => (node as HTMLImageElement).naturalWidth)).toBe(1)
+    await picture.click()
+    await expect(gallery.getByRole("button", { name: "Voltar à galeria", exact: true })).toHaveCount(2)
+    await page.keyboard.press("Escape")
+    await expect(gallery).toBeVisible()
+    await expect(picture).toBeVisible()
+    await gallery.getByRole("button", { name: "Remover", exact: true }).click()
+    const confirm = gallery.getByRole("alertdialog", { name: "Remover captura?", exact: true })
+    await expect(confirm.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused()
+    await confirm.getByRole("button", { name: "Remover", exact: true }).click()
+    await expect(picture).toHaveCount(0)
+    expect(existsSync(original)).toBe(true)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+    removeDataDir(files)
+  }
+})
 
 for (const maximized of [false, true]) {
   test(`tela cheia restaura a janela ${maximized ? "maximizada" : "restaurada"} e as duas seleções`, async () => {
@@ -569,6 +879,7 @@ test("mídia local pausa fora do app e durante execução simulada, com retorno 
         return () => { listeners.delete(callback); stop() }
       }
       window.api.games.getRunning = async () => [...running]
+      window.api.games.getRunningSessions = async () => running.map((gameId) => ({ gameId, processId: 1, startedAt: "2026-01-01T12:00:00Z", canControl: false }))
       window.api.games.play = async (id) => {
         state.fullscreenPlayCalls++
         running = [id]
@@ -582,6 +893,7 @@ test("mídia local pausa fora do app e durante execução simulada, com retorno 
     await startInLibrary(page)
     await enterFullscreen(page)
     const music = page.locator("audio[data-fullscreen-music]")
+    await app.focus()
     await expect.poll(() => music.evaluate((node: HTMLAudioElement) => !node.paused && node.currentTime > 0)).toBe(true)
     await expect.poll(() => music.evaluate((node: HTMLAudioElement) => node.volume)).toBeCloseTo(0.2, 2)
     await expect(desktopMusic).toHaveCount(0)
@@ -599,7 +911,7 @@ test("mídia local pausa fora do app e durante execução simulada, com retorno 
     await expect.poll(() => music.evaluate((node: HTMLAudioElement) => !node.paused)).toBe(true)
     const play = page.getByTestId("fullscreen-details").getByRole("button", { name: "Jogar", exact: true })
     await play.click()
-    await expect(page.locator(".fs-running")).toContainText("Jogo em execução")
+    await expect(page.getByTestId("aniki-running-session")).toContainText("Jogos em execução")
     await expect(play).toBeDisabled()
     await expect.poll(() => music.evaluate((node: HTMLAudioElement) => node.paused)).toBe(true)
     await expect.poll(() => video.evaluate((node: HTMLVideoElement) => node.paused)).toBe(true)

@@ -10,10 +10,33 @@ use crate::settings::{get_setting, set_setting};
 use crate::validation::to_bool;
 
 pub const CONFIG_EVENT: &str = "fullscreen:config";
+pub const OVERLAY_HOTKEYS: [&str; 5] = ["CtrlShiftF12", "CtrlF12", "AltF12", "CtrlAltF12", "CtrlShiftF11"];
+pub const SCREEN_SAVER_SOURCES: [&str; 7] =
+    ["installed", "all", "favorites", "neverPlayed", "recentlyAdded", "currentFilter", "weighted"];
 
 /// Avatares próprios do Playtrove para o perfil do Aniki (os do tema têm arte de terceiros).
 pub const AVATARS: [&str; 12] =
     ["gamepad", "trophy", "star", "crown", "ghost", "swords", "rocket", "flame", "skull", "sparkles", "shield", "zap"];
+/// Estilos visuais dos glifos do pacote, sem mudar a leitura ou o mapa do controle.
+pub const CONTROLLER_ICON_STYLES: [&str; 16] = [
+    "playstation",
+    "playstation-dark",
+    "playstation-retro",
+    "xbox",
+    "xbox-dark",
+    "xbox-retro",
+    "switch",
+    "switch-dark",
+    "switch-retro",
+    "8bitdo",
+    "8bitdo-pro3",
+    "rog-ally",
+    "iris",
+    "generic",
+    "generic-dark",
+    "native",
+];
+const ANIKI_AVATAR_INDICES: std::ops::RangeInclusive<u8> = 1..=61;
 /// Layouts da biblioteca e dos detalhes do Aniki; o primeiro de cada lista é o padrão.
 pub const LIBRARY_LAYOUTS: [&str; 3] = ["horizontal", "vertical", "list"];
 pub const DETAILS_LAYOUTS: [&str; 6] = ["signature", "modern", "classic", "original", "showcase", "panel"];
@@ -94,6 +117,22 @@ pub struct FullscreenConfig {
     /// Vazio usa o nome padrão da tela ("Jogador").
     pub profile_name: String,
     pub profile_avatar: String,
+    /// Imagem do pacote instalado; ausente preserva o avatar próprio do perfil.
+    pub aniki_avatar_index: Option<u8>,
+    pub controller_icon_style: String,
+    pub in_game_overlay_enabled: bool,
+    pub in_game_overlay_hotkey: String,
+    pub startup_intro_video_enabled: bool,
+    pub shutdown_video_enabled: bool,
+    pub screen_saver_enabled: bool,
+    pub screen_saver_idle_delay_minutes: i16,
+    pub screen_saver_change_interval_seconds: u16,
+    pub screen_saver_source: String,
+    pub screen_saver_ambient_music_enabled: bool,
+    pub screen_saver_show_logo: bool,
+    pub screen_saver_show_info_card: bool,
+    pub screen_saver_animate_background: bool,
+    pub screen_saver_use_fade_transitions: bool,
     pub library_layout: String,
     pub details_layout: String,
     pub color_preset: String,
@@ -106,8 +145,8 @@ pub struct FullscreenConfig {
     pub trailers: String,
     /// O assistente inicial já foi concluído (ou pulado): ele não abre sozinho de novo.
     pub setup_done: bool,
-    /// Tema Playtrove: linhas de capas, relógio na barra do topo, sons da navegação (e o volume deles) e
-    /// a troca de × por ○ no controle (× volta e ○ confirma).
+    /// Tema Playtrove: linhas de capas, relógio na barra do topo e troca de × por ○ no controle.
+    /// Os sons da navegação e seu volume valem nos dois temas.
     pub cover_rows: u8,
     pub show_clock: bool,
     pub ui_sounds: bool,
@@ -143,6 +182,31 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
             .flatten()
             .filter(|avatar| AVATARS.contains(&avatar.as_str()))
             .unwrap_or_else(|| AVATARS[0].to_string()),
+        aniki_avatar_index: number(db, "fullscreenAnikiAvatarIndex").filter(|index| ANIKI_AVATAR_INDICES.contains(index)),
+        controller_icon_style: choice(db, "fullscreenControllerIconStyle", &CONTROLLER_ICON_STYLES),
+        in_game_overlay_enabled: boolean("fullscreenInGameOverlayEnabled", false),
+        in_game_overlay_hotkey: choice(db, "fullscreenInGameOverlayHotkey", &OVERLAY_HOTKEYS),
+        startup_intro_video_enabled: boolean("fullscreenStartupIntroVideoEnabled", true),
+        shutdown_video_enabled: boolean("fullscreenShutdownVideoEnabled", true),
+        screen_saver_enabled: boolean("fullscreenScreenSaverEnabled", true),
+        screen_saver_idle_delay_minutes: get_setting(db, "fullscreenScreenSaverIdleDelayMinutes")
+            .ok()
+            .flatten()
+            .and_then(|value| value.parse::<i16>().ok())
+            .filter(|value| valid_idle_delay(i64::from(*value)))
+            .unwrap_or(1),
+        screen_saver_change_interval_seconds: get_setting(db, "fullscreenScreenSaverChangeIntervalSeconds")
+            .ok()
+            .flatten()
+            .and_then(|value| value.parse::<u16>().ok())
+            .filter(|value| (5..=300).contains(value))
+            .unwrap_or(15),
+        screen_saver_source: choice(db, "fullscreenScreenSaverSource", &SCREEN_SAVER_SOURCES),
+        screen_saver_ambient_music_enabled: boolean("fullscreenScreenSaverAmbientMusicEnabled", true),
+        screen_saver_show_logo: boolean("fullscreenScreenSaverShowLogo", true),
+        screen_saver_show_info_card: boolean("fullscreenScreenSaverShowInfoCard", true),
+        screen_saver_animate_background: boolean("fullscreenScreenSaverAnimateBackground", true),
+        screen_saver_use_fade_transitions: boolean("fullscreenScreenSaverUseFadeTransitions", true),
         library_layout: choice(db, "fullscreenLibraryLayout", &LIBRARY_LAYOUTS),
         details_layout: choice(db, "fullscreenDetailsLayout", &DETAILS_LAYOUTS),
         color_preset: choice(db, "fullscreenColorPreset", &COLOR_PRESETS),
@@ -167,6 +231,10 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
 
 fn number(db: &Connection, key: &str) -> Option<u8> {
     get_setting(db, key).ok().flatten().and_then(|value| value.parse::<u8>().ok())
+}
+
+fn valid_idle_delay(value: i64) -> bool {
+    matches!(value, -45 | -30 | 1..=120)
 }
 
 /// Um valor salvo que precisa estar na lista; qualquer outro volta ao primeiro (o padrão).
@@ -214,6 +282,42 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
             }
             "profileAvatar" => {
                 config.profile_avatar = value.as_str().filter(|avatar| AVATARS.contains(avatar)).ok_or_else(invalid)?.to_string();
+            }
+            "anikiAvatarIndex" => {
+                config.aniki_avatar_index = if value.is_null() {
+                    None
+                } else {
+                    Some(value.as_u64().filter(|index| (1..=61).contains(index)).ok_or_else(invalid)? as u8)
+                };
+            }
+            "controllerIconStyle" => {
+                config.controller_icon_style =
+                    value.as_str().filter(|style| CONTROLLER_ICON_STYLES.contains(style)).ok_or_else(invalid)?.to_string();
+            }
+            "inGameOverlayEnabled" => config.in_game_overlay_enabled = to_bool(value, language)?,
+            "startupIntroVideoEnabled" => config.startup_intro_video_enabled = to_bool(value, language)?,
+            "shutdownVideoEnabled" => config.shutdown_video_enabled = to_bool(value, language)?,
+            "screenSaverEnabled" => config.screen_saver_enabled = to_bool(value, language)?,
+            "screenSaverIdleDelayMinutes" => {
+                config.screen_saver_idle_delay_minutes =
+                    value.as_i64().filter(|value| valid_idle_delay(*value)).ok_or_else(invalid)? as i16;
+            }
+            "screenSaverChangeIntervalSeconds" => {
+                config.screen_saver_change_interval_seconds =
+                    value.as_u64().filter(|value| (5..=300).contains(value)).ok_or_else(invalid)? as u16;
+            }
+            "screenSaverSource" => {
+                config.screen_saver_source =
+                    value.as_str().filter(|value| SCREEN_SAVER_SOURCES.contains(value)).ok_or_else(invalid)?.to_string()
+            }
+            "screenSaverAmbientMusicEnabled" => config.screen_saver_ambient_music_enabled = to_bool(value, language)?,
+            "screenSaverShowLogo" => config.screen_saver_show_logo = to_bool(value, language)?,
+            "screenSaverShowInfoCard" => config.screen_saver_show_info_card = to_bool(value, language)?,
+            "screenSaverAnimateBackground" => config.screen_saver_animate_background = to_bool(value, language)?,
+            "screenSaverUseFadeTransitions" => config.screen_saver_use_fade_transitions = to_bool(value, language)?,
+            "inGameOverlayHotkey" => {
+                config.in_game_overlay_hotkey =
+                    value.as_str().filter(|hotkey| OVERLAY_HOTKEYS.contains(hotkey)).ok_or_else(invalid)?.to_string();
             }
             "libraryLayout" => {
                 config.library_layout =
@@ -269,6 +373,33 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenStartDestination", Some(destination))?;
     set_setting(&transaction, "fullscreenProfileName", Some(&config.profile_name))?;
     set_setting(&transaction, "fullscreenProfileAvatar", Some(&config.profile_avatar))?;
+    set_setting(&transaction, "fullscreenAnikiAvatarIndex", config.aniki_avatar_index.map(|index| index.to_string()).as_deref())?;
+    set_setting(&transaction, "fullscreenControllerIconStyle", Some(&config.controller_icon_style))?;
+    set_setting(&transaction, "fullscreenInGameOverlayEnabled", Some(if config.in_game_overlay_enabled { "1" } else { "0" }))?;
+    set_setting(&transaction, "fullscreenInGameOverlayHotkey", Some(&config.in_game_overlay_hotkey))?;
+    for (key, value) in [
+        ("fullscreenStartupIntroVideoEnabled", config.startup_intro_video_enabled),
+        ("fullscreenShutdownVideoEnabled", config.shutdown_video_enabled),
+        ("fullscreenScreenSaverEnabled", config.screen_saver_enabled),
+        ("fullscreenScreenSaverAmbientMusicEnabled", config.screen_saver_ambient_music_enabled),
+        ("fullscreenScreenSaverShowLogo", config.screen_saver_show_logo),
+        ("fullscreenScreenSaverShowInfoCard", config.screen_saver_show_info_card),
+        ("fullscreenScreenSaverAnimateBackground", config.screen_saver_animate_background),
+        ("fullscreenScreenSaverUseFadeTransitions", config.screen_saver_use_fade_transitions),
+    ] {
+        set_setting(&transaction, key, Some(if value { "1" } else { "0" }))?;
+    }
+    set_setting(
+        &transaction,
+        "fullscreenScreenSaverIdleDelayMinutes",
+        Some(&config.screen_saver_idle_delay_minutes.to_string()),
+    )?;
+    set_setting(
+        &transaction,
+        "fullscreenScreenSaverChangeIntervalSeconds",
+        Some(&config.screen_saver_change_interval_seconds.to_string()),
+    )?;
+    set_setting(&transaction, "fullscreenScreenSaverSource", Some(&config.screen_saver_source))?;
     set_setting(&transaction, "fullscreenLibraryLayout", Some(&config.library_layout))?;
     set_setting(&transaction, "fullscreenDetailsLayout", Some(&config.details_layout))?;
     set_setting(&transaction, "fullscreenColorPreset", Some(&config.color_preset))?;
@@ -296,6 +427,32 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn apresentacao_aniki_aceita_tempos_da_referencia_e_rejeita_patch_parcial() {
+        let db = memory_database();
+        let patch = json!({"startupIntroVideoEnabled": false, "shutdownVideoEnabled": false,
+            "screenSaverEnabled": true, "screenSaverIdleDelayMinutes": -30,
+            "screenSaverChangeIntervalSeconds": 300, "screenSaverSource": "weighted"});
+        let saved = set_config(&db, &patch, Language::PtBr).unwrap();
+        let saved = serde_json::to_value(saved).unwrap();
+        assert_eq!(saved["screenSaverIdleDelayMinutes"], -30);
+        assert_eq!(saved["screenSaverChangeIntervalSeconds"], 300);
+        for invalid in [
+            json!({"screenSaverIdleDelayMinutes": -1}),
+            json!({"screenSaverIdleDelayMinutes": 0}),
+            json!({"screenSaverIdleDelayMinutes": 121}),
+            json!({"screenSaverIdleDelayMinutes": 1.5}),
+            json!({"screenSaverChangeIntervalSeconds": 4}),
+            json!({"screenSaverChangeIntervalSeconds": 301}),
+            json!({"screenSaverSource": "external"}),
+        ] {
+            let mut invalid = invalid;
+            invalid["startupIntroVideoEnabled"] = json!(true);
+            assert!(set_config(&db, &invalid, Language::PtBr).is_err());
+            assert_eq!(serde_json::to_value(get_config(&db)).unwrap(), saved);
+        }
+    }
+
+    #[test]
     fn padroes_e_contrato_serializado() {
         let db = memory_database();
         assert_eq!(
@@ -303,6 +460,12 @@ mod tests {
             json!({
                 "theme": "playtrove", "startOnLaunch": false, "musicPlayback": true, "musicVolume": 20,
                 "startDestination": "hub", "profileName": "", "profileAvatar": "gamepad",
+                "controllerIconStyle": "playstation", "anikiAvatarIndex": null,
+                "inGameOverlayEnabled": false, "inGameOverlayHotkey": "CtrlShiftF12",
+                "startupIntroVideoEnabled": true, "shutdownVideoEnabled": true, "screenSaverEnabled": true,
+                "screenSaverIdleDelayMinutes": 1, "screenSaverChangeIntervalSeconds": 15, "screenSaverSource": "installed",
+                "screenSaverAmbientMusicEnabled": true, "screenSaverShowLogo": true, "screenSaverShowInfoCard": true,
+                "screenSaverAnimateBackground": true, "screenSaverUseFadeTransitions": true,
                 "libraryLayout": "horizontal", "detailsLayout": "signature",
                 "colorPreset": "default", "dynamicColors": false, "effects": "balanced",
                 "interface": "standard", "loginScreen": false, "trailers": "details", "setupDone": false,
@@ -502,5 +665,74 @@ mod tests {
         assert_eq!(get_config(&db).theme, "aniki");
         set_setting(&db, "fullscreenTheme", Some("outro")).unwrap();
         assert_eq!(get_config(&db).theme, "playtrove");
+    }
+
+    #[test]
+    fn aparencia_do_pacote_persiste_sem_substituir_o_avatar_proprio() {
+        let db = memory_database();
+        let saved = set_config(
+            &db,
+            &json!({"profileAvatar": "crown", "controllerIconStyle": "switch-dark", "anikiAvatarIndex": 61}),
+            Language::PtBr,
+        )
+        .unwrap();
+        let value = serde_json::to_value(&saved).unwrap();
+        assert_eq!(value["controllerIconStyle"], "switch-dark");
+        assert_eq!(value["anikiAvatarIndex"], 61);
+        assert_eq!(saved.profile_avatar, "crown");
+        assert_eq!(get_config(&db), saved);
+        let own = set_config(&db, &json!({"anikiAvatarIndex": null}), Language::PtBr).unwrap();
+        assert!(serde_json::to_value(&own).unwrap()["anikiAvatarIndex"].is_null());
+        assert_eq!(own.profile_avatar, "crown");
+        assert_eq!(get_config(&db), own);
+    }
+
+    #[test]
+    fn aparencia_invalida_rejeita_o_patch_inteiro() {
+        let db = memory_database();
+        for invalid in [
+            json!({"controllerIconStyle": "dualsense"}),
+            json!({"controllerIconStyle": null}),
+            json!({"anikiAvatarIndex": 0}),
+            json!({"anikiAvatarIndex": 62}),
+            json!({"anikiAvatarIndex": -1}),
+            json!({"anikiAvatarIndex": 1.5}),
+            json!({"anikiAvatarIndex": "2"}),
+            json!({"anikiAvatarIndex": true}),
+        ] {
+            let mut patch = invalid.as_object().unwrap().clone();
+            patch.insert("profileAvatar".to_string(), json!("star"));
+            assert!(set_config(&db, &Value::Object(patch), Language::PtBr).is_err());
+            assert_eq!(get_config(&db).profile_avatar, "gamepad");
+        }
+    }
+
+    #[test]
+    fn aparencia_persistida_invalida_preserva_o_perfil_antigo() {
+        let db = memory_database();
+        set_setting(&db, "fullscreenProfileAvatar", Some("trophy")).unwrap();
+        set_setting(&db, "fullscreenControllerIconStyle", Some("invalid")).unwrap();
+        set_setting(&db, "fullscreenAnikiAvatarIndex", Some("99")).unwrap();
+        let value = serde_json::to_value(get_config(&db)).unwrap();
+        assert_eq!(value["controllerIconStyle"], "playstation");
+        assert!(value["anikiAvatarIndex"].is_null());
+        assert_eq!(value["profileAvatar"], "trophy");
+    }
+
+    #[test]
+    fn preferencias_do_overlay_sao_validadas_e_persistidas_sem_patch_parcial() {
+        let db = memory_database();
+        let saved =
+            set_config(&db, &json!({"inGameOverlayEnabled": true, "inGameOverlayHotkey": "AltF12"}), Language::PtBr).unwrap();
+        let value = serde_json::to_value(&saved).unwrap();
+        assert_eq!(value["inGameOverlayEnabled"], true);
+        assert_eq!(value["inGameOverlayHotkey"], "AltF12");
+        assert_eq!(get_config(&db), saved);
+        for patch in
+            [json!({"inGameOverlayEnabled": "true"}), json!({"inGameOverlayEnabled": false, "inGameOverlayHotkey": "CtrlF9"})]
+        {
+            assert!(set_config(&db, &patch, Language::PtBr).is_err());
+            assert_eq!(get_config(&db), saved);
+        }
     }
 }

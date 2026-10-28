@@ -1,24 +1,52 @@
 import { useEffect, useRef, useState } from "react"
 import type { Game } from "@shared/types"
 import { ThemeMusicPlayer, type ThemeMusicPlayback } from "@/lib/themeMusicPlayer"
+import { fullscreenMusicControls, type FullscreenMusicConnection } from "@/lib/fullscreenMusicControls"
+import type { AnikiMediaContext } from "@/lib/anikiMedia"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 
+interface Props {
+  game: Game | undefined
+  playVideo: boolean
+  videoDelay?: number
+  suspended: boolean
+  /** undefined usa a faixa do jogo; null conserva o silêncio. */
+  musicUrl?: string | null
+  musicTransitionMs?: number
+  musicPositionKey?: string | null
+  musicResetOnSuspend?: boolean
+  musicContext?: AnikiMediaContext
+}
+
 /** A música tema e o fundo do jogo da tela cheia; o trailer toca sem som quando `playVideo`, depois de `videoDelay` ms. */
-export function FullscreenMedia({ game, playVideo, videoDelay = 600, suspended }: { game: Game | undefined; playVideo: boolean; videoDelay?: number; suspended: boolean }) {
+export function FullscreenMedia({ game, playVideo, videoDelay = 600, suspended, musicUrl, musicTransitionMs, musicPositionKey, musicResetOnSuspend, musicContext = "library" }: Props) {
   const audio = useRef<HTMLAudioElement>(null)
   const player = useRef<ThemeMusicPlayer | null>(null)
   const playback = useRef<ThemeMusicPlayback>({ playing: false, blocked: false, failed: false })
+  const transport = useRef<FullscreenMusicConnection | null>(null)
   const { config } = useFullscreenConfig()
-  const url = game?.themeMusicMode === "disabled" ? null : game?.themeMusicUrl ?? null
+  const url = musicUrl === undefined ? game?.themeMusicMode === "disabled" ? null : game?.themeMusicUrl ?? null : musicUrl
   useEffect(() => {
-    const instance = new ThemeMusicPlayer(audio.current!, (state) => { playback.current = state })
+    const instance = new ThemeMusicPlayer(audio.current!, (state) => { playback.current = state; transport.current?.playback(state) })
     player.current = instance
-    const retry = () => { if (playback.current.blocked) instance.toggle() }
+    const connection = fullscreenMusicControls.connect(instance, audio.current!)
+    transport.current = connection
+    const timer = window.setInterval(() => connection.refresh(), 250)
+    const retry = (event: Event) => {
+      // O clique de transporte já preserva a ativação do navegador e não pode alternar duas vezes.
+      if (event.target instanceof Element && event.target.closest("[data-music-transport]")) return
+      if (playback.current.blocked) instance.toggle()
+    }
     document.addEventListener("keydown", retry)
     document.addEventListener("pointerdown", retry)
-    return () => { document.removeEventListener("keydown", retry); document.removeEventListener("pointerdown", retry); player.current = null; instance.dispose() }
+    return () => { document.removeEventListener("keydown", retry); document.removeEventListener("pointerdown", retry); window.clearInterval(timer); connection.dispose(); transport.current = null; player.current = null; instance.dispose() }
   }, [])
-  useEffect(() => { player.current?.update({ url, enabled: config?.musicPlayback ?? false, volume: config?.musicVolume ?? 20, suspended }) }, [url, config?.musicPlayback, config?.musicVolume, suspended])
+  useEffect(() => {
+    const options = { url, enabled: config?.musicPlayback ?? false, volume: config?.musicVolume ?? 20, suspended }
+    transport.current?.update({ ...options, context: musicContext, gameTitle: game?.title ?? null })
+    player.current?.update({ ...options, transitionMs: musicTransitionMs, positionKey: musicPositionKey, resetOnSuspend: musicResetOnSuspend })
+    transport.current?.refresh()
+  }, [url, config?.musicPlayback, config?.musicVolume, suspended, musicTransitionMs, musicPositionKey, musicResetOnSuspend, musicContext, game?.title])
   return <><audio ref={audio} data-fullscreen-music loop preload="none" onError={() => player.current?.reportError()} />{game && <FullscreenBackground key={`${game.id}:${game.backgroundUrl}:${game.backgroundVideoUrl}`} game={game} playVideo={playVideo} suspended={suspended} delay={videoDelay} />}</>
 }
 

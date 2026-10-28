@@ -142,6 +142,11 @@ pub fn window_close(window: WebviewWindow) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn window_finish_close(window: WebviewWindow) -> AppResult<()> {
+    Ok(crate::window::finish_close(&window)?)
+}
+
+#[tauri::command]
 pub fn window_get_state(window: WebviewWindow) -> AppResult<WindowState> {
     Ok(crate::window::reconcile_state(&window)?)
 }
@@ -170,6 +175,9 @@ pub fn fullscreen_set_config(
     }
     let config = fullscreen::set_config(&state.db(), &patch, state.language())?;
     let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
+    if let Some(overlay) = app.try_state::<crate::game_overlay::GameOverlay>() {
+        overlay.refresh();
+    }
     Ok(config)
 }
 
@@ -187,6 +195,79 @@ pub fn system_power(state: State<'_, AppState>, hooks: State<'_, crate::test_hoo
         return Ok(());
     }
     crate::power::run(action).map_err(|_| AppError::text(language, "errors.powerFailed", &[]))
+}
+
+#[tauri::command(async)]
+pub fn audio_output_get(state: State<'_, AppState>) -> AppResult<crate::audio_output::AudioOutputState> {
+    crate::audio_output::get().map_err(|error| error.into_app(state.language()))
+}
+
+#[tauri::command(async)]
+pub fn audio_output_set_device(state: State<'_, AppState>, id: Value) -> AppResult<crate::audio_output::AudioOutputState> {
+    let id = to_text(&id, state.language())?;
+    crate::audio_output::set_device(&id).map_err(|error| error.into_app(state.language()))
+}
+
+#[tauri::command(async)]
+pub fn audio_output_set_volume(state: State<'_, AppState>, volume: Value) -> AppResult<crate::audio_output::AudioOutputState> {
+    let volume = volume.as_f64().ok_or_else(|| crate::audio_output::AudioError::InvalidVolume.into_app(state.language()))?;
+    crate::audio_output::set_volume(volume).map_err(|error| error.into_app(state.language()))
+}
+
+#[tauri::command(async)]
+pub fn audio_output_set_muted(state: State<'_, AppState>, muted: Value) -> AppResult<crate::audio_output::AudioOutputState> {
+    let muted = to_bool(&muted, state.language())?;
+    crate::audio_output::set_muted(muted).map_err(|error| error.into_app(state.language()))
+}
+
+#[tauri::command(async)]
+pub fn game_media_list(
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<Vec<crate::game_media::GameMediaItem>> {
+    let game_id = to_id(&game_id, state.language())?;
+    crate::game_media::list(state.database(), state.language(), &images.0, game_id)
+}
+
+#[tauri::command(async)]
+pub fn game_media_import(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<Vec<crate::game_media::GameMediaItem>> {
+    let language = state.language();
+    let game_id = to_id(&game_id, language)?;
+    crate::game_media::validate_game(&state.db(), language, game_id)?;
+    let picked = if cfg!(test) || test_hooks::active() {
+        app.state::<TestHooks>().take_open_dialog().into_iter().collect()
+    } else {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(text(language, "errors.gameMedia.importTitle", &[]))
+            .add_filter(text(language, "errors.gameMedia.imageFiles", &[]), &["png", "jpg", "jpeg", "webp"])
+            .blocking_pick_files()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|file| file.into_path())
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| AppError::text(language, "errors.gameMedia.read", &[]))?
+    };
+    crate::game_media::import_files(state.database(), language, &images.0, game_id, &picked)
+}
+
+#[tauri::command(async)]
+pub fn game_media_remove(
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+    media_id: Value,
+) -> AppResult<Vec<crate::game_media::GameMediaItem>> {
+    let language = state.language();
+    crate::game_media::remove(state.database(), language, &images.0, to_id(&game_id, language)?, &to_text(&media_id, language)?)
 }
 
 #[tauri::command]
@@ -615,6 +696,97 @@ pub fn games_get_running(launcher: State<'_, Launcher>) -> Vec<i64> {
     launcher.running()
 }
 
+#[tauri::command(async)]
+pub fn stats_hub_game_activity(state: State<'_, AppState>) -> AppResult<Vec<crate::hub_data::HubGameActivity>> {
+    Ok(crate::hub_data::get_game_activity(&state.db(), chrono::Local::now())?)
+}
+
+#[tauri::command]
+pub fn games_get_running_sessions(launcher: State<'_, Launcher>) -> Vec<crate::launcher::RunningSession> {
+    launcher.running_sessions()
+}
+
+fn session_error(error: crate::game_window::SessionControlError, language: Language) -> AppError {
+    use crate::game_window::SessionControlError;
+    let key = match error {
+        SessionControlError::NotRunning => "errors.gameSessionEnded",
+        SessionControlError::ControlUnavailable => "errors.gameSessionControlUnavailable",
+        SessionControlError::WindowUnavailable => "errors.gameSessionWindowUnavailable",
+        SessionControlError::OperationFailed => "errors.gameSessionOperationFailed",
+    };
+    AppError::text(language, key, &[])
+}
+
+fn overlay_error(error: crate::game_overlay::OverlayError, language: Language) -> AppError {
+    use crate::game_overlay::OverlayError;
+    let key = match error {
+        OverlayError::Session(error) => return session_error(error, language),
+        OverlayError::Disabled => "errors.gameOverlayDisabled",
+        OverlayError::NoActiveGame => "errors.gameSessionEnded",
+        OverlayError::InputHeld => "errors.gameOverlayInputHeld",
+        OverlayError::Window | OverlayError::ServiceStopped => "errors.gameSessionOperationFailed",
+    };
+    AppError::text(language, key, &[])
+}
+
+#[tauri::command]
+pub fn game_overlay_get_state(overlay: State<'_, crate::game_overlay::GameOverlay>) -> crate::game_overlay::OverlayState {
+    overlay.get_state()
+}
+
+#[tauri::command]
+pub fn game_overlay_get_input(
+    overlay: State<'_, crate::game_overlay::GameOverlay>,
+) -> crate::controller_input::ControllerInputSnapshot {
+    overlay.get_input_snapshot()
+}
+
+#[tauri::command(async)]
+pub fn game_overlay_open(
+    state: State<'_, AppState>,
+    overlay: State<'_, crate::game_overlay::GameOverlay>,
+    game_id: Value,
+) -> AppResult<crate::game_overlay::OverlayState> {
+    let language = state.language();
+    overlay.open(to_id(&game_id, language)?).map_err(|error| overlay_error(error, language))
+}
+
+#[tauri::command(async)]
+pub fn game_overlay_return_to_game(
+    state: State<'_, AppState>,
+    overlay: State<'_, crate::game_overlay::GameOverlay>,
+) -> AppResult<crate::game_overlay::OverlayState> {
+    overlay.close().map_err(|error| overlay_error(error, state.language()))
+}
+
+#[tauri::command(async)]
+pub fn game_overlay_return_to_app(
+    state: State<'_, AppState>,
+    overlay: State<'_, crate::game_overlay::GameOverlay>,
+) -> AppResult<crate::game_overlay::OverlayState> {
+    overlay.return_to_app().map_err(|error| overlay_error(error, state.language()))
+}
+
+#[tauri::command(async)]
+pub fn game_overlay_request_close_game(
+    state: State<'_, AppState>,
+    overlay: State<'_, crate::game_overlay::GameOverlay>,
+) -> AppResult<crate::game_overlay::OverlayState> {
+    overlay.request_close_game().map_err(|error| overlay_error(error, state.language()))
+}
+
+#[tauri::command(async)]
+pub fn games_resume(state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
+    let language = state.language();
+    launcher.resume_game(to_id(&game_id, language)?).map_err(|error| session_error(error, language))
+}
+
+#[tauri::command(async)]
+pub fn games_request_close(state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
+    let language = state.language();
+    launcher.request_close(to_id(&game_id, language)?).map_err(|error| session_error(error, language))
+}
+
 /// Abre o Explorador de Arquivos com a ROM do jogo selecionada.
 #[tauri::command]
 pub fn games_show_rom(app: AppHandle, state: State<'_, AppState>, game_id: Value) -> AppResult<()> {
@@ -900,19 +1072,16 @@ pub fn controllers_get_input(controllers: State<'_, Controllers>) -> ControllerI
     controllers.input()
 }
 
-/// A leitura rápida só é permitida na tela cheia ativa, com foco e sem um jogo em execução.
+/// A leitura rápida só é permitida na própria tela cheia em primeiro plano, inclusive no painel de sessões.
 #[tauri::command]
 pub fn controllers_set_input_enabled(
     window: WebviewWindow,
     state: State<'_, AppState>,
     controllers: State<'_, Controllers>,
-    launcher: State<'_, Launcher>,
     enabled: Value,
 ) -> AppResult<()> {
     let enabled = to_bool(&enabled, state.language())?;
-    controllers.set_input_enabled(
-        enabled && window.is_fullscreen()? && crate::window::has_input_focus(&window)? && launcher.running().is_empty(),
-    );
+    controllers.set_input_enabled(enabled && window.is_fullscreen()? && crate::window::has_input_focus(&window)?);
     Ok(())
 }
 

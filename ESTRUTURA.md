@@ -33,17 +33,22 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `app_report_bug` | `SettingsPage.tsx` (Configurações → Sobre) | Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (`links.rs`) |
 | `window_minimize`, `window_toggle_maximize`, `window_close` e `window_get_state` | `TopBar.tsx` e `hooks/useFullscreen.ts` | Minimizar, maximizar/restaurar e fechar; consultar `isMaximized`, `isFullscreen` e `isFocused` nativos |
 | `games_accent_color` | `hooks/useDynamicPalette.ts` | A cor de destaque tirada da arte de fundo (ou da capa) do jogo, ou null sem imagem |
-| `window_set_fullscreen` | `hooks/useDynamicPalette.ts` | A cor dinâmica do jogo selecionado: pede a cor ao Rust 800 ms depois de a seleção parar e devolve as variáveis CSS |
-| `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
+| `window_set_fullscreen` | `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
+| `window_finish_close` | `fullscreen/AnikiShell.tsx` | Conclui o fechamento após a sequência de encerramento do Aniki; o pedido inicial continua em `window_close` |
 | `system_power` | `fullscreen/PlaytroveShell.tsx` | Bloqueia, suspende, reinicia ou desliga o Windows depois da confirmação do menu principal (nos testes do app, só anota) |
 | `themes_aniki_status`, `themes_aniki_install`, `themes_aniki_cancel` e `themes_aniki_remove` | `hooks/useAnikiPack.ts` | O pacote oficial do tema Aniki: estado, download conferido (no fim, troca o tema), cancelar e apagar (volta o tema Playtrove) |
 | `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar), os layouts da biblioteca e dos detalhes, a paleta, a cor dinâmica, os efeitos, o estilo da interface, a tela de boas-vindas, os trailers e se o assistente inicial já foi feito, com validação integral do patch e transação |
+| `fullscreen_profiles_export`, `fullscreen_profiles_import` e `fullscreen_profiles_reset` | `fullscreen/AnikiMaintenance.tsx` | Exportam/importam somente preferências fullscreen em JSON próprio versionado, pelos diálogos nativos; cancelamento devolve `false`/`null`. A importação valida o documento inteiro antes da gravação e exige o pacote para escolher Aniki; restaurar preserva o tema |
+| `audio_output_get`, `audio_output_set_device`, `audio_output_set_volume` e `audio_output_set_muted` | `fullscreen/AnikiAudioPanel.tsx` | `window.api.audioOutput`: saídas de áudio ativas, padrão, volume de 0 a 100 e mudo do Windows; separado do áudio do app, com adaptador de memória nos testes |
+| `game_media_list`, `game_media_import` e `game_media_remove` | `fullscreen/AnikiGallery.tsx` | `window.api.gameMedia`: lista as capturas do jogo, importa imagens escolhidas no diálogo e remove somente cópias internas; importação e remoção devolvem a lista atualizada |
+| `game_overlay_get_state`, `game_overlay_get_input`, `game_overlay_open`, `game_overlay_return_to_game`, `game_overlay_return_to_app` e `game_overlay_request_close_game` | `fullscreen/AnikiGameOverlay.tsx` e `AnikiRunningSession.tsx` | `window.api.gameOverlay`: centro de controle em janela própria, estado de foco/atalhos e input próprios, retorno ao processo original ou ao app e pedido de fechamento do jogo |
 | `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
 | `games_set_status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
 | `statuses_create`, `statuses_rename`, `statuses_reorder`, `statuses_remove` e `statuses_set_rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
 | `emulators_list`, `emulators_detect`, `emulators_pick_path` e `emulators_cores` | `hooks/useEmulators.ts` (aba Emuladores) | Os emuladores e onde está cada um (na primeira vez, o Rust procura sozinho), procurar de novo, escolher o executável numa janela do Windows e os cores do RetroArch |
 | `rom_folders_list`, `rom_folders_pick`, `rom_folders_add`, `rom_folders_remove` e `rom_folders_scan` | `hooks/useEmulators.ts` e `RomFolderList.tsx` | As pastas de ROMs: listar, escolher uma pasta numa janela do Windows, adicionar, tirar e procurar jogos nelas |
 | `games_play` e `games_get_running` | `PlayButton.tsx` e `hooks/useRunningGames.ts` | Abre o jogo no emulador (responde quando ele abriu, ou com a mensagem do problema) e os jogos abertos agora |
+| `games_get_running_sessions`, `games_resume` e `games_request_close` | `fullscreen/AnikiRunningSession.tsx` | Consultam as sessões iniciadas pelo app, retomam a janela do processo original e solicitam seu fechamento; a sessão permanece ativa até o processo terminar |
 | `games_set_favorite` e `games_show_rom` | `GameActionsMenu.tsx` (menu "Mais") | Marcam ou desmarcam o favorito e mostram a ROM no Explorador de Arquivos |
 | `games_pick_background_video`, `games_remove_background_video` e `games_use_automatic_background_video` | `GameActionsMenu.tsx` (menu "Mais") | Escolhem um MP4/WebM e guardam uma cópia com prioridade manual, removem a cópia interna e desativam o automático, ou reativam e enfileiram a busca do trailer |
 | `games_pick_theme_music`, `games_remove_theme_music` e `games_use_automatic_theme_music` | `GameActionsMenu.tsx` (menu "Mais") | Importam MP3/M4A/WAV de até 32 MiB, removem a cópia interna e desativam a música automática, ou reativam e enfileiram uma busca |
@@ -53,6 +58,7 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `metadata_get_config`, `metadata_set_igdb`, `metadata_set_steam_grid_db` e `metadata_set_auto_download` | `MetadataSettings.tsx` (Configurações → Metadados) | O que está configurado (sem as chaves), salvar as chaves (o Rust confere antes, com um pedido de teste) e ligar ou desligar o download sozinho para jogos novos |
 | `metadata_download` e `metadata_get_progress` | `MetadataSettings.tsx`, `GameActionsMenu.tsx` e `hooks/useMetadataProgress.ts` | Leva única de metadados/trailers/música; sem ids considera ausências e, se só faltar música, não refaz imagens/descrição. Ação explícita inclui música mesmo com automático desligado; progresso termina antes da revisão humana |
 | `stats_daily_playtime` | `pages/StatsPage.tsx` | O tempo jogado em cada um dos últimos 30 dias (das sessões guardadas no banco) |
+| `stats_hub_game_activity` | `fullscreen/AnikiHub.tsx` | `window.api.stats.hubGameActivity`: tempo em segundos, número de sessões do app e tempo do mês por jogo, no horário local, para os cartões e recomendações do Hub |
 | `achievements_get_config` e `achievements_set_account` | `hooks/useAchievements.ts` e `AchievementsSettings.tsx` (Configurações → Conquistas) | A conta do RetroAchievements (o nome e a situação da atualização; a chave nunca volta) e salvar ou tirar a conta (o Rust confere no site antes de salvar) |
 | `achievements_sync` | Botões "Atualizar" (aba Conquistas e Configurações) | Busca agora as conquistas de todos os jogos |
 | `achievements_game` e `achievements_overview` | `hooks/useAchievements.ts` | As conquistas de um jogo (o cartão dos Detalhes e a janela "Ver todas") e tudo o que a aba Conquistas mostra, mais as desbloqueadas por raridade e as mais raras (o nível de colecionador e o perfil da tela cheia) |
@@ -65,7 +71,9 @@ E os avisos do Rust para a interface (`EVENTS`, em `src/shared/ipc.ts`):
 | Aviso | Quem ouve | Quando chega |
 |---|---|---|
 | `window:state` | `TopBar.tsx`, `hooks/useFullscreen.ts` e `hooks/useFullscreenInput.ts` | Mudaram maximização, tela cheia ou foco nativo da própria janela; o foco considera o HWND em primeiro plano, incluindo o WebView interno |
+| `window:close-request` | `fullscreen/AnikiShell.tsx` | O fechamento foi interceptado para apresentar o vídeo de encerramento; depois, o shell chama `finishClose()` |
 | `fullscreen:config` | `hooks/useFullscreen.ts` | Preferências próprias de início, reprodução ou volume da tela cheia mudaram |
+| `game-overlay:state` e `game-overlay:input` | `fullscreen/AnikiGameOverlay.tsx`, `AnikiSettings.tsx` e `hooks/useFullscreenInput.ts` | Estado do centro de controle, foco e disponibilidade dos atalhos; snapshots de input exclusivos da janela do overlay |
 | `themes:aniki-progress` | `hooks/useAnikiPack.ts` | O download ou a instalação do pacote do Aniki andou, terminou ou foi cancelado |
 | `library:changed` | `hooks/useLibrary.ts` | Algo mudou na biblioteca: a interface pede os dados de novo |
 | `games:running` | `hooks/useRunningGames.ts` | Um jogo abriu ou fechou |
@@ -138,10 +146,16 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `tests/unit/musicConfigSaveQueue.test.ts` | Confere escritas lentas entre telas, cancelamento de alterações ainda não enviadas, combinação de patches e recuperação depois de falhas |
 | `tests/unit/fullscreenNavigation.test.ts` | Snapshots de entrada, neutralidade, sequência/geração, bordas, repetição direcional, coleções/busca, restauração da seleção e edição do texto virtual |
 | `tests/unit/fullscreenSession.test.ts` | Serialização de consulta/lançamento, bloqueio com jogo aberto e liberação depois de falhas |
+| `tests/unit/anikiAppearance.test.ts` | Renderização dos avatares e imagens dos botões pelo protocolo do pacote, variantes de controle e alternativas com glifos/avatares próprios |
+| `tests/unit/anikiHubPages.test.ts` e `anikiHubDay.test.ts` | Recomendações locais, cartões de atividade e memórias de conquistas, fontes incompletas e virada do dia com relógio/eventos sintéticos |
+| `tests/unit/anikiMedia.test.ts`, `anikiSounds.test.ts` e `fullscreenMusicControls.test.ts` | Resolução das OSTs por contexto, sons do pacote e controles do único player; áudio falso, transições, pausa, volume, posição e suspensão |
+| `tests/unit/anikiPresentation.test.ts` | Probe e duração dos vídeos de abertura/encerramento, cancelamento, inatividade e seleção dos fundos do screensaver, sem mídia pessoal |
+| `tests/unit/anikiRunningSession.test.ts` e `anikiOverlayShortcutStatus.test.ts` | Identidade/serialização das ações de sessão e disponibilidade independente dos atalhos de teclado e controle do overlay |
 | `tests/fakeDiscs.ts`, `fakeTrophies.ts` e `fakePng.ts` | Arquivos de mentira para os testes do app: discos (ISOs, os .bin de PS1, o PARAM.SFO, o EBOOT.PBP, os de GameCube, Wii e 3DS), os troféus do RPCS3 e imagens PNG |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela (a versão DEV) e clicam como uma pessoa. `helpers.ts` abre o app dos testes com uma pasta de dados temporária e liga o Playwright na janela pela depuração do WebView2, cria pastas de arquivos de mentira (`createFiles()`) e combina a resposta da janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB, um SteamGridDB e um RetroAchievements de mentira, com imagens geradas na hora, trailers MP4 e músicas M4A sintéticos, para os testes não usarem a internet |
 | `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
-| `tests/app/fullscreenAniki.spec.ts` | Os mesmos fluxos e os painéis do tema Aniki (Hub, perfil, troféus, layouts, cores, assistente e configurações pelo controle), com o pacote sintético de `fakeAnikiPack.ts` baixado de um servidor local |
+| `tests/app/fullscreenAniki.spec.ts` | Fluxos e painéis do Aniki: Hub, perfil, troféus, layouts e medidas Signature, assistente, áudio do Windows fictício, galeria, manutenção de preferências, sessões/overlay, player e screensaver. Usa dados temporários e o pacote sintético de `fakeAnikiPack.ts`, sem controlar dispositivos ou emuladores reais |
+| `tests/app/fakeAnikiPack.ts` | Pacote ZIP e servidor local com imagens e áudios sintéticos, hash controlado e contador de downloads para os testes do Aniki |
 | `tests/app/fullscreen.spec.ts` | Tema Playtrove e a troca de tema (confirmação, download, mídias pelo protocolo, remover e pacote recusado pelo hash).  Fluxos de tela cheia em dados temporários: estado nativo, biblioteca/detalhes, preferências, busca e teclado, dados compartilhados, foco/input sintético, mídia e execução simulada. Não usa HID nem emuladores reais |
 | `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): áreas iguais 2:3 na Grade, arte inteira e status alinhados, proporção original nos Detalhes e no painel lateral, limites de tamanho e área estável durante carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
 | `tests/app/backgroundVideo.spec.ts` | Confere seleção, importação, cancelamento, reprodução sem som, pausa, troca de jogo/modo, persistência, remoção, falha e movimento reduzido com WebM sintético e dados temporários |
@@ -178,14 +192,22 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `romFolders.ts` | `suggestFolderSetup()`: sugere emulador, core e console para uma pasta de ROMs pelo nome dela (ex.: "PS2" → PCSX2, "PSP" → PPSSPP, "GameCube" e "Wii" → Dolphin, "3DS" → Azahar) |
 | `controllers.ts` | Controle/bateria (`ConnectedController`), botões normalizados (`ControllerButton`) e snapshot de entrada (`ControllerInputSnapshot`, com sequência, geração e chave do controle) |
 | `anikiColors.ts` | As 41 paletas do Aniki (id e nome), a mesma lista do Rust (`COLOR_PRESETS`) |
-| `fullscreen.ts` | `FullscreenConfig`: `startOnLaunch`, `musicPlayback`, `musicVolume`, `startDestination` (Hub ou biblioteca), `profileName` e `profileAvatar` (um de `PROFILE_AVATARS`), `libraryLayout` e `detailsLayout` (de `LIBRARY_LAYOUTS` e `DETAILS_LAYOUTS`), `colorPreset`, `dynamicColors` e `effects` (de `FULLSCREEN_EFFECTS`), `interface` (de `FULLSCREEN_INTERFACES`), `loginScreen`, `trailers` (de `FULLSCREEN_TRAILERS`), `setupDone` (o assistente inicial) e as do tema Playtrove (`playtroveTrailers`, `coverRows`, `showClock`, `uiSounds`, `uiSoundsVolume` e `swapConfirm`), independentes do desktop; `POWER_ACTIONS`, as opções de energia |
+| `fullscreen.ts` | `FullscreenConfig`: tema, início, perfil, áudio, layouts, cores, efeitos, assistente e preferências do tema Playtrove, independentes do desktop. Inclui avatar do pacote, estilo visual do controle, habilitação/atalho do overlay e os campos de `AnikiPresentationConfig`; `POWER_ACTIONS` define as opções de energia |
+| `anikiAppearance.ts` | Variantes `CONTROLLER_ICON_STYLES`, 61 índices de avatar e resolução de imagens por caminho relativo ao pacote instalado; a escolha altera a apresentação, sem remapear o controle |
+| `anikiHub.ts` | `HubGameActivity` e termos de classificação usados pelas recomendações locais do Hub |
+| `anikiPresentation.ts` | `AnikiPresentationConfig`, padrões e opções dos vídeos de abertura/encerramento e do screensaver: inatividade, intervalo, fonte, música, logo, informação e transições |
+| `audioOutput.ts` | `AudioOutputDevice` e `AudioOutputState`: id opaco, nome e indicação da saída padrão, volume geral e mudo |
+| `gameMedia.ts` | `GameMediaItem`: identificador interno, URL restrita, dimensões e data da captura copiada para o jogo |
+| `fullscreenProfiles.ts` | `FullscreenProfileDocument` e `FullscreenProfilesApi`: JSON `playtrove-fullscreen-preferences`, versão 1, com exportar/importar/restaurar e resultados explícitos de cancelamento |
+| `gameSession.ts` | `RunningSession`: jogo, PID, início e disponibilidade de controle; o handle da identidade original permanece somente no Rust |
+| `gameOverlay.ts` | `GameOverlayApi`, `GameOverlayState` e atalhos de teclado permitidos; foco, jogo ativo e disponibilidade dos atalhos de teclado/controle são estados separados |
 
 ### `src/renderer`: interface React
 
 | Arquivo | O que faz |
 |---|---|
-| `index.html` | HTML da janela. Tem a classe `dark` (tema escuro padrão) e a regra de segurança (CSP): imagens do app e de `http://playtrove-img.localhost`, vídeos de `http://playtrove-video.localhost` e áudios de `http://playtrove-music.localhost` e prévias de `http://playtrove-music-preview.localhost` |
-| `main.tsx` | Liga a ponte com o Rust (`window.api`), o React na página e o CSS |
+| `index.html` | HTML da janela, tema escuro e CSP dos protocolos locais de imagens, galeria, vídeos, músicas, prévias e mídias do pacote Aniki |
+| `main.tsx` | Liga `window.api`, React e CSS; monta o app principal ou o renderer independente `AnikiGameOverlay` conforme a janela nativa |
 | `api.d.ts` | Avisa o TypeScript que `window.api` existe e qual é o formato dele (`AppApi`) |
 | `App.tsx` | Alterna desktop/tela cheia conforme o estado nativo. Mantém montado o desktop com página, busca, filtros, modo e seleção; conserva o shell fullscreen após a primeira entrada. Liga a biblioteca, os status, o idioma e os avisos rápidos |
 | `styles/globals.css` | Tailwind e **as cores do app** (variáveis CSS dos temas escuro e claro e as derivadas das paletas da tela cheia) |
@@ -199,7 +221,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `hooks/useAnikiPack.ts` | O pacote do tema Aniki: estado e progresso (`themes:aniki-progress`), instalar, cancelar e remover |
 | `lib/fullscreenConfig.ts` | Fila de preferências: resposta otimista, patches serializados e reconciliação de eventos, falhas e leituras antigas sem perder mudanças pendentes |
 | `hooks/useFullscreenNotices.ts` | Os avisos da sessão do tema Playtrove: conquistas novas, fim dos metadados, versão nova e os da própria tela, com o aviso no canto e os não lidos |
-| `hooks/useFullscreenInput.ts` |, habilitação do input nativo, navegação espacial restrita ao painel visível, confirmação, teclas e repetição direcional |
+| `hooks/useFullscreenInput.ts` | `useFullscreenActive()` exige foco nativo e reconcilia foco/visibilidade do WebView sem substituir a autorização do Windows. `useFullscreenInput()` escolhe a fonte principal ou do overlay, habilita o leitor principal quando necessário, mantém neutralidade ao trocar contexto e restringe teclado/controle ao painel visível; a atividade pode ser consumida pelo screensaver |
 | `hooks/useEmulators.ts` | Os dados da aba Emuladores (emuladores, cores do RetroArch e pastas de ROMs) e as ações de cada um |
 | `hooks/useRunningGames.ts` | Os jogos abertos agora (o Rust avisa quando um abre ou fecha) |
 | `hooks/useToast.ts` | `useToast()`: mostra um aviso rápido no canto da tela (ex.: "3 jogos novos na biblioteca") |
@@ -214,15 +236,22 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/errors.ts` | `errorMessage()`: a mensagem de um erro para mostrar ao usuário |
 | `lib/tauriApi.ts` | A ponte com o Rust (`createTauriApi()`): o `window.api`, com cada função chamando o comando do Rust de mesmo nome (em snake_case) e cada `on...` ouvindo um aviso de `EVENTS` |
 | `lib/metadata.ts` | `describeMetadataResult()`: o aviso que resume uma leva de downloads de metadados |
-| `lib/themeMusicPlayer.ts` | Um áudio por seleção: atraso de 300 ms, rampas de 500 ms, volume e pausa manual, recuperação de autoplay e cancelamento de reproduções antigas ao trocar de faixa, suspender ou desmontar |
+| `lib/themeMusicPlayer.ts` | Um áudio por seleção: atraso e rampas configuráveis, volume e pausa manual, recuperação de autoplay e cancelamento de reproduções antigas; preserva posições por contexto e publica estado de reprodução para o transporte fullscreen |
 | `lib/musicConfigSaveQueue.ts` | Grava patches de preferências em uma fila compartilhada entre telas, sem reenviar alterações pendentes de componentes desmontados ou sobrescrever campos com um estado antigo |
 | `lib/musicPreviewPlayer.ts` | Player da prévia, cancelamento/respostas antigas, volume e exclusão de áudio ambiente, mantendo cache ao confirmar |
 | `lib/musicReview.ts`, `lib/musicReviewsLoader.ts` | Classificação de pendências/contagem e leitura compartilhada sem tratar desconhecido/falha como lista vazia |
 | `lib/uiSounds.ts` | Os sons da navegação do tema Playtrove, criados pelo Web Audio (sem arquivos); sem áudio no computador, ficam em silêncio |
-| `lib/fullscreenNavigation.ts` |, restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda e repetição só direcional |
+| `lib/fullscreenNavigation.ts` | Restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda, toque/segurar e repetição só direcional |
 | `lib/dynamicColors.ts` | Os tons da cor dinâmica a partir da cor de destaque, como o BuildPalette do Aniki Helper |
 | `lib/collectorLevel.ts` | Pontos de colecionador (pela raridade) e de troféu (pelo tipo) e a curva de níveis com as patentes, recriando a regra do PlayniteAchievements |
 | `lib/fullscreenHub.ts` | Os números do perfil e os cartões de atividade do Welcome Hub, calculados com os jogos e a atividade diária |
+| `lib/anikiAssets.ts` | Constrói URLs das mídias do pacote pelo protocolo restrito `playtrove-theme` |
+| `lib/anikiHubPages.ts` | Páginas disponíveis, recomendações por metadados/atividade, escolhas sem repetição, leitura cancelável do histórico local de conquistas e memórias de um mês |
+| `lib/anikiHubDay.ts` | Observa a próxima meia-noite local e reconcilia retomada de foco/visibilidade para renovar as escolhas diárias do Hub |
+| `lib/anikiMedia.ts` | Resolve a música ambiente de login, Hub, janelas secundárias, biblioteca e screensaver, respeitando a música manual/automática/desativada do jogo |
+| `lib/anikiSounds.ts` | Sons de navegação do pacote instalado, com volume, reaproveitamento dos elementos de áudio e silêncio quando o arquivo não estiver disponível |
+| `lib/anikiPresentation.ts` | Sequências de abertura/encerramento, probe e prazo de segurança; inatividade, fontes e seleção ponderada sem repetição de fundos do screensaver |
+| `lib/fullscreenMusicControls.ts` | Transporte sobre o único player fullscreen: estado observável, reproduzir/pausar, reiniciar, posição, volume e mudo, sem criar outro elemento de áudio |
 | `lib/fullscreenSession.ts` | `FullscreenLaunchGuard`: serializa consulta de jogos abertos e lançamento, bloqueando cliques/ações concorrentes |
 | `lib/fullscreenText.ts` | Edição do texto virtual por seleção/cursor, exclusão e limite de tamanho |
 | `lib/score.ts` | As contas das estrelas e das pimentas: quanto de cada ícone fica pintado, a nota escolhida pelo clique ou pelo teclado e o texto para leitores de tela ("4,5 de 5 estrelas") |
@@ -236,33 +265,45 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `FullscreenShell.tsx` | Escolhe o tema da tela cheia pela preferência `theme`: o Playtrove (padrão) ou o Aniki, se o pacote estiver instalado |
 | `PlaytroveShell.tsx` | Tema Playtrove: barra do topo (coleções, relógio, Buscar, Filtros, Avisos e Menu), biblioteca com 1 a 3 linhas de capas, detalhes, opções do jogo, busca, análise, conquistas (`FullscreenAchievements.tsx`), preferências, sons, a troca de ✕/○ e o mapa de botões próprio; o visual fica em `styles/fullscreenPlaytrove.css`, dentro de `.playtrove-fullscreen` |
 | `FullscreenThemePicker.tsx` | Escolha do tema, com a confirmação do download do Aniki, o progresso, cancelar e remover o pacote |
-| `AnikiShell.tsx` | Tema Aniki. Estado da sessão: biblioteca horizontal, Detalhes Signature, coleções, busca global, seleção por coleção, painéis, menu principal, mapa de botões do Aniki, dados comuns e lançamento/retorno. Restringe input ao painel atual e suspende interação durante execução |
+| `AnikiShell.tsx` | Coordena layouts, Hub, perfil, coleções, busca, seleção e painéis do Aniki; integra galeria, áudio, manutenção, sessões, vídeos de abertura/encerramento e screensaver. Mantém um player ambiente, informa o contexto visual e restringe input ao painel ativo, suspendendo a biblioteca enquanto há jogo aberto |
 | `AnikiStage.tsx` | Palco de 1920×1080 do tema, ajustado ao monitor como no Playnite |
 | `PlaytroveMenu.tsx` | Menu principal do tema Playtrove (modo janela, configurações, biblioteca, jogo aleatório, ajuda, minimizar, sair e energia) e a confirmação de energia |
 | `PlaytroveFilters.tsx` | Filtros (os mesmos do modo janela, de `lib/filters.ts`) e a ordem dos jogos, em botões de ligar e desligar |
 | `PlaytroveInfoPanels.tsx` | Ajuda (o que cada botão faz) e a lista de avisos da sessão |
 | `FullscreenClock.tsx` | O relógio da barra do topo, usado pelos dois temas |
-| `AnikiTopBar.tsx` | Barra do topo da interface Padrão: coleção, Menu, Buscar, troféus desbloqueados, controle e relógio |
+| `AnikiTopBar.tsx` | Biblioteca/Hub com perfil, navegação, troféus, controle e relógio; `detailsGame` troca para origem/plataforma, conquistas do jogo e avatar do perfil, preservando Menu por ícone acessível |
 | `AnikiLibrary.tsx` | Biblioteca nos três layouts do Aniki: Horizontal (nome sobre a arte, etiquetas, legenda e faixa de capas), Vertical (capas em grade) e Lista (a lista à esquerda e o jogo à direita), com o painel lateral do estilo Completo e o trailer de fundo |
 | `AnikiShortcutBar.tsx` | Legenda dos botões do controle, com a ação de segurar |
-| `AnikiHub.tsx` | Welcome Hub: páginas de perfil e de atividade, com os pontos de página e a legenda dos botões |
+| `AnikiHub.tsx` | Welcome Hub: perfil e atividade, recomendações locais e memórias de conquistas quando houver dados; reconcilia as páginas e as escolhas na virada do dia e abre os jogos dos cartões |
 | `AnikiQuickPanels.tsx` | Acesso rápido (perfil, configurações, jogo aleatório, atualizar biblioteca e energia) e Opções rápidas (música, volume e onde abrir) |
 | `AnikiProfile.tsx` | Tela de perfil: nível de colecionador, números, troféus, desbloqueadas por último e mais raras, prateleiras e jogos por plataforma |
 | `AnikiTrophyOverview.tsx` | Tela geral de troféus: nível, totais por tipo e raridade e os jogos com progresso, ordenação e filtro |
 | `AnikiLogo.tsx` | A logo do jogo no lugar do nome (biblioteca, detalhes e troféus), com o nome em texto quando não há logo |
-| `AnikiAvatar.tsx` | Avatares próprios do Playtrove para o perfil, no círculo dourado do Aniki |
-| `AnikiMainMenu.tsx` | Menu principal: configurações, jogo aleatório, minimizar, voltar ao modo janela e sair |
-| `AnikiGlyph.tsx` | Ícones (Segoe Fluent Icons, os códigos do Aniki) e glifos dos botões do DualSense |
+| `AnikiAvatar.tsx` | Avatar escolhido entre as imagens do pacote instalado, com os ícones próprios do perfil como alternativa se a arte faltar |
+| `AnikiAppearanceContext.tsx` | Compartilha estilo visual do controle e índice de avatar entre os componentes do Aniki |
+| `AnikiImage.tsx` | Imagens do pacote com alternativa em erro; especializa troféus, medalhas de nível e origem/plataforma |
+| `AnikiMainMenu.tsx` | Menu principal: configurações, atualizar biblioteca, jogo aleatório, ajuda, minimizar, voltar ao modo janela, sair e opções de energia com confirmação no shell |
+| `AnikiGlyph.tsx` | Ícones Segoe Fluent e imagens dos botões na variante escolhida, com glifos nativos como alternativa; o mapa de entrada não muda |
 | `FullscreenKeyboard.tsx` | Editor de busca/análise com teclado virtual e físico: maiúsculas, acentos, pontuação, espaço, cursor, exclusão e quebra de linha na análise; aplicar/salvar e cancelar preservam o rascunho separado |
 | `FullscreenPreferences.tsx` | Preferências da tela cheia em Configurações → Geral do modo janela |
 | `AnikiSettings.tsx` | Configurações pelo controle: categorias (L1/R1), opções que ligam ou avançam em ciclo e a descrição do item com o foco |
 | `AnikiSetup.tsx` | Assistente inicial de 11 etapas, com rascunho próprio, prévia de cada escolha e o resumo antes de aplicar |
 | `AnikiLogin.tsx` | Tela de boas-vindas ao abrir a tela cheia (avatar, nome e continuar) |
-| `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, música salva com preferências fullscreen e a imagem de fundo do jogo; respeita foco, visibilidade e suspensão; o trailer toca sem som quando a tela pede (`playVideo`), depois de `videoDelay` ms |
-| `AnikiDetails.tsx` | Detalhes nos seis layouts do Aniki (Signature, Moderno, Clássico, Original, Showcase e Painéis), com as mesmas peças (capa com nota e dificuldade, botões, dados, barra de conquistas, descrição e trailer) em lugares diferentes |
+| `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, preferências fullscreen, posição por contexto e conexão com `FullscreenMusicControls`; mantém a imagem de fundo e respeita foco, visibilidade e suspensão. Vídeo sem som somente quando a tela pede (`playVideo`) |
+| `AnikiMedia.tsx` | Alterna as OSTs por contexto e a faixa do jogo no mesmo `FullscreenMedia`, com fade de 1,2 s e posições separadas; login reinicia ao suspender |
+| `AnikiMusicPlayer.tsx` | Controles reais do player ambiente existente: reprodução/pausa, reinício, posição, volume e mudo; informa ausência de faixa e suspensão |
+| `AnikiDetails.tsx` | Seis layouts (Signature, Moderno, Clássico, Original, Showcase e Painéis), com capa, avaliação, ações, dados, conquistas e trailer. Signature mantém logo e cartão numa pilha ancorada, com capa proporcional limitada a 350 px |
 | `AnikiTrailerCard.tsx` | Trailer dos detalhes (em miniatura ou ocupando um quadro, conforme o layout): sem som, depois de 600 ms, com movimento reduzido e pausa na suspensão |
 | `AnikiDescription.tsx` | Painel de descrição do Signature, com a análise e o botão de editar |
 | `AnikiTrophies.tsx` | Painel de troféus do Aniki: cabeçalho com capa e progresso, pegos de cada tipo, cartões, ordenação, filtro e ocultos |
+| `AnikiAudioPanel.tsx` | Lista e troca a saída padrão do Windows, ajusta volume geral e mudo, com retorno de falhas e atualização do estado |
+| `AnikiGallery.tsx` | Capturas do jogo em grade e ampliação, anterior/próxima, importação pelo diálogo e remoção confirmada de cópias internas; teclado, controle e mouse |
+| `AnikiMaintenance.tsx` | Exporta/importa preferências fullscreen e confirma a restauração; cancelamento preserva o estado e a restauração conserva o tema |
+| `AnikiRunningSession.tsx` | Painel das sessões iniciadas pelo app, retomada, pedido de fechamento confirmado e acesso ao centro de controle; serializa ações e reconfirma a identidade da sessão |
+| `AnikiGameOverlay.tsx` | Renderer da janela nativa separada do centro de controle, com estado/input próprios, informações do jogo e ações de retorno ou fechamento confirmado |
+| `AnikiLifecycleVideo.tsx` | Probe local dos vídeos de abertura/encerramento do pacote; apresenta somente mídia reproduzível e encerra a sequência por tempo, erro ou cancelamento |
+| `AnikiScreenSaver.tsx` | Rotação dos fundos elegíveis por inatividade ou prévia, logo/informações opcionais e transições; informa ativação ao shell para a OST ambiente e consome a primeira entrada que desperta |
+| `AnikiHelp.tsx` | Ajuda do mapa de teclado/controle e das ações disponíveis no Aniki |
 
 #### `src/renderer/pages`: as telas (abas)
 
@@ -402,11 +443,14 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/rom_scanner.rs` | As pastas de ROMs (tabela `rom_folders`) e a varredura: o nome limpo do jogo (`title_from_file_name`), as ISOs e pastas de PS3 e o .cue no lugar dos .bin |
 | `src/dynamic_color.rs` | A cor de destaque da arte de um jogo para a cor dinâmica da tela cheia, portada do Aniki Helper, com o resultado guardado por arquivo |
 | `src/discs.rs` | O código do jogo no disco (PS1, PS2, PS3, PSP, GameCube, Wii e 3DS) e o nome dos jogos de PS3, lendo só alguns bytes. Os discos de mentira dos testes ficam no módulo `fake_discs` |
-| `src/launcher.rs` | O Jogar: abre o emulador separado do app, guarda os jogos abertos e, quando ele fecha, devolve o tempo jogado. Ao fechar o app, `finish_all` registra o tempo até ali |
+| `src/launcher.rs` | Abre o emulador separado do app, guarda sessões e o controle do processo original, expõe retomada/pedido de fechamento e registra o tempo quando o processo termina; `finish_all` registra o tempo até o fechamento do app |
+| `src/game_window.rs` | Handle próprio do processo iniciado: verifica a identidade e a janela correspondente, restaura/traz ao primeiro plano e solicita `WM_CLOSE`, sem confundir reutilização de PID ou forçar encerramento |
+| `src/game_overlay.rs` | Worker e janela separada do centro de controle, atalhos configuráveis, foco e input próprios; liga o overlay à sessão original e publica `game-overlay:state`/`game-overlay:input`. Testes substituem janela, processo e entrada nativa |
 | `src/emulator_window.rs` | Maximiza a janela do RetroArch quando ela aparecer, pelas funções do Windows |
 | `src/emulator_playtime.rs` | Lê o tempo que os emuladores registram (PCSX2, DuckStation, RPCS3, PPSSPP, Dolphin, Azahar e RetroArch) e junta com a biblioteca, sem contar duas vezes |
 | `src/playtime_sync.rs` | Relê esses registros ao abrir, a cada minuto, depois de uma varredura e logo depois de um jogo fechar |
 | `src/stats.rs` | A atividade por dia das Estatísticas (últimos 30 dias, no horário do computador) |
+| `src/hub_data.rs` | Atividade local por jogo para o Hub: total em segundos, contagem das sessões e minutos do mês, incluindo tempo importado sem tratá-lo como novas aberturas |
 | `src/test_support.rs` | Só dos testes: pastas temporárias, arquivos de mentira e o banco em memória |
 | `src/secrets.rs` | As chaves das APIs, criptografadas no mesmo formato do safeStorage do Electron: a chave AES protegida pelo Windows (DPAPI) no arquivo "Local State" da pasta de dados e cada segredo em AES-GCM ("v10"). Assim as chaves salvas num app valem no outro |
 | `src/metadata/http.rs` | Os pedidos pela internet (`HttpClient`, com o `ureq`; os testes passam uma internet de mentira, `fake::FakeFetch`), os endereços dos serviços (os de verdade ou os do servidor de mentira) e o erro que para a leva (`MetadataError::Stop`) ou pula um jogo (`Skip`) |
@@ -426,6 +470,9 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/power.rs` | Opções de energia do menu principal: bloquear (`LockWorkStation`), suspender (`SetSuspendState`), reiniciar e desligar (`shutdown.exe`, sem forçar) |
 | `src/theme_pack.rs` | O pacote do tema Aniki: download da release oficial com SHA-256 fixo, extração só das mídias para `themes/aniki-3.6.0`, cancelamento, remoção e o protocolo `playtrove-theme` |
 | `src/fullscreen.rs` | Preferências próprias na tabela `settings` (o tema, `playtrove` ou `aniki`, entre elas): início desligado, música ligada e volume 20%; valida todo o patch antes de gravar em transação e mantém os dados desktop separados |
+| `src/fullscreen_profiles.rs` | JSON versionado e whitelist das preferências fullscreen; diálogos nativos para exportar/importar, validação integral em banco em memória antes da transação e reset que preserva o tema. Não exporta biblioteca, credenciais nem outras configurações |
+| `src/audio_output.rs` | Endpoints de reprodução ativos do Windows, saída padrão, volume geral e mudo via Core Audio; troca de padrão com erro explícito quando não suportada. Adaptador de memória impede alterações reais nos testes |
+| `src/game_media.rs` | PNG/JPEG/WebP escolhidos no diálogo, até 20 por lote, 32 MiB e 40 milhões de pixels por imagem; valida jogo/extensão/assinatura, copia para `images/<id>/gallery`, limpa falhas e lista pelos nomes internos sem migração. Protocolo `playtrove-gallery` restrito a essas cópias e remoção que preserva originais |
 | `src/links.rs` | Os sites que o app abre no navegador (`EXTERNAL_LINKS`, com os mesmos nomes do `src/shared/ipc.ts`, conferidos pelo `backendMessages.test.ts`) e o formulário de bug, com a versão do app e a do Windows (lida do registro, como o Electron escrevia) |
 | `src/data_folder.rs` | Onde ficam os dados: pasta temporária nos testes, `data` ao lado do .exe na portátil, `%APPDATA%\Playtrove` no app de verdade e a cópia `%APPDATA%\Playtrove Dev` no desenvolvimento (a mesma das versões em Electron) |
 | `src/database.rs` | Abre o banco (sem WAL), confere (`quick_check`) e, se estiver danificado, conserta: copia o que dá para ler para um banco novo, acerta o que ficou sem par, guarda o arquivo danificado ao lado e monta o aviso (`describe_repair`) |
@@ -441,7 +488,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `src/updates.rs` | A atualização do app: procurar versão nova (5 s depois de abrir, se a opção estiver ligada, ou quando o usuário pede), baixar avisando o andamento (`updates:status`) e instalar; na portátil, só abrir a página de download. Quem procura é o atualizador do Tauri, que só instala o que tiver a assinatura da chave do projeto; nos testes, um de mentira (`PLAYTROVE_FAKE_UPDATE`); no `npm run dev:tauri`, ninguém |
 | `src/window.rs` | Janela sem barra do Windows, maximizada ou em tela cheia pela preferência de início. Reconcilia `isMaximized`/`isFullscreen` em `window:state`, restaura o estado nativo ao sair e desabilita input ao perder foco/sair. Idioma e marca DEV no endereço; `bring_to_front` atende à instância única no release. O WebView2 usa `<pasta de dados>\webview`, separado entre instalado, dev e testes. Ao abrir direto na tela cheia, pede o primeiro plano ao Windows; o WebView2 abre com a reprodução automática liberada |
 | `src/state.rs` | O banco e o idioma enquanto o app está aberto |
-| `src/test_hooks.rs` | Só para os testes do app (`tests/app`), e só com a pasta de dados deles: no lugar da janela de "Abrir", do navegador e do Explorador, respostas combinadas e uma lista do que foi pedido; o tamanho da janela; e imagens retidas até o teste liberar (para conferir a tela enquanto carregam). Fora dos testes, os comandos `test_*` não fazem nada |
+| `src/test_hooks.rs` | Só com a pasta temporária dos testes: substitui diálogos de abrir/salvar e acessos externos, retém imagens, controla tamanho/foco e injeta sessões, áudio e input do overlay fictícios. Fora dos testes, os comandos `test_*` não fazem nada |
 | `src/test_mode.rs` | As variáveis `PLAYTROVE_*` dos testes, que só valem no build de desenvolvimento |
 
 ## Onde implementar cada funcionalidade futura
@@ -484,7 +531,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | Mudar onde as imagens aparecem | `GameCover.tsx` (capa), `GameIcon.tsx` (ícone), `GameBackdrop.tsx` (fundo), usados em `GameDetailsView.tsx`, `GameDetailsPanel.tsx`, `GameCard.tsx` e `GameList.tsx` |
 | Mudar o vídeo de fundo | `src-tauri/src/videos.rs` (importação, modos, associação e protocolo por intervalos), `metadata/download.rs` e `metadata/trailer_downloader.rs` (trailer automático), `metadata/trailer_tools.rs` (ferramentas e hashes), `metadata/trailer_tools_process.rs` (processo e descendentes), `GameActionsMenu.tsx` (ações) e `GameDetailsBackdrop.tsx` (reprodução e imagem de reserva) |
 | Mudar a música tema | `src-tauri/src/music.rs` (preferências/importação/protocolo), `music_search.rs`/`music_previews.rs` (candidatas/escolhas/prévias), `metadata/theme_downloader.rs` (busca/áudio), `metadata/queue.rs` (fila), `MusicReviewDialog.tsx`/`MusicReviewPanel.tsx`/`MetadataSettings.tsx` (revisão e aquisição), `LibraryThemeMusic.tsx`/`lib/themeMusicPlayer.ts`/`lib/musicPreviewPlayer.ts` (reprodução) |
-| Ampliar a tela cheia (centro de controle durante o jogo, mídia extra, ferramentas, serviços ou conectores) | `src/renderer/fullscreen/FullscreenShell.tsx` e seus painéis; transições em `hooks/useFullscreen.ts`/`src-tauri/src/window.rs`, preferências em `src-tauri/src/fullscreen.rs` e `src/shared/fullscreen.ts` (e a opção nova em `AnikiSettings.tsx`, com a descrição nos dicionários). Esses recursos ainda ficam no roadmap |
+| Ampliar a tela cheia com ferramentas, serviços ou conectores | `src/renderer/fullscreen/FullscreenShell.tsx` e seus painéis; preferências em `src-tauri/src/fullscreen.rs` e `src/shared/fullscreen.ts`, com controles e descrições nos dicionários. A galeria e o centro de controle existentes ficam em `AnikiGallery.tsx`/`game_media.rs` e `AnikiGameOverlay.tsx`/`game_overlay.rs`; novos serviços continuam no roadmap |
 | Mudar a navegação por controle | `src-tauri/src/controller_input.rs` (pacotes), `controllers.rs` (serviço opt-in), `src/renderer/lib/fullscreenNavigation.ts` (ações, toque/segurar e repetição), `hooks/useFullscreenInput.ts` (foco/escopo) e o mapa em `fullscreen/FullscreenShell.tsx` |
 | Lembrar o modo de exibição e os filtros ao reabrir o app | `src/renderer/App.tsx` → estados `libraryView` e `libraryFilters` (salvar em algum lugar, ex.: na tabela `settings`, por um comando) |
 | Criar outro modo de exibição | `src/renderer/components/LibraryTools.tsx` (`LibraryView` e `VIEWS`) e `src/renderer/pages/LibraryPage.tsx` |

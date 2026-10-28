@@ -7,9 +7,9 @@ import { AnikiAvatar } from "./AnikiAvatar"
 
 /** As 11 etapas do assistente inicial do Aniki, adaptadas ao Playtrove. */
 export const SETUP_STEPS = ["welcome", "profile", "startup", "interface", "color", "details", "experience", "trailers", "services", "features", "summary"] as const
-export type SetupDraft = Pick<FullscreenConfig, "profileName" | "profileAvatar" | "startDestination" | "loginScreen" | "interface" | "colorPreset" | "detailsLayout" | "effects" | "trailers">
+export type SetupDraft = Pick<FullscreenConfig, "profileName" | "profileAvatar" | "anikiAvatarIndex" | "startDestination" | "loginScreen" | "interface" | "colorPreset" | "detailsLayout" | "effects" | "trailers">
 /** As escolhas do assistente quando a pessoa restaura os padrões. */
-export const SETUP_DEFAULTS: SetupDraft = { profileName: "", profileAvatar: "gamepad", startDestination: "hub", loginScreen: false, interface: "standard", colorPreset: "default", detailsLayout: "signature", effects: "balanced", trailers: "details" }
+export const SETUP_DEFAULTS: SetupDraft = { profileName: "", profileAvatar: "gamepad", anikiAvatarIndex: null, startDestination: "hub", loginScreen: false, interface: "standard", colorPreset: "default", detailsLayout: "signature", effects: "balanced", trailers: "details" }
 /** As cores que o Aniki oferece no assistente (as outras ficam nas configurações). */
 const SETUP_COLORS = ["default", "orbis-blue", "scarlet-red", "hunter-green", "midnight-pink", "sapphire-prestige"] as const
 
@@ -40,8 +40,8 @@ export function AnikiSetup({ step, draft, onDraft, onStep, onApply, onEditName }
     <small>{words.restoreHint}</small>
   </div>
   if (id === "profile") body = <div className="aniki-setup-columns">
-    <div className="aniki-setup-profile"><AnikiAvatar avatar={draft.profileAvatar} size={160} /><button type="button" data-fs-default className="aniki-setup-name" onClick={onEditName}><small>{t.fullscreen.profileName}</small><strong>{draft.profileName || t.fullscreen.defaultProfileName}</strong></button><small>{words.nameHint}</small></div>
-    <div className="aniki-setup-avatars" role="group" aria-label={t.fullscreen.avatar}>{PROFILE_AVATARS.map((avatar) => <button type="button" key={avatar} aria-label={t.fullscreen.avatars[avatar]} aria-pressed={draft.profileAvatar === avatar} onClick={() => onDraft({ profileAvatar: avatar })}><AnikiAvatar avatar={avatar} size={72} /></button>)}</div>
+    <div className="aniki-setup-profile"><AnikiAvatar avatar={draft.profileAvatar} anikiAvatarIndex={draft.anikiAvatarIndex} size={160} /><button type="button" data-fs-default className="aniki-setup-name" onClick={onEditName}><small>{t.fullscreen.profileName}</small><strong>{draft.profileName || t.fullscreen.defaultProfileName}</strong></button><small>{words.nameHint}</small></div>
+    <div className="aniki-setup-avatars" role="group" aria-label={t.fullscreen.avatar}>{PROFILE_AVATARS.map((avatar) => <button type="button" key={avatar} aria-label={t.fullscreen.avatars[avatar]} aria-pressed={draft.anikiAvatarIndex === null && draft.profileAvatar === avatar} onClick={() => onDraft({ profileAvatar: avatar, anikiAvatarIndex: null })}><AnikiAvatar avatar={avatar} anikiAvatarIndex={null} size={72} /></button>)}</div>
   </div>
   if (id === "startup") body = <div className="aniki-setup-columns">
     {preview(draft.startDestination === "hub" ? t.fullscreen.hub : t.fullscreen.library, words.startupDescriptions[draft.startDestination])}
