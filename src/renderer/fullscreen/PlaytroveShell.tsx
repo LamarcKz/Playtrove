@@ -54,7 +54,6 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   // O foco que a própria tela move (ao abrir um painel, por exemplo) não toca o som de mover.
   const programmaticFocus = useRef(false)
   const hovered = useRef<Element | null>(null)
-  const pointer = useRef<{ x: number; y: number } | null>(null)
   const scope = useRef<HTMLElement>(null)
   const launchGuard = useRef(new FullscreenLaunchGuard())
   const launchedId = useRef<number | null>(null)
@@ -98,14 +97,13 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   const interactive = (target: EventTarget) => target instanceof Element ? target.closest("button:not(:disabled), [tabindex='0']") : null
   // Como no Playnite: passar o mouse ou mover o foco por capas e botões toca o som de mover, e confirmar (clique,
   // ✕ ou Enter) toca o de confirmar. O ✕ e o Enter chegam aqui como clique no item com o foco.
+  // Pelo movimento do mouse, e não pela entrada no elemento: a tela mudar embaixo do mouse parado (ex.: os detalhes
+  // abrindo) também avisa a entrada, mas não conta como passar por um item.
   const soundOnHover = (event: PointerEvent<HTMLDivElement>) => {
-    // A tela mudar embaixo do mouse parado (ex.: os detalhes abrindo) não conta como passar por um item.
-    const moved = pointer.current?.x !== event.clientX || pointer.current?.y !== event.clientY
-    pointer.current = { x: event.clientX, y: event.clientY }
     const target = interactive(event.target)
-    if (!target || target === hovered.current) return
+    if (target === hovered.current) return
     hovered.current = target
-    if (moved) sound("move")
+    if (target) sound("move")
   }
   const soundOnFocus = (event: FocusEvent<HTMLDivElement>) => {
     if (!programmaticFocus.current && interactive(event.target) && event.target !== hovered.current) sound("move")
@@ -191,7 +189,7 @@ export function PlaytroveShell({ enabled, games, initialGameId, onExit, onOpenEm
   const trailers = config?.playtroveTrailers ?? "all"
 
   return (
-    <div hidden={!enabled} className="playtrove-fullscreen" data-testid="fullscreen-shell" onPointerOver={soundOnHover} onPointerLeave={() => { hovered.current = null }} onFocusCapture={soundOnFocus} onClickCapture={soundOnClick}>
+    <div hidden={!enabled} className="playtrove-fullscreen" data-testid="fullscreen-shell" onPointerMove={soundOnHover} onPointerLeave={() => { hovered.current = null }} onFocusCapture={soundOnFocus} onClickCapture={soundOnClick}>
       <FullscreenMedia game={game} playVideo={trailers === "all" || (trailers === "details" && details)} videoDelay={details ? 600 : 1000} suspended={suspended} />
       <section ref={panel ? undefined : scope} className="fs-main" inert={panel !== null || running.length > 0 || launching}>
         <header className="fs-header">
