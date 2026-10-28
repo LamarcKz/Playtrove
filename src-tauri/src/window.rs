@@ -24,6 +24,9 @@ const BACKGROUND_COLOR: Color = Color(0x12, 0x16, 0x1d, 0xff);
 /// As opções que o Tauri já passa ao WebView2 (sem o mini menu do Edge e sem o SmartScreen). Quem passa
 /// outras precisa repetir estas.
 const WEBVIEW_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
+/// O app é local: a música tema, os sons da navegação e os trailers tocam sem esperar um clique (quem abre
+/// direto na tela cheia e usa só o controle nunca clica, e o WebView2 bloquearia o áudio).
+const AUTOPLAY_ARGS: &str = "--autoplay-policy=no-user-gesture-required";
 
 /// O que a interface sabe da janela.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -106,16 +109,20 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
     // Nos testes do app, a janela aceita o Playwright por esta porta, e o WebView2 guarda o registro dele
     // na pasta de dados (para o erro, se ela não abrir). Pela variável WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
     // não dá: o Windows do robô dos testes ignora.
+    let mut browser_args = format!("{WEBVIEW_ARGS} {AUTOPLAY_ARGS}");
     if let Some(port) = test_mode().remote_debugging_port {
-        builder =
-            builder.additional_browser_args(&format!("{WEBVIEW_ARGS} --remote-debugging-port={port} --enable-logging --v=0"));
+        browser_args.push_str(&format!(" --remote-debugging-port={port} --enable-logging --v=0"));
     }
+    builder = builder.additional_browser_args(&browser_args);
     let window = builder.build()?;
     send_state_changes(&window);
     if start_fullscreen {
         if let Err(error) = set_fullscreen(&window, true) {
             eprintln!("não foi possível iniciar em tela cheia: {error}");
         }
+        // Abrindo direto na tela cheia, ninguém clicou na janela: sem pedir o primeiro plano, o Windows deixa o
+        // foco com quem abriu o app, e o controle, a música e os trailers ficam parados até um Alt+Tab.
+        let _ = window.set_focus();
     } else {
         reconcile_state(&window)?;
     }

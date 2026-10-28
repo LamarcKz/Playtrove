@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react"
-import { FullscreenInput, scrollFullscreenText, type FullscreenAction } from "@/lib/fullscreenNavigation"
+import { FullscreenInput, scrollFullscreenText, swapConfirmAction, type FullscreenAction } from "@/lib/fullscreenNavigation"
 
 /** O foco nativo é obrigatório; DOM e visibilidade só podem suspender, nunca o substituir. */
 export function useFullscreenActive() {
@@ -63,10 +63,12 @@ export function moveFullscreenFocus(scope: HTMLElement, direction: FullscreenAct
   best?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" })
 }
 
-export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled: boolean, context: string, onAction: (action: FullscreenAction) => boolean | void) {
+export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled: boolean, context: string, onAction: (action: FullscreenAction) => boolean | void, swapConfirm = false) {
   const input = useRef(new FullscreenInput())
   const action = useRef(onAction)
   action.current = onAction
+  const swap = useRef(swapConfirm)
+  swap.current = swapConfirm
   const neutral = useRef(false)
   useLayoutEffect(() => { input.current.reset(neutral.current) }, [context, enabled])
   useEffect(() => {
@@ -85,7 +87,7 @@ export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled
     const receive = (snapshot: Parameters<FullscreenInput["update"]>[0]) => {
       const actions = input.current.update(snapshot, performance.now())
       neutral.current = input.current.neutral
-      if (enabled) dispatch(actions)
+      if (enabled) dispatch(swap.current ? actions.map(swapConfirmAction) : actions)
       else input.current.reset()
     }
     const stop = window.api.controllers.onInputChange(receive)
@@ -96,9 +98,9 @@ export function useFullscreenInput(scope: RefObject<HTMLElement | null>, enabled
       if (!enabled || event.altKey || event.ctrlKey || event.metaKey) return
       const target = event.target as HTMLElement
       const editing = target.matches("textarea,input")
-      const keys: Record<string, FullscreenAction> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "cross", Escape: "circle", F11: "create" }
+      const keys: Record<string, FullscreenAction> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Enter: "cross", Escape: "circle", F11: "window" }
       const mapped = keys[event.key]
-      if (!mapped || editing && mapped !== "circle" && mapped !== "create") return
+      if (!mapped || editing && mapped !== "circle" && mapped !== "window") return
       event.preventDefault()
       if (event.repeat && !["up", "down", "left", "right"].includes(mapped)) return
       dispatch([mapped])

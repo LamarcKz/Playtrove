@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { FullscreenShell } from "@/fullscreen/FullscreenShell"
 import { useFullscreenMode } from "@/hooks/useFullscreen"
 import { AchievementNotifier } from "@/components/AchievementNotifier"
@@ -51,6 +51,19 @@ function AppLayout() {
   // A biblioteca (jogos e status do banco) também fica aqui. Os status ficam disponíveis para
   // todos os componentes pelo StatusesProvider.
   const { loading, games, statuses, rules, setGameStatus } = useLibrary()
+
+  // F11 no modo janela entra na tela cheia, como no Playnite (dentro dela, o F11 volta).
+  const enterFullscreen = fullscreen.change
+  useEffect(() => {
+    if (fullscreen.enabled) return
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== "F11" || event.repeat) return
+      event.preventDefault()
+      void enterFullscreen(true)
+    }
+    window.addEventListener("keydown", keydown)
+    return () => window.removeEventListener("keydown", keydown)
+  }, [fullscreen.enabled, enterFullscreen])
 
   return (
     <TooltipProvider delayDuration={300}>

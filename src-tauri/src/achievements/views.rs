@@ -8,7 +8,9 @@ use rusqlite::Connection;
 
 use super::store::{BadgeUrl, get_ra_game_achievements, ra_overview_parts, ra_progress_by_game};
 use super::trophy_store::{TrophyIconUrl, get_game_trophies, trophy_overview_parts, trophy_progress_by_game};
-use super::types::{AchievementProgress, AchievementsOverview, DayCount, GameAchievements, MonthCount, UnlockedAchievement};
+use super::types::{
+    AchievementProgress, AchievementsOverview, DayCount, GameAchievements, MonthCount, Rarity, RarityCounts, UnlockedAchievement,
+};
 use crate::library::compare_titles;
 
 /// Quantas conquistas recentes a aba mostra.
@@ -54,6 +56,19 @@ pub fn get_overview(
             .then_with(|| compare_titles(&a.title, &b.title))
     });
     unlocked.sort_by(|a, b| b.achievement.earned_at.cmp(&a.achievement.earned_at));
+    let mut by_rarity = RarityCounts::default();
+    for item in &unlocked {
+        match item.achievement.rarity.unwrap_or(Rarity::Common) {
+            Rarity::Common => by_rarity.common += 1,
+            Rarity::Rare => by_rarity.rare += 1,
+            Rarity::VeryRare => by_rarity.very_rare += 1,
+            Rarity::UltraRare => by_rarity.ultra_rare += 1,
+        }
+    }
+    let mut rarest: Vec<UnlockedAchievement> =
+        unlocked.iter().filter(|item| item.achievement.percent.is_some()).cloned().collect();
+    rarest.sort_by(|a, b| a.achievement.percent.partial_cmp(&b.achievement.percent).unwrap_or(std::cmp::Ordering::Equal));
+    rarest.truncate(RECENT_LIMIT);
 
     Ok(AchievementsOverview {
         unlocked: unlocked.len() as i64,
@@ -62,6 +77,8 @@ pub fn get_overview(
         platinums: games.iter().filter(|game| game.progress.platinum).count() as i64,
         by_day: count_by_day(&unlocked, now),
         by_month: count_by_month(&unlocked, now),
+        by_rarity,
+        rarest,
         recent: unlocked.into_iter().take(RECENT_LIMIT).collect(),
         games,
     })

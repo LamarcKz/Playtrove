@@ -21,6 +21,7 @@ export function makeGame(overrides: Partial<Game> & { id: number; title: string 
     releaseDate: null,
     coverUrl: null,
     backgroundUrl: null,
+    logoUrl: null,
     backgroundVideoUrl: null,
     backgroundVideoMode: "auto",
     backgroundVideoCheckedAt: null,

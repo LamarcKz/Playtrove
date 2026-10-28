@@ -6,7 +6,7 @@
 import type { AchievementsConfig, AchievementsOverview, GameAchievements, UnlockedAchievement } from "./achievements"
 import type { ConnectedController, ControllerInputSnapshot } from "./controllers"
 import type { GameEvaluation } from "./evaluation"
-import type { FullscreenConfig } from "./fullscreen"
+import type { AnikiPackStatus, FullscreenConfig, PowerAction } from "./fullscreen"
 import type { Language } from "./i18n"
 import type {
   DailyPlaytime,
@@ -31,6 +31,8 @@ export const EVENTS = {
   /** A janela mudou de maximização, tela cheia ou foco nativo. */
   windowState: "window:state",
   fullscreenConfig: "fullscreen:config",
+  /** O download e a instalação do pacote do Aniki andaram. */
+  anikiProgress: "themes:aniki-progress",
   controllersInput: "controllers:input",
   /** Algo mudou na biblioteca: a interface pede os dados de novo. */
   libraryChanged: "library:changed",
@@ -95,6 +97,20 @@ export interface AppApi {
     setConfig: (patch: Partial<FullscreenConfig>) => Promise<FullscreenConfig>
     onConfigChange: (callback: (config: FullscreenConfig) => void) => () => void
   }
+  /** O Windows: bloquear, suspender, reiniciar e desligar (a tela pede confirmação antes). */
+  system: {
+    power: (action: PowerAction) => Promise<void>
+  }
+  /** O tema Aniki ReMake: o pacote oficial vem da release do autor, como no Playnite. */
+  themes: {
+    anikiStatus: () => Promise<AnikiPackStatus>
+    /** Baixa, confere e instala; no fim, a tela cheia passa a usar o Aniki. */
+    installAniki: () => Promise<AnikiPackStatus>
+    cancelAniki: () => Promise<void>
+    /** Apaga o pacote; se ele era o tema escolhido, volta o tema Playtrove. */
+    removeAniki: () => Promise<AnikiPackStatus>
+    onAnikiProgress: (callback: (status: AnikiPackStatus) => void) => () => void
+  }
   library: {
     /** Jogos, status e regras, de uma vez. */
     get: () => Promise<LibrarySnapshot>
@@ -116,6 +132,8 @@ export interface AppApi {
     setEvaluation: (gameId: number, evaluation: GameEvaluation) => Promise<void>
     /** Escolhe um MP4/WebM e guarda uma cópia como fundo do jogo. Cancelar conserva o vídeo atual. */
     pickBackgroundVideo: (gameId: number) => Promise<void>
+    /** A cor de destaque tirada da arte do jogo ("#rrggbb"), ou null sem imagem. */
+    accentColor: (gameId: number) => Promise<string | null>
     /** Remove somente a cópia do vídeo guardada pelo app. */
     removeBackgroundVideo: (gameId: number) => Promise<void>
     /** Volta a buscar o trailer automaticamente, preservando o arquivo original de vídeos manuais. */

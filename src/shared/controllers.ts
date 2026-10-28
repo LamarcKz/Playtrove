@@ -36,8 +36,14 @@ export type ControllerButton =
   | "triangle"
   | "l1"
   | "r1"
+  | "l2"
+  | "r2"
   | "options"
   | "create"
+  | "l3"
+  | "r3"
+  | "ps"
+  | "touchpad"
 
 /** Só mudanças são publicadas; sequência e geração descartam respostas de uma sessão antiga. */
 export interface ControllerInputSnapshot {

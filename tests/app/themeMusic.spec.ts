@@ -128,7 +128,8 @@ test("a faixa continua entre os quatro modos e para ao selecionar jogo sem músi
 test("reprodução e volume ficam nas configurações e respeitam o foco", async () => {
   await session.page.evaluate(() => window.dispatchEvent(new Event("blur")))
   await expect.poll(() => audio().evaluate((element: HTMLAudioElement) => element.paused)).toBe(true)
-  await session.page.evaluate(async () => window.api.music.setConfig({ enabled: false, volume: 7, autoDownload: true }))
+  // Começa longe do volume que o teste escolhe: assim, ver 7 no banco quer dizer que todos os passos do controle foram gravados.
+  await session.page.evaluate(async () => window.api.music.setConfig({ enabled: false, volume: 40, autoDownload: true }))
   await activate()
   expect(await audio().evaluate((element: HTMLAudioElement) => element.paused)).toBe(true)
   await session.page.getByRole("button", { name: "Configurações", exact: true }).click()

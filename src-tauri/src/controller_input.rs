@@ -15,8 +15,14 @@ pub enum ControllerButton {
     Triangle,
     L1,
     R1,
+    L2,
+    R2,
     Options,
     Create,
+    L3,
+    R3,
+    Ps,
+    Touchpad,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
@@ -39,22 +45,30 @@ pub fn parse_input(connection: Connection, report: &[u8]) -> Option<Vec<Controll
     let data = &report[offset..];
     let face = data[button_offset];
     let extra = data[button_offset + 1];
+    // No Bluetooth simples, os bits de cima deste byte são um contador; só os dois de baixo são botões.
+    let system = data[button_offset + 2];
     let hat = face & 0x0f;
     use ControllerButton::*;
     // Só o analógico esquerdo navega. A zona morta evita eventos de ruído em repouso.
     let candidates = [
         (Up, matches!(hat, 0 | 1 | 7) || data[1] <= 64),
-        (Down, matches!(hat, 3 | 4 | 5) || data[1] >= 192),
-        (Left, matches!(hat, 5 | 6 | 7) || data[0] <= 64),
-        (Right, matches!(hat, 1 | 2 | 3) || data[0] >= 192),
+        (Down, matches!(hat, 3..=5) || data[1] >= 192),
+        (Left, matches!(hat, 5..=7) || data[0] <= 64),
+        (Right, matches!(hat, 1..=3) || data[0] >= 192),
         (Cross, face & 0x20 != 0),
         (Circle, face & 0x40 != 0),
         (Square, face & 0x10 != 0),
         (Triangle, face & 0x80 != 0),
         (L1, extra & 0x01 != 0),
         (R1, extra & 0x02 != 0),
+        (L2, extra & 0x04 != 0),
+        (R2, extra & 0x08 != 0),
         (Options, extra & 0x20 != 0),
         (Create, extra & 0x10 != 0),
+        (L3, extra & 0x40 != 0),
+        (R3, extra & 0x80 != 0),
+        (Ps, system & 0x01 != 0),
+        (Touchpad, system & 0x02 != 0),
     ];
     Some(candidates.into_iter().filter_map(|(button, pressed)| pressed.then_some(button)).collect())
 }
@@ -249,6 +263,22 @@ mod tests {
             json,
             serde_json::json!({"sequence": 3, "generation": 2, "controllerKey": 7, "buttons": ["cross", "l1", "create"]})
         );
+    }
+    #[test]
+    fn le_gatilhos_analogicos_ps_e_touchpad_ignorando_o_contador_do_bluetooth() {
+        for (connection, simple, len) in [
+            (Connection::Usb, false, 64),
+            (Connection::Bluetooth, true, 10),
+            (Connection::Bluetooth, true, 78),
+            (Connection::Bluetooth, false, 78),
+        ] {
+            let mut data = packet(connection, simple, len, 8, 0, 0xcc);
+            let system = (if connection == Connection::Bluetooth && !simple { 2 } else { 1 }) + if simple { 6 } else { 9 };
+            data[system] = 0xfc | 0x03;
+            assert_eq!(parse_input(connection, &data), Some(vec![L2, R2, L3, R3, Ps, Touchpad]));
+            data[system] = 0xfc;
+            assert_eq!(parse_input(connection, &data), Some(vec![L2, R2, L3, R3]));
+        }
     }
     #[test]
     fn mapeia_cada_botao_sem_trocar_confirmar_voltar_ou_as_outras_acoes() {

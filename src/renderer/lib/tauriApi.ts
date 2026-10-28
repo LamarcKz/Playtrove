@@ -42,6 +42,16 @@ export function createTauriApi(): AppApi {
       setConfig: (patch) => invoke("fullscreen_set_config", { patch }),
       onConfigChange: (callback) => subscribe(EVENTS.fullscreenConfig, callback),
     },
+    system: {
+      power: (action) => invoke("system_power", { action }),
+    },
+    themes: {
+      anikiStatus: () => invoke("themes_aniki_status"),
+      installAniki: () => invoke("themes_aniki_install"),
+      cancelAniki: () => invoke("themes_aniki_cancel"),
+      removeAniki: () => invoke("themes_aniki_remove"),
+      onAnikiProgress: (callback) => subscribe(EVENTS.anikiProgress, callback),
+    },
     library: {
       get: () => invoke("library_get"),
       onChange: (callback) => subscribe(EVENTS.libraryChanged, () => callback()),
@@ -55,6 +65,7 @@ export function createTauriApi(): AppApi {
       showRom: (gameId) => invoke("games_show_rom", { gameId }),
       setEvaluation: (gameId, evaluation) => invoke("games_set_evaluation", { gameId, evaluation }),
       pickBackgroundVideo: (gameId) => invoke("games_pick_background_video", { gameId }),
+      accentColor: (gameId) => invoke("games_accent_color", { gameId }),
       removeBackgroundVideo: (gameId) => invoke("games_remove_background_video", { gameId }),
       useAutomaticBackgroundVideo: (gameId) => invoke("games_use_automatic_background_video", { gameId }),
       pickThemeMusic: (gameId) => invoke("games_pick_theme_music", { gameId }),

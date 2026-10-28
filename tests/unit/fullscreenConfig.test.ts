@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { FullscreenConfig } from "../../src/shared/fullscreen"
 import { FullscreenConfigQueue } from "../../src/renderer/lib/fullscreenConfig"
 
-const initial: FullscreenConfig = { startOnLaunch: false, musicPlayback: true, musicVolume: 20 }
+const initial: FullscreenConfig = { theme: "playtrove", startOnLaunch: false, musicPlayback: true, musicVolume: 20, startDestination: "hub", profileName: "", profileAvatar: "gamepad", libraryLayout: "horizontal", detailsLayout: "signature", colorPreset: "default", dynamicColors: false, effects: "balanced", interface: "standard", loginScreen: false, trailers: "details", setupDone: false, coverRows: 1, showClock: true, uiSounds: true, uiSoundsVolume: 40, swapConfirm: false, playtroveTrailers: "all" }
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason: unknown) => void
@@ -34,7 +34,7 @@ describe("preferências fullscreen", () => {
     const first = state.save({ startOnLaunch: true })
     const second = state.save({ musicPlayback: false, musicVolume: 35 })
     expect(patches).toEqual([{ startOnLaunch: true }])
-    expect(state.snapshot.config).toEqual({ startOnLaunch: true, musicPlayback: false, musicVolume: 35 })
+    expect(state.snapshot.config).toEqual({ ...initial, startOnLaunch: true, musicPlayback: false, musicVolume: 35 })
     server = { ...initial, startOnLaunch: true }
     state.receive(server)
     expect(state.snapshot.config?.musicVolume).toBe(35)

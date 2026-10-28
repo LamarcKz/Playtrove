@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { FullscreenInput, fullscreenGames, restoreFullscreenSelection, scrollFullscreenText } from "../../src/renderer/lib/fullscreenNavigation"
+import { FullscreenInput, fullscreenGames, restoreFullscreenSelection, scrollFullscreenText, sortFullscreenGames, swapConfirmAction } from "../../src/renderer/lib/fullscreenNavigation"
 import { editFullscreenText } from "../../src/renderer/lib/fullscreenText"
 
 const snapshot = (sequence: number, buttons: string[], generation = 1) => ({ sequence, generation, controllerKey: 7, buttons })
@@ -30,6 +30,29 @@ describe("entrada fullscreen", () => {
     expect(input.update(snapshot(6, ["cross"], 2), 750)).toEqual(["cross"])
   })
 })
+// Como no Aniki: Options, Create e triângulo agem ao soltar; segurados por 500 ms, disparam a segunda ação uma vez.
+describe("toque e segurar", () => {
+  it("toque age ao soltar e segurar dispara uma vez, sem toque depois", () => {
+    const input = new FullscreenInput()
+    input.update(snapshot(1, []), 0)
+    expect(input.update(snapshot(2, ["options"]), 100)).toEqual([])
+    expect(input.update(snapshot(3, []), 300)).toEqual(["options"])
+    expect(input.update(snapshot(4, ["create"]), 1000)).toEqual([])
+    expect(input.repeat(1499)).toEqual([])
+    expect(input.repeat(1500)).toEqual(["create-hold"])
+    expect(input.repeat(2500)).toEqual([])
+    expect(input.update(snapshot(5, []), 2600)).toEqual([])
+  })
+  it("segurar não atrasa os outros botões e a reinicialização descarta o segurar pendente", () => {
+    const input = new FullscreenInput()
+    input.update(snapshot(1, []), 0)
+    expect(input.update(snapshot(2, ["triangle", "cross"]), 0)).toEqual(["cross"])
+    input.reset()
+    expect(input.repeat(800)).toEqual([])
+    input.update(snapshot(3, []), 900)
+    expect(input.update(snapshot(4, ["l3", "r3"]), 950)).toEqual(["l3", "r3"])
+  })
+})
 describe("contexto da biblioteca fullscreen", () => {
   const games = [{ id: 1, title: "Ação", favorite: false, lastPlayedAt: null }, { id: 2, title: "Outro", favorite: true, lastPlayedAt: null }]
   it("busca global ignora a coleção sem a alterar", () => {
@@ -42,6 +65,34 @@ describe("contexto da biblioteca fullscreen", () => {
     expect(restoreFullscreenSelection([], 1)).toBeNull()
   })
 })
+describe("ordem e ✕/○ do tema Playtrove", () => {
+  const game = (title: string, extra: Partial<{ lastPlayedAt: string | null; playtimeMinutes: number; addedAt: string; rating: number | null }> = {}) =>
+    ({ title, lastPlayedAt: null, playtimeMinutes: 0, addedAt: "2026-01-01T00:00:00Z", rating: null, ...extra })
+  const games = [
+    game("Bravo", { lastPlayedAt: "2026-10-20T10:00:00Z", playtimeMinutes: 30, addedAt: "2026-03-01T00:00:00Z", rating: 6 }),
+    game("alfa", { playtimeMinutes: 300, rating: null }),
+    game("Charlie", { lastPlayedAt: "2026-10-25T10:00:00Z", playtimeMinutes: 30, addedAt: "2026-05-01T00:00:00Z", rating: 9 }),
+  ]
+  const titles = (list: { title: string }[]) => list.map((item) => item.title)
+
+  it("ordena sem mudar a lista e deixa os jogos sem o dado no fim, pelo nome", () => {
+    expect(sortFullscreenGames(games, "collection", "pt-BR")).toBe(games)
+    expect(titles(sortFullscreenGames(games, "name", "pt-BR"))).toEqual(["alfa", "Bravo", "Charlie"])
+    expect(titles(sortFullscreenGames(games, "lastPlayed", "pt-BR"))).toEqual(["Charlie", "Bravo", "alfa"])
+    expect(titles(sortFullscreenGames(games, "playtime", "pt-BR"))).toEqual(["alfa", "Bravo", "Charlie"])
+    expect(titles(sortFullscreenGames(games, "added", "pt-BR"))).toEqual(["Charlie", "Bravo", "alfa"])
+    expect(titles(sortFullscreenGames(games, "rating", "pt-BR"))).toEqual(["Charlie", "Bravo", "alfa"])
+    expect(titles(games)).toEqual(["Bravo", "alfa", "Charlie"])
+  })
+
+  it("a troca só inverte confirmar e voltar", () => {
+    expect(swapConfirmAction("cross")).toBe("circle")
+    expect(swapConfirmAction("circle")).toBe("cross")
+    expect(swapConfirmAction("square")).toBe("square")
+    expect(swapConfirmAction("options-hold")).toBe("options-hold")
+  })
+})
+
 describe("edição QWERTY", () => {
   it("edita no cursor sem cortar Unicode e substitui a seleção", () => {
     expect(editFullscreenText({ text: "a😀é", start: 3, end: 3 }, "backspace")).toEqual({ text: "aé", start: 1, end: 1 })

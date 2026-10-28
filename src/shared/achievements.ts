@@ -111,6 +111,10 @@ export interface AchievementsOverview {
   byDay: { date: string; count: number }[]
   /** Desbloqueadas por mês, nos últimos 12 meses (AAAA-MM). */
   byMonth: { month: string; count: number }[]
+  /** Todas as desbloqueadas por raridade (as sem raridade, como os troféus do PS3, contam como comuns). */
+  byRarity: Record<Rarity, number>
+  /** As desbloqueadas mais raras, da mais rara para a menos rara. */
+  rarest: UnlockedAchievement[]
 }
 
 /** A conta do RetroAchievements e a situação da atualização (Configurações e aba Conquistas). */

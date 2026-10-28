@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/exo-2";
+@import "./anikiColors.css";
+@import "./fullscreenPlaytrove.css";
 
 /* A classe "dark" no <html> (ver index.html) liga o tema escuro, que é o padrão do app. */
 @custom-variant dark (&:is(.dark *));
@@ -205,24 +208,46 @@
 
 /* Apresentação fullscreen: arte ampla, capas inteiras e foco legível a distância. */
 .fullscreen-shell {
-  --fs-background: oklch(0.12 0.015 252);
-  --fs-surface: oklch(0.17 0.02 252 / 0.88);
-  --fs-glass: oklch(0.18 0.018 252 / 0.8);
-  --fs-foreground: oklch(0.98 0 0);
-  --fs-muted: oklch(0.76 0.012 252);
-  --fs-focus: oklch(0.91 0.075 85);
-  --fs-border: oklch(0.8 0.02 252 / 0.2);
-  --fs-shadow: oklch(0 0 0 / 0.55);
-  --fs-scrim: oklch(0.07 0.015 252 / 0.85);
+  /*
+   * As cores de base vêm da paleta escolhida (anikiColors.css, pelo atributo data-aniki-color, ou da cor
+   * dinâmica, aplicada no próprio elemento). Daqui para baixo, só as derivadas delas.
+   */
+  --aniki-transparent: #00000000;
+  --aniki-focus-fill: linear-gradient(90deg, var(--aniki-focus-stop0), var(--aniki-focus-stop1) 40%, var(--aniki-focus-stop2) 70%, var(--aniki-focus-stop3));
+  --aniki-chip: color-mix(in srgb, var(--aniki-control) 70%, transparent);
+  --aniki-badge: color-mix(in srgb, var(--aniki-control-dark) 80%, transparent);
+  --aniki-scrim: color-mix(in srgb, var(--aniki-secondary-end) 85%, transparent);
+  --aniki-panel: color-mix(in srgb, var(--aniki-band) 80%, transparent);
+  --aniki-band-dark: var(--aniki-menu-bottom);
+  --aniki-list-item: color-mix(in srgb, var(--aniki-control) 60%, transparent);
+  --aniki-hub-bg: radial-gradient(ellipse at 70% 10%, var(--aniki-secondary-center), var(--aniki-secondary-mid) 50%, var(--aniki-secondary-end));
+  --aniki-avatar-bg: linear-gradient(145deg, var(--aniki-card), var(--aniki-control-dark));
+  --aniki-avatar-border: var(--aniki-accent);
+  --aniki-glass-signature: linear-gradient(var(--aniki-glass-sig-top), var(--aniki-glass-sig-mid) 60%, var(--aniki-glass-sig-bot));
+  --aniki-secondary-view: radial-gradient(ellipse at 50% 30%, var(--aniki-secondary-center), var(--aniki-secondary-mid) 55%, var(--aniki-secondary-end));
+  --aniki-card-trophy: color-mix(in srgb, var(--aniki-card-trophy-base) 92%, transparent);
+  --aniki-button-idle: #ffffff14;
+  --aniki-track: #ffffff1f;
+  /* As peças que ainda usam os nomes antigos seguem a mesma paleta. */
+  --fs-background: var(--aniki-control-dark);
+  --fs-surface: color-mix(in srgb, var(--aniki-control) 88%, transparent);
+  --fs-glass: color-mix(in srgb, var(--aniki-control) 80%, transparent);
+  --fs-foreground: var(--aniki-text);
+  --fs-muted: var(--aniki-text-detail);
+  --fs-focus: var(--aniki-glyph);
+  --fs-border: #ffffff1a;
+  --fs-shadow: #0000008c;
+  --fs-scrim: var(--aniki-scrim);
   position: fixed;
   inset: 0;
   z-index: 40;
   overflow: hidden;
   color: var(--fs-foreground);
-  background: var(--fs-background);
-  font-size: clamp(14px, 1.1vw, 21px);
+  background: var(--aniki-shade-strong);
+  font-family: "Exo 2 Variable", var(--font-sans);
   isolation: isolate;
 }
+
 .fullscreen-shell[hidden] { display: none; }
 .fullscreen-shell button { cursor: pointer; border: 1px solid transparent; border-radius: .55rem; padding: .65em 1em; transition: background .15s, border-color .15s, transform .15s; }
 .fullscreen-shell button:hover { background: var(--fs-border); }
@@ -232,57 +257,16 @@
 .fullscreen-shell svg { width: 1.2em; height: 1.2em; flex-shrink: 0; }
 .fs-main { position: relative; height: 100%; display: flex; flex-direction: column; }
 .fs-background { position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 75% 25%, var(--sidebar-accent), var(--fs-background) 75%); }
-.fs-background > img, .fs-background > video { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
-.fs-background > video { opacity: 0; transition: opacity .5s; }
-.fs-background > video.fs-video-ready { opacity: 1; }
+.fs-background > img { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
 .fs-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--fs-background) 0%, transparent 70%), linear-gradient(90deg, var(--fs-scrim), transparent 85%); }
-.fs-header { display: flex; min-height: 5.2rem; padding: .8rem 3.5vw; align-items: center; gap: 2vw; background: linear-gradient(var(--fs-surface), transparent); border-bottom: 1px solid var(--fs-border); }
-.fs-brand { display: flex; align-items: center; gap: .8em; font-size: 1.5em; font-weight: 650; letter-spacing: .03em; }
-.fs-brand > svg { width: 1.6em; height: 1.6em; }
-.fs-collections { display: flex; gap: .25em; margin-left: 2vw; }
-.fs-collections button { white-space: nowrap; }
-.fs-header-tools { display: flex; align-items: center; gap: .25em; margin-left: auto; }
-.fs-header-tools button { padding: .65em; }
-.fs-library { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; }
-.fs-game-info { padding: 4.5vh 6vw 2vh; max-width: 65vw; }
-.fs-eyebrow { color: var(--fs-muted); text-transform: uppercase; letter-spacing: .16em; font-size: .82em; margin-bottom: .8em; }
-.fs-game-info h1, .fs-signature h1 { font-size: clamp(2.4rem, 4.4vw, 5.5rem); line-height: 1.08; font-weight: 680; text-wrap: balance; text-shadow: 0 3px 18px var(--fs-shadow); }
-.fs-favorite { display: inline-block; margin-left: .3em; fill: currentColor; width: .5em !important; height: .5em !important; color: var(--fs-focus); vertical-align: middle; }
-.fs-info-meta { display: flex; gap: 1.5em; margin-top: 1.2em; color: var(--fs-muted); }
-.fs-info-meta span { display: flex; align-items: center; gap: .4em; }
-.fs-library-bottom { min-height: 0; margin-bottom: 1vh; }
-.fs-rail-heading { display: flex; align-items: center; gap: 1.5em; padding: 0 6vw .7em; }
-.fs-rail-heading h2 { font-weight: 600; font-size: 1.2em; }
-.fs-rail-heading > span { color: var(--fs-muted); font-size: .85em; }
-.fs-rail-heading button { margin-left: auto; }
-.fs-cover-rail { display: flex; gap: 1.35vw; overflow-x: auto; padding: 1em 6vw 1em; scroll-padding-inline: 6vw; scrollbar-width: thin; }
-.fullscreen-shell .fs-cover { width: clamp(8rem, 13vw, 15rem); flex-shrink: 0; padding: .3em; display: flex; flex-direction: column; gap: .6em; text-align: left; background: var(--fs-surface); }
-.fs-cover [data-slot="game-cover"] { width: 100%; max-width: 100%; border-radius: .25rem; }
-.fs-cover span { font-size: .8em; padding: 0 .35em .25em; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fullscreen-shell .fs-cover[aria-current="true"] { outline: 3px solid var(--fs-focus); outline-offset: 3px; transform: translateY(-.35em); }
-.fs-footer { flex-shrink: 0; min-height: 2.6rem; padding: .6rem 3.5vw; display: flex; gap: 1em; justify-content: space-between; color: var(--fs-muted); font-size: .75em; }
-.fs-footer > span:last-child:not(:first-child) { max-width: 37%; text-align: right; }
-.fs-empty { padding: 1rem 6vw 4vh; display: flex; gap: 1em; align-items: center; }
-.fs-signature { flex: 1; min-height: 0; position: relative; padding: 6vh 4vw 3vh; display: grid; grid-template-columns: minmax(9rem, 17vw) minmax(0, 1fr); gap: 1.8vw; align-items: end; }
-.fs-signature-cover { border-radius: .8rem; padding: .8em; background: var(--fs-glass); align-self: end; margin-bottom: 3vh; backdrop-filter: blur(18px); }
-.fs-signature-cover [data-slot="game-cover"] { --cover-max-height: 36vh; width: 100%; margin-inline: auto; }
-.fs-signature-content { min-height: 0; align-self: stretch; display: flex; flex-direction: column; gap: 1em; }
-.fs-signature h1 { font-size: clamp(2.2rem, 4vw, 5rem); max-width: 75%; }
+.fs-description { overflow-wrap: anywhere; }
 .fullscreen-shell .fs-back { padding: .35em .6em; display: flex; align-items: center; gap: .5em; width: fit-content; }
-.fs-details-actions { display: flex; gap: .6em; margin-top: .3em; }
-.fs-details-actions button { display: flex; align-items: center; gap: .65em; background: var(--fs-surface); }
 .fullscreen-shell .fs-primary { color: var(--fs-background); background: var(--fs-focus); font-weight: 700; }
 .fullscreen-shell .fs-primary:hover { background: var(--fs-foreground); }
-.fs-play { min-width: 9em; justify-content: center; }
-.fs-facts { display: flex; gap: 2em; flex-wrap: wrap; padding: 1em; background: var(--fs-glass); border-radius: .8em; width: fit-content; backdrop-filter: blur(18px); }
-.fs-facts dt { color: var(--fs-muted); font-size: .75em; margin-bottom: .2em; }
-.fs-facts dd { font-weight: 550; }
-.fs-signature-columns { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, .75fr); gap: 1.5em; min-height: 0; margin-top: auto; }
-.fs-description, .fs-achievement-card { padding: 1.2em; background: var(--fs-glass); border: 1px solid var(--fs-border); border-radius: .9em; backdrop-filter: blur(18px); max-height: 35vh; overflow-y: auto; }
-.fs-description h2, .fs-achievement-card h2 { font-weight: 600; margin-bottom: .5em; }
-.fs-description p, .fs-achievement-card p { color: var(--fs-muted); font-size: .9em; line-height: 1.55; margin-bottom: 1em; }
+.fs-description { padding: 1.2em; background: var(--fs-glass); border: 1px solid var(--fs-border); border-radius: .9em; backdrop-filter: blur(18px); max-height: 35vh; overflow-y: auto; }
+.fs-description h2 { font-weight: 600; margin-bottom: .5em; }
+.fs-description p { color: var(--fs-muted); font-size: .9em; line-height: 1.55; margin-bottom: 1em; }
 .fs-review-text { white-space: pre-wrap; overflow-wrap: anywhere; }
-.fs-achievement-card > svg { margin-bottom: .5em; width: 1.8em; height: 1.8em; }
 .fs-modal-shade { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: var(--fs-scrim); backdrop-filter: blur(12px); padding: 4vh 5vw; }
 .fs-modal { width: min(70rem, 100%); max-height: 92vh; overflow-y: auto; padding: 1.8em; border: 1px solid var(--fs-border); border-radius: 1em; background: var(--fs-surface); box-shadow: 0 1em 4em var(--fs-shadow); }
 .fs-modal h2 { font-size: 1.6em; font-weight: 650; margin: .6em 0; }
@@ -306,74 +290,436 @@
 .fs-keyboard-row { display: flex; justify-content: center; gap: .4em; }
 .fs-keyboard-row button { min-width: 2.6em; padding: .45em .6em; background: var(--fs-border); }
 .fs-keyboard .fs-dialog-actions { justify-content: flex-end; }
-.fs-achievements-list { max-height: 48vh; overflow-y: auto; margin-top: 1em; }
-.fs-achievements-list > div { margin: .5em; border-radius: .5em; }
 .fs-error { color: var(--destructive); margin-top: 1em; overflow-wrap: anywhere; }
 .fs-toast { position: absolute; bottom: 3rem; left: 5vw; max-width: 90vw; background: var(--fs-background); padding: 1em; border-radius: .5em; }
 .fs-running { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; background: var(--fs-scrim); padding: 10vw; text-align: center; font-size: 1.5em; }
 .fs-running svg { width: 3em; height: 3em; }
-@media (max-width: 1100px) {
-  .fs-header { gap: .7em; min-height: 4.2rem; }
-  .fs-brand { font-size: 1.15em; gap: .4em; }
-  .fs-collections { margin-left: 0; gap: 0; }
-  .fs-collections button { padding: .5em .65em; }
-  .fs-header-tools { gap: 0; }
-  .fs-signature { padding-top: 2vh; }
-  .fs-signature-columns { gap: .8em; }
-  .fs-signature-content { gap: .7em; }
-  .fs-footer { flex-direction: column; gap: .2em; font-size: .65em; }
-  .fs-footer > span:last-child:not(:first-child) { max-width: none; text-align: left; }
-}
-@media (max-height: 680px) {
-  .fs-game-info { padding-top: 2vh; }
-  .fs-cover-rail { max-height: 43vh; }
-  .fs-cover [data-slot="game-cover"] { max-height: 30vh; }
-  .fs-signature-content { gap: .5em; }
-  .fs-signature h1 { font-size: 2.5rem; }
-}
 @media (prefers-reduced-motion: reduce) {
   .fullscreen-shell *, .fullscreen-shell *::before, .fullscreen-shell *::after { transition: none !important; scroll-behavior: auto !important; }
 }
-/* Signature: título sobre a arte e um cartão com capa/dados no canto inferior esquerdo. */
-.fs-signature { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, .9fr); grid-template-rows: minmax(0, 1fr) auto; align-items: end; gap: 2vh 4vw; padding: 2vh 3.5vw 3vh; }
-.fs-signature-heading { grid-column: 1 / -1; align-self: start; padding-left: 6vw; padding-top: 1vh; max-width: 78%; }
-.fs-signature-heading .fs-back { margin-left: -6vw; margin-bottom: 2vh; }
-.fs-signature-heading h1 { max-width: none; font-size: clamp(2.2rem, 4.4vw, 5.6rem); }
-.fs-signature-card { display: grid; grid-template-columns: minmax(7rem, .55fr) minmax(0, 1fr); gap: 1em; background: var(--fs-glass); backdrop-filter: blur(18px); border: 1px solid var(--fs-border); border-radius: 1.1em; padding: 1em; min-height: 0; max-height: 48vh; overflow-y: auto; }
-.fs-signature-cover { padding: 0; background: none; backdrop-filter: none; align-self: center; margin: 0; }
-.fs-signature-cover [data-slot="game-cover"] { --cover-max-height: 35vh; }
-.fs-signature-content { gap: .8em; align-self: center; }
-.fs-signature-content .fs-eyebrow { margin: 0; font-size: .7em; letter-spacing: .04em; }
-.fs-signature-content .fs-details-actions { gap: .4em; flex-wrap: wrap; }
-.fs-signature-content .fs-play { min-width: 5em; }
-.fs-signature-content .fs-details-actions button { padding: .5em .7em; }
-.fs-facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .8em 1em; padding: 0; background: none; backdrop-filter: none; width: 100%; font-size: .85em; }
-.fs-facts dd { overflow-wrap: anywhere; }
-.fs-achievement-card { display: flex; align-items: center; gap: .5em; border-radius: .65em; padding: .6em; max-height: none; font-size: .75em; overflow: visible; }
-.fs-achievement-card h2 { font-size: .9em; margin-bottom: .15em; }
-.fs-achievement-card p { margin: 0; font-size: .9em; }
-.fs-achievement-card > svg { margin: 0; flex-shrink: 0; }
-.fs-achievement-card button { margin-left: auto; padding: .4em; }
-.fs-signature-content > button { padding: .4em; text-align: left; font-size: .8em; }
-.fs-signature > .fs-description { max-height: 32vh; border-radius: .9em; font-size: .9em; }
-@media (max-width: 1100px) {
-  .fs-signature { gap: 1vh 2vw; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
-  .fs-signature-card { grid-template-columns: minmax(6rem, .48fr) minmax(0, 1fr); padding: .8em; gap: .8em; max-height: 50vh; }
-  .fs-signature-content { gap: .6em; }
-  .fs-signature-heading .fs-back { margin-bottom: 1vh; }
-}
 /* Library horizontal: hero livre e quadros quadrados, sem cortar as capas de outras proporções. */
-.fs-game-info { padding-top: 12vh; }
-.fs-cover [data-slot="game-cover"] { aspect-ratio: 1; max-width: 100% !important; --cover-max-height: 100vh; }
-.fs-cover [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
-.fs-cover [data-slot="game-cover"][data-state="loaded"] { background: var(--fs-surface); }
-.fs-rail-controls { color: var(--fs-muted); padding: .6em 6vw; font-size: .8em; }
-.fs-cover-rail { padding-top: .7em; padding-bottom: .6em; }
-.fs-cover span { display: none; }
-@media (max-height: 680px) { .fs-game-info { padding-top: 5vh; } }
-.fs-library { position: relative; }
-.fs-library-stats { position: absolute; top: 19%; right: 4vw; width: min(22vw, 20rem); background: var(--fs-glass); border: 1px solid var(--fs-border); border-radius: .85em; padding: 1.15em; backdrop-filter: blur(18px); }
-.fs-library-stats dl { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2em; }
-.fs-library-stats dt { font-size: .65em; color: var(--fs-muted); margin-bottom: .35em; }
-.fs-library-stats dd { font-size: .85em; font-weight: 550; display: flex; align-items: center; gap: .3em; overflow-wrap: anywhere; }
-.fs-game-info h1, .fs-signature-heading h1, .fs-description { overflow-wrap: anywhere; }
+
+/* Aniki ReMake: o tema é desenhado em 1920×1080 e ajustado ao monitor, como no Playnite. Medidas em px do tema. */
+.aniki-stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; transform: translate(-50%, -50%) scale(var(--aniki-scale, 1)); overflow: hidden; font-size: 24px; }
+.aniki-icon { font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets"; font-style: normal; font-weight: normal; line-height: 1; }
+.fs-background::after { background: linear-gradient(0deg, var(--aniki-shade-strong) 0%, var(--aniki-shade-strong) 12%, var(--aniki-shade-mid) 22%, var(--aniki-shade-soft) 34%, var(--aniki-shade-light) 48%, var(--aniki-transparent) 62%), linear-gradient(90deg, var(--aniki-shade-light) 0%, var(--aniki-transparent) 55%); }
+.aniki-topbar { position: relative; height: 80px; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 0 30px; background: linear-gradient(var(--aniki-topbar-top), var(--aniki-topbar-bottom)); opacity: .94; }
+.aniki-topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, var(--aniki-separator-edge), var(--aniki-accent), var(--aniki-separator-edge)); }
+.aniki-topbar-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.aniki-preset { position: absolute; left: 70px; top: 26px; font-size: 22px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--aniki-text-detail); }
+.aniki-profile-name { font-size: 26px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aniki-dev { border-radius: 4px; padding: 0 6px; font-size: 13px; font-weight: 700; background: var(--dev); color: var(--dev-foreground); }
+.aniki-topbar-center { display: flex; gap: 16px; }
+.fullscreen-shell .aniki-quick { width: 120px; padding: 6px 0; font-size: 24px; font-weight: 600; color: var(--aniki-text); border-radius: 10px; }
+.fullscreen-shell .aniki-quick:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-topbar-right { display: flex; align-items: center; justify-content: flex-end; gap: 22px; font-size: 22px; font-weight: 600; }
+.fullscreen-shell .aniki-grades { display: flex; align-items: center; gap: 14px; padding: 6px 10px; font-size: 22px; font-weight: 600; border-radius: 10px; }
+.aniki-grades span { display: flex; align-items: center; gap: 4px; }
+.fullscreen-shell .aniki-grades:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-grades svg { width: 24px; height: 24px; }
+.aniki-clock { font-variant-numeric: tabular-nums; }
+.aniki-library { position: relative; height: 1000px; }
+.aniki-hero { position: absolute; left: 135px; top: 170px; width: 1000px; height: 300px; display: flex; align-items: center; }
+.aniki-game-title { font-size: 92px; line-height: 1.05; font-weight: 800; letter-spacing: .01em; text-wrap: balance; overflow-wrap: anywhere; text-shadow: 0 6px 30px var(--fs-shadow); }
+.aniki-chips { position: absolute; right: 26px; top: 500px; display: flex; gap: 10px; }
+.fullscreen-shell .aniki-chip { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 18px; border-radius: 12px; font-size: 22px; font-weight: 600; background: linear-gradient(var(--aniki-glass-top), var(--aniki-glass-mid)), var(--aniki-chip); border: 1px solid var(--fs-border); }
+.aniki-chip .aniki-icon { font-size: 22px; color: var(--aniki-light); }
+.fullscreen-shell .aniki-chip-source { text-transform: uppercase; letter-spacing: .08em; font-size: 18px; }
+.aniki-shortcuts { position: absolute; left: 140px; right: 140px; top: 556px; height: 64px; display: flex; justify-content: center; align-items: center; gap: 44px; border-bottom: 1px solid var(--aniki-separator-bar); }
+.aniki-shortcuts li { display: flex; align-items: center; gap: 12px; }
+.aniki-shortcut-text { display: flex; flex-direction: column; line-height: 1.15; font-size: 21px; }
+.aniki-shortcut-text small { font-size: 15px; color: var(--aniki-text-detail); }
+.aniki-glyph { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--aniki-text); color: var(--aniki-control-dark); font-size: 17px; font-weight: 800; }
+.aniki-glyph .aniki-icon { font-size: 16px; }
+.aniki-rail { position: absolute; left: 0; right: 0; top: 634px; height: 340px; display: flex; align-items: center; gap: 22px; padding: 0 70px; overflow-x: auto; scroll-padding-inline: 70px; scrollbar-width: none; }
+.fullscreen-shell .aniki-cover { position: relative; flex-shrink: 0; width: 200px; height: 300px; padding: 0; border-radius: 15px; overflow: hidden; background: var(--aniki-control); transition: transform .18s, box-shadow .18s; }
+.aniki-cover [data-slot="game-cover"] { width: 100%; height: 100%; max-width: 100% !important; --cover-max-height: 300px; border-radius: 0; }
+.aniki-cover [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+.fullscreen-shell .aniki-cover:hover { background: var(--aniki-control); }
+.fullscreen-shell .aniki-cover[aria-current="true"] { transform: scale(1.06); box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 34px var(--aniki-focus-glow); }
+.fullscreen-shell .aniki-cover:focus-visible { outline: none; }
+.aniki-cover-trophy { position: absolute; top: 10px; right: 10px; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--aniki-badge); color: var(--aniki-glyph); font-size: 18px; }
+.aniki-empty { position: absolute; left: 135px; top: 680px; display: flex; gap: 20px; align-items: center; font-size: 26px; }
+.aniki-empty svg { width: 40px; height: 40px; }
+.aniki-disconnected { position: absolute; right: 30px; bottom: 24px; font-size: 18px; color: var(--aniki-text-detail); }
+.aniki-menu-shade { position: absolute; inset: 0; z-index: 3; background: var(--aniki-scrim); }
+.aniki-main-menu { position: absolute; left: 0; top: 0; bottom: 0; width: 520px; padding: 60px 40px; background: linear-gradient(var(--aniki-menu-top), var(--aniki-menu-bottom)); border-right: 1px solid var(--aniki-focus-right); box-shadow: 20px 0 60px var(--fs-shadow); animation: aniki-menu-in .22s ease-out; }
+.aniki-main-menu h2 { font-size: 30px; font-weight: 700; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--aniki-separator-bar); }
+.aniki-menu-items { display: flex; flex-direction: column; gap: 6px; }
+.fullscreen-shell .aniki-menu-items button { display: flex; align-items: center; gap: 22px; padding: 16px 20px; border-radius: 12px; font-size: 25px; text-align: left; }
+.aniki-menu-items .aniki-icon { width: 30px; font-size: 24px; color: var(--aniki-glyph); }
+.fullscreen-shell .aniki-menu-items button:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+@keyframes aniki-menu-in { from { transform: translateX(-40px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .aniki-main-menu, .aniki-side-panel, .aniki-quick-options { animation: none; } .aniki-trailer { transition: none; } }
+
+.aniki-side-panel { position: absolute; left: 0; top: 0; bottom: 0; width: 820px; padding: 60px 50px; display: flex; flex-direction: column; gap: 24px; background: linear-gradient(var(--aniki-menu-top), var(--aniki-menu-bottom)); border-right: 1px solid var(--aniki-focus-right); box-shadow: 20px 0 60px var(--fs-shadow); animation: aniki-menu-in .22s ease-out; }
+.aniki-description { display: flex; flex-direction: column; gap: 24px; min-height: 0; flex: 1; }
+.aniki-description h2 { font-size: 34px; font-weight: 700; }
+.aniki-description .fs-description { flex: 1; min-height: 0; max-height: 780px; overflow-y: auto; padding: 0 8px 0 0; background: none; border: 0; backdrop-filter: none; }
+.aniki-description h3 { font-size: 24px; font-weight: 600; margin: 0 0 10px; }
+.aniki-description .fs-description p { font-size: 21px; line-height: 1.55; color: var(--aniki-text); margin-bottom: 28px; }
+.fullscreen-shell .aniki-description > button { align-self: flex-start; padding: 12px 22px; font-size: 22px; border-radius: 12px; background: var(--aniki-button-idle); }
+.fullscreen-shell .aniki-description > button:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-trophies-shade { position: absolute; inset: 0; z-index: 3; background: var(--aniki-secondary-view); }
+.aniki-trophies { height: 1080px; padding: 30px 100px 0; display: flex; flex-direction: column; }
+.aniki-trophies-loading { padding: 80px; font-size: 26px; }
+.aniki-trophies-header { display: grid; grid-template-columns: 200px 1fr 300px; align-items: center; height: 250px; }
+.aniki-trophies-cover [data-slot="game-cover"] { --cover-max-height: 210px; width: 200px; max-width: 200px !important; margin-inline: auto; }
+.aniki-trophies-title { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; }
+.aniki-trophies-title h2 { font-size: 46px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.aniki-trophies-progress { width: 500px; height: 10px; }
+.aniki-trophies-title p { font-size: 30px; font-weight: 700; }
+.aniki-trophies-grades { display: flex; justify-content: flex-end; gap: 18px; font-size: 30px; font-weight: 700; }
+.aniki-trophies-grades li { display: flex; align-items: center; gap: 6px; }
+.aniki-trophies-grades svg { width: 38px; height: 38px; }
+.aniki-trophies-tools { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--aniki-separator-bar); }
+.fullscreen-shell .aniki-trophies-tools button { padding: 10px 20px; font-size: 20px; border-radius: 12px; background: var(--aniki-button-idle); }
+.fullscreen-shell .aniki-trophies-tools button:focus-visible, .aniki-trophy:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-trophies-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 18px 20px 18px 0; }
+.aniki-trophy { min-height: 120px; display: grid; grid-template-columns: 120px 1fr auto 56px; align-items: center; gap: 24px; padding-right: 26px; border-radius: 14px; background: var(--aniki-card-trophy); }
+.aniki-trophy-badge { width: 120px !important; height: 120px !important; border-radius: 14px 0 0 14px !important; }
+.aniki-trophy-text { min-width: 0; padding: 8px 0; }
+.aniki-trophy-name { font-size: 23px; font-weight: 700; overflow-wrap: anywhere; }
+.aniki-trophy-desc { font-size: 20px; color: var(--aniki-text-secondary); overflow-wrap: anywhere; }
+.aniki-trophy-meta { margin-top: 6px; font-size: 16px; color: var(--aniki-text-detail); }
+.aniki-trophy:not(.aniki-trophy-earned) .aniki-trophy-name { color: var(--aniki-text-detail); }
+.aniki-trophy-when { display: flex; flex-direction: column; align-items: flex-end; font-size: 20px; font-weight: 600; }
+.aniki-trophy-grade { width: 44px !important; height: 44px !important; }
+.aniki-trophies-total { height: 70px; margin: 0 -100px; display: grid; place-items: center; font-size: 30px; font-weight: 700; background: var(--aniki-control-dark); }
+
+/* Perfil, Welcome Hub e os painéis rápidos do Aniki (Quick Access à esquerda, Quick Options à direita). */
+.aniki-avatar { flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; color: var(--aniki-light); background: var(--aniki-avatar-bg); box-shadow: inset 0 0 0 2px var(--aniki-avatar-border); }
+/* Começa abaixo da barra do topo (80 px), sem cobrir os botões dela. */
+.aniki-hub { position: absolute; top: 80px; left: 0; right: 0; height: 1000px; background: var(--aniki-hub-bg); }
+.aniki-hub-profile { position: absolute; left: 375px; top: 67px; width: 1170px; height: 287px; display: grid; grid-template-columns: 120px 1fr auto; align-items: center; gap: 32px; padding: 0 34px; border-radius: 22px; background: var(--aniki-hub-card); box-shadow: inset 0 0 0 2px var(--aniki-avatar-border); }
+.aniki-hub-identity h2 { font-size: 34px; font-weight: 700; }
+.aniki-hub-identity p { font-size: 22px; color: var(--aniki-text-secondary); margin-top: 6px; }
+.aniki-hub-rank { color: var(--aniki-glyph) !important; font-weight: 600; }
+.aniki-hub-tags span { display: inline-block; margin-top: 8px; padding: 2px 10px; font-size: 17px; border: 1px solid var(--fs-border); border-radius: 6px; }
+.aniki-hub-tiles { display: grid; grid-template-columns: repeat(3, 140px); gap: 12px; }
+.aniki-hub-tiles div { height: 102px; padding: 14px; border-radius: 12px; background: var(--aniki-hub-tile); display: flex; flex-direction: column; justify-content: space-between; }
+.aniki-hub-tiles dt { font-size: 15px; color: var(--aniki-text-secondary); }
+.aniki-hub-tiles dd { font-size: 30px; font-weight: 800; }
+.aniki-hub-activity { position: absolute; left: 220px; right: 220px; top: 60px; }
+.aniki-hub-activity h2 { font-size: 34px; font-weight: 700; margin-bottom: 26px; text-align: center; }
+.aniki-hub-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; }
+.fullscreen-shell .aniki-hub-card { position: relative; height: 330px; padding: 0; border-radius: 18px; overflow: hidden; text-align: left; background: var(--aniki-control); }
+.aniki-hub-card img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.aniki-hub-card-band { position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; gap: 2px; padding: 16px 22px; background: var(--aniki-hub-card); }
+.aniki-hub-card-band small { font-size: 16px; color: var(--aniki-glyph); text-transform: uppercase; letter-spacing: .08em; }
+.aniki-hub-card-band strong { font-size: 26px; }
+.aniki-hub-card-band span { font-size: 18px; color: var(--aniki-text-secondary); }
+.fullscreen-shell .aniki-hub-card:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 34px var(--aniki-focus-glow); }
+.aniki-hub-dots { position: absolute; left: 0; right: 0; top: 832px; display: flex; justify-content: center; gap: 12px; }
+.aniki-hub-dots li { width: 10px; height: 10px; border-radius: 50%; background: var(--aniki-separator-bar); }
+.aniki-hub-dots .aniki-hub-dot-active { background: var(--aniki-light); }
+.aniki-hub .aniki-shortcuts { top: 880px; border-bottom: 0; }
+.aniki-quick-profile { display: flex; align-items: center; gap: 18px; padding-bottom: 22px; margin-bottom: 18px; font-size: 28px; border-bottom: 1px solid var(--aniki-separator-bar); }
+.aniki-quick-options-panel { position: absolute; right: 0; top: 0; bottom: 0; }
+.aniki-quick-options { width: 560px; height: 100%; padding: 60px 40px; background: linear-gradient(var(--aniki-menu-top), var(--aniki-menu-bottom)); border-left: 1px solid var(--aniki-focus-right); box-shadow: -20px 0 60px var(--fs-shadow); animation: aniki-options-in .22s ease-out; }
+.aniki-quick-options h2 { font-size: 30px; font-weight: 700; padding-bottom: 18px; margin-bottom: 18px; border-bottom: 1px solid var(--aniki-separator-bar); }
+.fullscreen-shell .aniki-quick-options .aniki-menu-items button { display: flex; align-items: center; gap: 22px; padding: 16px 20px; border-radius: 12px; font-size: 25px; text-align: left; }
+.fullscreen-shell .aniki-quick-options .aniki-menu-items button[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--aniki-focus-right); }
+.fullscreen-shell .aniki-quick-options .aniki-menu-items button:focus-visible, .fullscreen-shell .aniki-quick-volume button:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-quick-volume { display: flex; align-items: center; gap: 14px; padding: 10px 20px; font-size: 24px; }
+.aniki-quick-volume span { margin-right: auto; }
+.fullscreen-shell .aniki-quick-volume button { width: 48px; height: 48px; padding: 0; border-radius: 12px; background: var(--aniki-button-idle); }
+@keyframes aniki-options-in { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.fs-choice { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; }
+.fs-choice > span { margin-right: auto; }
+.fs-theme { display: flex; flex-direction: column; gap: .7em; }
+.fs-theme small { opacity: .75; }
+.fs-theme-confirm p { margin-bottom: .2em; }
+.fs-theme-progress { display: flex; align-items: center; gap: 1em; flex-wrap: wrap; }
+.fs-theme-progress progress { flex: 1; min-width: 10em; accent-color: var(--fs-focus); }
+.fs-theme-remove { align-self: flex-start; }
+.fs-avatars { display: flex; flex-wrap: wrap; gap: .5em; }
+.fullscreen-shell .fs-avatars button { padding: .2em; border-radius: 50%; }
+.fs-profile-name { text-align: left; }
+.fs-profile-name input { margin-left: 1em; }
+
+/* Tela de perfil (ProfilView) e tela geral de troféus (PlayniteAchievements) do Aniki. */
+.aniki-profile, .aniki-trophy-overview { height: 1080px; padding: 40px 100px 0; display: flex; flex-direction: column; gap: 20px; }
+.aniki-profile-header { display: grid; grid-template-columns: 140px 1fr auto; align-items: center; gap: 34px; padding: 26px 34px; border-radius: 22px; background: var(--aniki-hub-card); box-shadow: inset 0 0 0 2px var(--aniki-avatar-border); }
+.aniki-profile-identity h2 { font-size: 40px; font-weight: 800; }
+.aniki-profile-identity p { font-size: 22px; margin-top: 4px; }
+.aniki-profile-level { font-weight: 700; color: var(--aniki-light); }
+.aniki-profile-progress, .aniki-overview-progress { height: 10px; margin-top: 12px; max-width: 520px; }
+.aniki-profile-points { font-size: 18px !important; color: var(--aniki-text-detail); }
+.aniki-profile-body { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 26px; padding-bottom: 40px; }
+.aniki-profile-body h3 { font-size: 26px; font-weight: 700; margin-bottom: 12px; }
+.aniki-profile-trophies .aniki-trophies-grades { justify-content: flex-start; margin-bottom: 14px; }
+.aniki-profile-unlocks { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+.aniki-profile-unlocks h4 { font-size: 20px; color: var(--aniki-glyph); margin-bottom: 8px; }
+.aniki-profile-unlocks li { display: flex; align-items: center; gap: 14px; padding: 8px 0; }
+.aniki-profile-unlocks li span { display: flex; flex-direction: column; min-width: 0; }
+.aniki-profile-unlocks strong { font-size: 19px; overflow-wrap: anywhere; }
+.aniki-profile-unlocks small { font-size: 15px; color: var(--aniki-text-detail); }
+.aniki-profile-badge { width: 56px !important; height: 56px !important; border-radius: 10px !important; }
+.aniki-profile-covers { display: flex; gap: 18px; }
+.fullscreen-shell .aniki-profile-covers button { width: 150px; height: 225px; padding: 0; border-radius: 12px; overflow: hidden; background: var(--aniki-control); }
+.aniki-profile-covers [data-slot="game-cover"] { width: 100%; height: 100%; max-width: 100% !important; --cover-max-height: 225px; }
+.aniki-profile-covers [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+.fullscreen-shell .aniki-profile-covers button:focus-visible, .fullscreen-shell .aniki-overview-games button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 24px var(--aniki-focus-glow); }
+.aniki-profile-platforms ul { display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
+.aniki-profile-platforms li { display: grid; grid-template-columns: 260px 1fr 60px; align-items: center; gap: 16px; font-size: 20px; }
+.aniki-profile-platforms strong { text-align: right; }
+.aniki-overview-header { display: grid; grid-template-columns: 96px 1fr 420px; align-items: center; gap: 26px; }
+.aniki-overview-header h2 { font-size: 42px; font-weight: 800; }
+.aniki-overview-header p { font-size: 22px; color: var(--aniki-text-secondary); }
+.aniki-overview-level { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 22px; }
+.aniki-overview-level strong { font-size: 32px; color: var(--aniki-light); }
+.aniki-overview-level small { font-size: 16px; color: var(--aniki-text-detail); }
+.aniki-overview-level .aniki-overview-progress { width: 100%; }
+.aniki-overview-stats { display: flex; align-items: center; justify-content: space-between; gap: 30px; padding: 18px 26px; border-radius: 18px; background: var(--aniki-hub-card); }
+.aniki-overview-stats dl { display: flex; gap: 30px; }
+.aniki-overview-stats dt { font-size: 15px; color: var(--aniki-text-detail); }
+.aniki-overview-stats dd { font-size: 26px; font-weight: 700; }
+.aniki-overview-games { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 4px 16px 30px 4px; }
+.fullscreen-shell .aniki-overview-games button { width: 100%; display: grid; grid-template-columns: 96px 1fr auto; align-items: center; gap: 24px; padding: 10px 24px 10px 10px; border-radius: 14px; text-align: left; background: var(--aniki-card-trophy); }
+.aniki-overview-cover { width: 96px; height: 120px; border-radius: 10px; overflow: hidden; }
+.aniki-overview-cover [data-slot="game-cover"] { width: 100%; height: 100%; max-width: 100% !important; --cover-max-height: 120px; }
+.aniki-overview-cover [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+.aniki-overview-info { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.aniki-overview-info strong { font-size: 24px; overflow-wrap: anywhere; }
+.aniki-overview-info small { font-size: 17px; color: var(--aniki-text-detail); }
+.aniki-overview-grades { display: flex; gap: 18px; font-size: 20px; font-weight: 600; }
+.aniki-overview-grades span { display: flex; align-items: center; gap: 4px; }
+.aniki-overview-grades svg { width: 26px; height: 26px; }
+
+/* Biblioteca Vertical (capas em grade) e Lista (a lista à esquerda, o jogo à direita) do Aniki. */
+.aniki-library-vertical .aniki-preset, .aniki-library-list .aniki-preset { position: absolute; }
+.aniki-vertical-title { position: absolute; left: 160px; right: 160px; top: 140px; height: 250px; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 92px; line-height: 1.05; font-weight: 800; text-wrap: balance; overflow-wrap: anywhere; text-shadow: 0 6px 30px var(--fs-shadow); }
+.fullscreen-shell .aniki-clear-search { position: absolute; right: 84px; top: 380px; }
+.aniki-chips .aniki-clear-search, .aniki-list-column header .aniki-clear-search { position: static; }
+.aniki-grid { position: absolute; left: 84px; right: 84px; top: 410px; height: 500px; display: grid; grid-template-columns: repeat(6, 254px); justify-content: center; gap: 44px 45px; padding: 12px; overflow-y: auto; scrollbar-width: none; }
+.aniki-grid .aniki-cover { width: 254px; height: 254px; }
+.aniki-library-vertical .aniki-shortcuts, .aniki-library-list .aniki-shortcuts { top: 924px; border-bottom: 0; }
+.aniki-library-list { display: grid; grid-template-columns: 530px 1fr; gap: 34px; padding: 10px 50px 90px; }
+.aniki-list-column { min-height: 0; display: flex; flex-direction: column; gap: 14px; margin-top: 14px; padding: 14px; border-radius: 22px; background: var(--aniki-panel); border: 1px solid var(--fs-border); }
+.aniki-list-column header { display: flex; align-items: center; gap: 14px; padding: 4px 8px; }
+.aniki-list-collection { font-size: 22px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.aniki-list-column header > span { font-size: 17px; color: var(--aniki-text-detail); margin-right: auto; }
+.aniki-list-items { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; scrollbar-width: none; }
+.fullscreen-shell .aniki-list-item { position: relative; height: 88px; flex-shrink: 0; display: grid; grid-template-columns: 80px 1fr auto; align-items: center; gap: 14px; padding: 4px 12px 4px 4px; border-radius: 16px; text-align: left; background: var(--aniki-list-item); }
+.fullscreen-shell .aniki-list-item[aria-current="true"] { background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.fullscreen-shell .aniki-list-item:focus-visible { outline: none; }
+.aniki-list-cover { width: 80px; height: 80px; border-radius: 12px; overflow: hidden; }
+.aniki-list-cover [data-slot="game-cover"] { width: 100%; height: 100%; max-width: 100% !important; --cover-max-height: 80px; }
+.aniki-list-cover [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+.aniki-list-info { display: flex; flex-direction: column; min-width: 0; }
+.aniki-list-info strong { font-size: 21px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aniki-list-info small { margin-top: 4px; font-size: 14px; opacity: .72; }
+.aniki-list-item .aniki-icon { font-size: 22px; color: var(--aniki-glyph); }
+.aniki-list-game h1 { margin-top: 8px; font-size: 40px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; }
+.aniki-list-sub { font-size: 18px; color: var(--aniki-text-detail); }
+.aniki-list-hero { width: 725px; height: 408px; border-radius: 22px; overflow: hidden; background: var(--aniki-control); }
+.aniki-list-hero img { width: 100%; height: 100%; object-fit: cover; }
+.aniki-list-game { min-width: 0; margin-top: 6px; display: grid; grid-template-columns: 725px 1fr; grid-template-rows: auto auto 1fr; gap: 14px 18px; align-content: start; }
+.aniki-list-game h1, .aniki-list-sub { grid-column: 1 / -1; }
+.aniki-list-cards { display: grid; grid-template-columns: repeat(2, 220px); grid-auto-rows: 96px; gap: 8px 18px; }
+.aniki-list-cards div { padding: 12px 16px; border-radius: 14px; background: var(--aniki-panel); border: 1px solid var(--fs-border); display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.aniki-list-cards dt { font-size: 15px; color: var(--aniki-text-detail); }
+.aniki-list-cards dd { margin-top: 4px; font-size: 21px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Detalhes nos seis layouts do Aniki. Peças comuns primeiro, depois a posição de cada layout. */
+.aniki-details { position: relative; height: 1000px; }
+.aniki-details-title { display: flex; align-items: flex-end; gap: 20px; font-size: 78px; line-height: 1.05; font-weight: 800; text-wrap: balance; overflow-wrap: anywhere; text-shadow: 0 6px 30px var(--fs-shadow); }
+.aniki-details-title .aniki-icon { font-size: 40px; color: var(--aniki-glyph); margin-bottom: 14px; }
+.aniki-details-studio { font-size: 20px; color: var(--aniki-text-detail); }
+.aniki-details-studio strong { color: var(--aniki-text); font-weight: 600; }
+.aniki-details-cover { position: relative; align-self: center; border-radius: 15px; overflow: hidden; }
+.aniki-details-cover [data-slot="game-cover"] { --cover-max-height: 350px; width: 300px; max-width: 300px !important; border-radius: 15px; }
+.aniki-details-scores { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; gap: 22px; padding: 30px 10px 10px; font-size: 22px; font-weight: 700; background: linear-gradient(var(--aniki-transparent), var(--aniki-shade-soft)); }
+.aniki-details-scores span { display: flex; align-items: center; gap: 6px; }
+.aniki-details-scores svg, .aniki-details-scores .aniki-icon { width: 22px; height: 22px; font-size: 20px; }
+.aniki-details-buttons { display: flex; gap: 8px; align-items: center; }
+.aniki-details-buttons-centered { justify-content: center; }
+.fullscreen-shell .aniki-details-buttons button { width: 52px; height: 52px; padding: 0; display: grid; place-items: center; border-radius: 14px; background: var(--aniki-button-idle); }
+.fullscreen-shell .aniki-details-buttons button svg { width: 24px; height: 24px; }
+.fullscreen-shell .aniki-details .aniki-details-play { width: auto; height: 52px; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 26px; font-size: 24px; font-weight: 700; border-radius: 14px; border: 2px solid var(--aniki-light); background: var(--aniki-transparent); }
+.fullscreen-shell .aniki-details button:focus-visible, .aniki-details-description:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light), 0 0 22px var(--aniki-focus-glow); }
+.aniki-details-iconfacts { display: flex; flex-direction: column; gap: 8px; font-size: 23px; }
+.aniki-details-iconfacts li { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.aniki-details-iconfacts svg { width: 22px; height: 22px; flex-shrink: 0; color: var(--aniki-text-detail); }
+.aniki-details-iconfacts li > span:last-child { overflow-wrap: anywhere; }
+.aniki-details-lines { display: flex; flex-direction: column; gap: 6px; font-size: 22px; }
+.aniki-details-lines div { display: flex; gap: 8px; flex-wrap: wrap; }
+.aniki-details-lines dt { color: var(--aniki-text-detail); }
+.aniki-details-lines dd { font-weight: 500; overflow-wrap: anywhere; }
+.fullscreen-shell .aniki-details-achievements { width: 404px; height: 58px; padding: 0 14px; display: grid; grid-template-columns: 26px auto 1fr 46px; align-items: center; gap: 10px; border-radius: 14px; font-size: 15px; text-align: left; background: var(--aniki-shade-light); border: 1px solid var(--fs-border); }
+.aniki-details-achievements > svg { width: 22px; height: 22px; color: var(--aniki-glyph); }
+.aniki-details-achievements small { font-size: 14px; color: var(--aniki-text-detail); margin-left: 6px; }
+.aniki-details-progress { height: 8px; }
+.aniki-details-percent { text-align: right; font-weight: 600; }
+.aniki-details-none { font-size: 18px; color: var(--aniki-text-detail); }
+.aniki-details-description { min-height: 0; overflow-y: auto; font-size: 21px; line-height: 1.5; white-space: pre-line; overflow-wrap: anywhere; border-radius: 10px; scrollbar-width: thin; }
+.aniki-trailer { position: absolute; border-radius: 15px; overflow: hidden; background: var(--aniki-shade-strong); box-shadow: 0 20px 60px var(--fs-shadow); opacity: 0; transition: opacity .5s; }
+.aniki-trailer-ready { opacity: 1; }
+.aniki-trailer video { width: 100%; height: 100%; object-fit: cover; }
+.aniki-trailer-mini { left: 1235px; top: 557px; width: 618px; height: 350px; }
+.aniki-trailer-fill { inset: 0; border-radius: inherit; box-shadow: none; }
+.aniki-details-signature .aniki-details-title { position: absolute; left: 240px; top: 110px; width: 900px; height: 300px; }
+.aniki-sig-panel { position: absolute; left: 51px; top: 448px; width: 936px; display: grid; grid-template-columns: 300px 1fr; gap: 18px; padding: 16px; border-radius: 22px; background: var(--aniki-glass-signature); border: 1px solid var(--fs-border); backdrop-filter: blur(22px); }
+.aniki-sig-content { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.aniki-sig-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 18px; }
+.aniki-sig-facts dt { font-size: 15px; color: var(--aniki-text-detail); margin-bottom: 2px; }
+.aniki-sig-facts dd { font-size: 20px; overflow-wrap: anywhere; }
+.aniki-sig-wide { grid-column: 1 / -1; }
+.aniki-modern-panel { position: absolute; left: 0; top: 24px; width: 450px; max-height: 870px; overflow-y: auto; display: flex; flex-direction: column; align-items: stretch; gap: 16px; padding: 22px 30px 26px; border-radius: 0 22px 22px 0; background: var(--aniki-panel); border: 1px solid var(--fs-border); border-left: 0; backdrop-filter: blur(22px); scrollbar-width: none; }
+.aniki-modern-panel .aniki-details-cover { align-self: center; }
+.aniki-modern-panel .aniki-details-cover [data-slot="game-cover"] { width: 292px; max-width: 292px !important; --cover-max-height: 300px; }
+.aniki-modern-panel hr, .aniki-showcase-bar { border: 0; border-top: 1px solid var(--aniki-separator-bar); }
+.aniki-modern-panel .aniki-details-iconfacts { font-size: 22px; }
+.aniki-details-classic .aniki-details-title { position: absolute; left: 52px; top: 24px; width: 760px; height: 270px; }
+.aniki-classic-content { position: absolute; left: 40px; top: 308px; width: 640px; display: flex; flex-direction: column; gap: 16px; }
+.aniki-classic-content .aniki-details-play { width: 380px; }
+.aniki-details-original .aniki-details-title { position: absolute; left: 81px; top: 40px; width: 760px; height: 255px; }
+.aniki-original-content { position: absolute; left: 81px; top: 320px; width: 1000px; display: flex; flex-direction: column; gap: 18px; }
+.aniki-original-content .aniki-details-play { min-width: 214px; }
+.aniki-original-content .aniki-details-description { max-height: 190px; font-size: 20px; }
+.aniki-original-genres { position: absolute; right: 60px; top: 935px; font-size: 30px; font-weight: 600; }
+.aniki-showcase-title { position: absolute; left: 160px; right: 160px; top: 12px; text-align: center; font-size: 44px; font-weight: 800; line-height: 1.1; overflow-wrap: anywhere; text-shadow: 0 4px 20px var(--fs-shadow); }
+.aniki-showcase-bar { position: absolute; left: 0; right: 0; top: 558px; height: 70px; display: flex; align-items: center; justify-content: center; background: var(--aniki-band); border-bottom: 1px solid var(--aniki-accent); }
+.aniki-showcase-bottom { position: absolute; left: 0; right: 0; top: 628px; height: 372px; display: grid; grid-template-columns: 292px 420px 548px 560px; gap: 20px; padding: 26px 26px 10px 46px; background: var(--aniki-band-dark); }
+.aniki-showcase-bottom .aniki-details-cover { align-self: start; }
+.aniki-showcase-bottom .aniki-details-cover [data-slot="game-cover"] { width: 292px; max-width: 292px !important; --cover-max-height: 300px; }
+.aniki-showcase-facts { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.aniki-showcase-facts .aniki-details-iconfacts { font-size: 22px; gap: 4px; }
+.aniki-showcase-bottom .aniki-details-description { max-height: 330px; padding-left: 16px; border-left: 1px solid var(--aniki-separator-bar); border-radius: 0; font-size: 19px; }
+.aniki-showcase-trailer { position: relative; height: 320px; border-radius: 12px; overflow: hidden; background: var(--aniki-control); }
+.aniki-panel-nav, .aniki-panel-center > div, .aniki-panel-info { border-radius: 18px; background: var(--aniki-panel); border: 1px solid var(--fs-border); }
+.aniki-panel-nav { position: absolute; left: 35px; top: 33px; width: 381px; height: 871px; display: flex; flex-direction: column; gap: 14px; padding: 20px; }
+.fullscreen-shell .aniki-panel-nav button { height: 62px; padding: 0 20px; font-size: 25px; font-weight: 600; border-radius: 14px; }
+.fullscreen-shell .aniki-panel-nav .aniki-details-play { width: 100%; }
+.aniki-panel-center { position: absolute; left: 436px; top: 33px; width: 1028px; height: 871px; display: flex; flex-direction: column; gap: 12px; }
+.aniki-panel-media { position: relative; height: 582px; overflow: hidden; }
+.aniki-panel-media img { width: 100%; height: 100%; object-fit: cover; }
+.aniki-panel-description { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 18px 22px; }
+.aniki-panel-description h2 { font-size: 20px; font-weight: 600; }
+.aniki-panel-description .aniki-details-description { font-size: 20px; }
+.aniki-panel-info { position: absolute; left: 1487px; top: 33px; width: 398px; height: 871px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 22px; scrollbar-width: none; }
+.aniki-panel-info h2 { font-size: 26px; font-weight: 700; margin-top: 6px; }
+.aniki-panel-info .aniki-details-lines { font-size: 21px; gap: 4px; }
+.aniki-panel-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.aniki-panel-chips li { padding: 4px 12px; font-size: 18px; font-weight: 600; border-radius: 8px; background: var(--aniki-button-idle); }
+
+/* Logos dos jogos no lugar do nome: cabem na área do título, sem cortar e sem esticar. */
+.aniki-logo { display: block; max-width: 100%; max-height: 100%; object-fit: contain; object-position: left center; filter: drop-shadow(0 6px 24px var(--fs-shadow)); }
+.aniki-hero .aniki-logo, .aniki-details-title .aniki-logo { max-height: 280px; }
+.aniki-vertical-title .aniki-logo { max-height: 230px; margin-inline: auto; object-position: center; }
+.aniki-showcase-title .aniki-logo { max-height: 110px; margin-inline: auto; object-position: center; }
+.aniki-trophies-title .aniki-logo { max-height: 130px; max-width: 450px; margin-inline: auto; object-position: center; }
+
+/* Amostras das paletas (também nas Configurações do desktop): a cor da barra e o destaque de cada uma. */
+.fs-swatches { display: flex; flex-wrap: wrap; gap: .4em; }
+.fs-swatches button { padding: .15em; border-radius: 50%; }
+.fs-swatches button[aria-pressed="true"] { outline: 2px solid currentColor; outline-offset: 1px; }
+.aniki-swatch { display: block; width: 2em; height: 2em; border-radius: 50%; background: linear-gradient(135deg, var(--aniki-topbar-top) 0 50%, var(--aniki-accent) 50%); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.aniki-swatch-small { width: 30px; height: 30px; flex-shrink: 0; }
+
+/* Modos de efeitos do Aniki. Equilibrada é o padrão (transições e painéis, sem movimento no fundo). */
+.fullscreen-shell[data-aniki-effects="animated"] .fs-background > img, .fullscreen-shell[data-aniki-effects="full"] .fs-background > img { animation: aniki-background-in .9s ease-out; }
+.fullscreen-shell[data-aniki-effects="animated"] .aniki-logo, .fullscreen-shell[data-aniki-effects="full"] .aniki-logo { animation: aniki-logo-in .6s ease-out; }
+.fullscreen-shell[data-aniki-effects="full"] .fs-background > img { animation: aniki-background-in .9s ease-out, aniki-background-drift 32s ease-in-out .9s infinite alternate; }
+.fullscreen-shell[data-aniki-effects="full"] .aniki-cover[aria-current="true"] { animation: aniki-focus-pulse 2.4s ease-in-out infinite; }
+.fullscreen-shell[data-aniki-effects="performance"] *, .fullscreen-shell[data-aniki-effects="performance"] *::before, .fullscreen-shell[data-aniki-effects="performance"] *::after { transition: none !important; animation: none !important; backdrop-filter: none !important; }
+.fullscreen-shell[data-aniki-effects="performance"] .aniki-cover[aria-current="true"] { box-shadow: 0 0 0 3px var(--aniki-light); }
+@keyframes aniki-background-in { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+@keyframes aniki-background-drift { from { transform: scale(1); } to { transform: scale(1.08) translate(-1.5%, -1%); } }
+@keyframes aniki-logo-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes aniki-focus-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 24px var(--aniki-focus-glow); } 50% { box-shadow: 0 0 0 3px var(--aniki-light), 0 0 0 5px var(--aniki-focus-right), 0 0 46px var(--aniki-focus-glow); } }
+@media (prefers-reduced-motion: reduce) { .fullscreen-shell .fs-background > img, .fullscreen-shell .aniki-logo, .fullscreen-shell .aniki-cover { animation: none !important; } }
+
+/* Configurações pelo controle (as categorias e as opções do Aniki, com a descrição do item com o foco). */
+.aniki-settings { height: 1080px; padding: 60px 100px 40px; display: grid; grid-template-columns: 340px 1fr; grid-template-rows: auto 1fr auto; gap: 26px 40px; }
+.aniki-settings > h2 { grid-column: 1 / -1; font-size: 40px; font-weight: 800; padding-bottom: 18px; border-bottom: 1px solid var(--aniki-separator-bar); }
+.aniki-settings-categories { display: flex; flex-direction: column; gap: 8px; }
+.fullscreen-shell .aniki-settings-categories button { padding: 16px 22px; font-size: 25px; font-weight: 600; text-align: left; border-radius: 12px; }
+.fullscreen-shell .aniki-settings-categories button[aria-pressed="true"] { border-color: var(--aniki-focus-right); background: var(--aniki-button-idle); }
+.aniki-settings-options { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 4px 12px 4px 4px; scrollbar-width: thin; }
+.fullscreen-shell .aniki-setting { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 18px 24px; font-size: 24px; text-align: left; border-radius: 14px; background: var(--aniki-panel); }
+.aniki-setting strong { font-weight: 600; color: var(--aniki-glyph); text-align: right; }
+.aniki-setting-volume { justify-content: flex-start; }
+.aniki-setting-volume > span { margin-right: auto; }
+.fullscreen-shell .aniki-setting-volume button { width: 52px; height: 52px; padding: 0; border-radius: 12px; background: var(--aniki-button-idle); }
+.aniki-setting-volume output { min-width: 80px; text-align: center; }
+.aniki-setting-grid { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px; border-radius: 14px; background: var(--aniki-panel); }
+.fullscreen-shell .aniki-setting-grid button { padding: 4px; border-radius: 50%; }
+.fullscreen-shell .aniki-setting-grid button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--aniki-light); }
+.aniki-setting-grid .aniki-swatch { width: 48px; height: 48px; }
+.aniki-settings-description { grid-column: 1 / -1; min-height: 90px; padding: 18px 24px; font-size: 21px; line-height: 1.45; color: var(--aniki-text-secondary); border-radius: 14px; background: var(--aniki-panel); border-left: 4px solid var(--aniki-accent); }
+.fullscreen-shell .aniki-settings button:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+.fullscreen-shell .aniki-setting-grid button:focus-visible { box-shadow: 0 0 0 3px var(--aniki-light), 0 0 18px var(--aniki-focus-glow); }
+
+/* Assistente inicial (11 etapas), no desenho do First Setup do Aniki. */
+.aniki-setup { height: 1080px; padding: 50px 80px; display: flex; flex-direction: column; gap: 26px; }
+.aniki-setup-header { display: flex; align-items: center; gap: 24px; font-size: 22px; font-weight: 600; }
+.aniki-setup-header progress { flex: 0 0 600px; height: 4px; appearance: none; border: 0; background: var(--aniki-separator-bar); }
+.aniki-setup-header progress::-webkit-progress-bar { background: var(--aniki-separator-bar); }
+.aniki-setup-header progress::-webkit-progress-value { background: var(--aniki-accent); }
+.aniki-setup-header span:last-child { margin-left: auto; color: var(--aniki-text-secondary); }
+.aniki-setup-heading h2 { font-size: 46px; font-weight: 800; }
+.aniki-setup-heading p { font-size: 22px; color: var(--aniki-text-secondary); margin-top: 6px; }
+.aniki-setup-body { flex: 1; min-height: 0; }
+.aniki-setup-columns { height: 100%; display: grid; grid-template-columns: 740px 1fr; gap: 26px; align-items: start; }
+.aniki-setup-preview { position: relative; height: 500px; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; padding: 34px; border-radius: 22px; overflow: hidden; background: radial-gradient(ellipse at 50% 30%, var(--aniki-secondary-center), var(--aniki-secondary-mid) 55%, var(--aniki-secondary-end)); box-shadow: inset 0 0 0 1px var(--fs-border); }
+.aniki-setup-preview-bar { position: absolute; left: 0; right: 0; top: 0; height: 60px; background: linear-gradient(var(--aniki-topbar-top), var(--aniki-topbar-bottom)); border-bottom: 2px solid var(--aniki-accent); }
+.aniki-setup-preview strong { font-size: 40px; font-weight: 800; color: var(--aniki-text); }
+.aniki-setup-preview p { font-size: 22px; color: var(--aniki-text-secondary); }
+.aniki-setup-options { min-height: 0; max-height: 640px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; scrollbar-width: none; }
+.aniki-setup-options h3 { font-size: 24px; font-weight: 700; margin-top: 6px; }
+.aniki-setup-options > small, .aniki-setup-welcome small, .aniki-setup-profile small { font-size: 18px; color: var(--aniki-text-detail); }
+.aniki-setup-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fullscreen-shell .aniki-setup-option { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 24px; text-align: left; border-radius: 14px; background: var(--aniki-panel); border: 1px solid var(--fs-border); }
+.aniki-setup-option > span { display: flex; flex-direction: column; gap: 4px; }
+.aniki-setup-option strong { font-size: 25px; }
+.aniki-setup-option small { font-size: 17px; color: var(--aniki-text-secondary); }
+.aniki-setup-option > svg { width: 30px; height: 30px; color: var(--aniki-glyph); flex-shrink: 0; }
+.fullscreen-shell .aniki-setup-option[aria-pressed="true"] { border-color: var(--aniki-light); background: var(--aniki-button-idle); }
+.aniki-setup-welcome { display: flex; flex-direction: column; gap: 22px; max-width: 900px; margin-top: 200px; }
+.aniki-setup-welcome h2 { font-size: 64px; font-weight: 800; line-height: 1.1; }
+.aniki-setup-welcome p { font-size: 26px; color: var(--aniki-text-secondary); }
+.aniki-setup-actions { display: flex; gap: 18px; }
+.fullscreen-shell .aniki-setup-actions button, .fullscreen-shell .aniki-setup-footer button { padding: 16px 34px; font-size: 24px; font-weight: 600; border-radius: 14px; background: var(--aniki-button-idle); border-color: var(--fs-border); }
+.fullscreen-shell .aniki-setup .aniki-setup-primary { background: linear-gradient(var(--aniki-card), var(--aniki-control-dark)); border-color: var(--aniki-light); }
+.aniki-setup-profile { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 40px; border-radius: 22px; background: var(--aniki-panel); }
+.fullscreen-shell .aniki-setup-name { width: 100%; display: flex; flex-direction: column; gap: 4px; padding: 16px 22px; border-radius: 14px; background: var(--aniki-button-idle); }
+.aniki-setup-name small { font-size: 17px; color: var(--aniki-text-detail); }
+.aniki-setup-name strong { font-size: 30px; }
+.aniki-setup-avatars { display: grid; grid-template-columns: repeat(6, 92px); gap: 16px; align-content: start; }
+.fullscreen-shell .aniki-setup-avatars button { padding: 8px; border-radius: 50%; }
+.fullscreen-shell .aniki-setup-avatars button[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--aniki-light); }
+.aniki-setup-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 22px; }
+.aniki-setup-cards article { display: flex; flex-direction: column; gap: 12px; padding: 30px; border-radius: 22px; background: var(--aniki-panel); border: 1px solid var(--fs-border); }
+.aniki-setup-cards h3 { font-size: 28px; font-weight: 700; }
+.aniki-setup-cards p { font-size: 20px; line-height: 1.45; color: var(--aniki-text-secondary); }
+.aniki-setup-status { margin-top: auto; font-size: 20px; color: var(--aniki-glyph); }
+.aniki-setup-note { grid-column: 1 / -1; font-size: 20px; color: var(--aniki-text-detail); }
+.aniki-setup-summary { display: flex; flex-direction: column; gap: 6px; padding: 30px; border-radius: 22px; background: var(--aniki-panel); font-size: 23px; }
+.aniki-setup-summary div { display: grid; grid-template-columns: 260px 1fr; gap: 16px; }
+.aniki-setup-summary dt { color: var(--aniki-text-detail); }
+.aniki-setup-summary dd { font-weight: 600; }
+.aniki-setup-footer { display: flex; justify-content: space-between; }
+.fullscreen-shell .aniki-setup button:focus-visible, .aniki-setup-cards article:focus-visible { outline: none; background: var(--aniki-focus-fill); box-shadow: inset 0 0 0 2px var(--aniki-light); }
+
+/* Tela de boas-vindas (o "login" do Aniki). */
+.aniki-login { height: 1080px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; background: radial-gradient(ellipse at 50% 45%, var(--aniki-secondary-mid), var(--aniki-shade-strong) 70%); }
+.aniki-login-card { display: flex; align-items: center; gap: 50px; padding: 30px 60px 30px 30px; border-radius: 120px 30px 30px 120px; background: var(--aniki-panel); border: 1px solid var(--aniki-focus-right); }
+.aniki-login-card > div { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 300px; }
+.aniki-login-card small { font-size: 20px; color: var(--aniki-text-secondary); }
+.aniki-login-card strong { font-size: 48px; font-weight: 800; }
+.fullscreen-shell .aniki-login-continue { display: flex; align-items: center; gap: 14px; padding: 12px 26px; font-size: 24px; border-radius: 16px; border-color: var(--fs-border); background: var(--aniki-button-idle); }
+.fullscreen-shell .aniki-login-continue:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--aniki-light), 0 0 24px var(--aniki-focus-glow); }
+
+/* Estilos de interface do Aniki. Padrão: barra do topo, legenda dos botões e etiquetas do jogo. */
+.fullscreen-shell .aniki-topbar { transition: opacity .25s, transform .25s; }
+.fullscreen-shell[data-aniki-interface="clean"] .aniki-topbar:not(:focus-within):not(:hover) { opacity: 0; transform: translateY(-100%); }
+.fullscreen-shell[data-aniki-interface="clean"] .aniki-shortcuts, .fullscreen-shell[data-aniki-interface="clean"] .aniki-chips, .fullscreen-shell[data-aniki-interface="enhanced"] .aniki-shortcuts { display: none; }
+.fullscreen-shell[data-aniki-interface="enhanced"] .aniki-topbar { background: linear-gradient(var(--aniki-shade-light), var(--aniki-transparent)); opacity: 1; }
+.fullscreen-shell[data-aniki-interface="enhanced"] .aniki-chips { top: 520px; }
+.fullscreen-shell[data-aniki-interface="complete"] .aniki-rail { background: var(--aniki-panel); border-top: 1px solid var(--aniki-separator-bar); border-bottom: 1px solid var(--aniki-separator-bar); }
+.aniki-side-info { position: absolute; right: 0; top: 250px; width: 380px; padding: 22px 26px; border-radius: 18px 0 0 18px; background: var(--aniki-panel); border: 1px solid var(--fs-border); border-right: 0; backdrop-filter: blur(18px); }
+.aniki-side-info .aniki-details-iconfacts { font-size: 22px; gap: 12px; }
+.aniki-trailer-background { left: 0; right: 0; top: -80px; height: 1080px; z-index: -1; border-radius: 0; box-shadow: none; }
+.aniki-trailer-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--aniki-shade-strong) 0%, var(--aniki-shade-mid) 22%, var(--aniki-shade-light) 48%, var(--aniki-transparent) 62%), linear-gradient(90deg, var(--aniki-shade-light) 0%, var(--aniki-transparent) 55%); }

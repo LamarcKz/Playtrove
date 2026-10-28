@@ -1,0 +1,219 @@
+/*
+ * Tema Playtrove da tela cheia (o padrão): a apresentação própria do app, com arte ampla, capas inteiras e
+ * foco legível a distância. Tudo fica dentro de .playtrove-fullscreen, para não se misturar com o tema Aniki.
+ */
+.playtrove-fullscreen {
+  --fs-background: oklch(0.12 0.015 252);
+  --fs-surface: oklch(0.17 0.02 252 / 0.88);
+  --fs-glass: oklch(0.18 0.018 252 / 0.8);
+  --fs-foreground: oklch(0.98 0 0);
+  --fs-muted: oklch(0.76 0.012 252);
+  --fs-focus: oklch(0.91 0.075 85);
+  --fs-border: oklch(0.8 0.02 252 / 0.2);
+  --fs-shadow: oklch(0 0 0 / 0.55);
+  --fs-scrim: oklch(0.07 0.015 252 / 0.85);
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  color: var(--fs-foreground);
+  background: var(--fs-background);
+  font-size: clamp(14px, 1.1vw, 21px);
+  isolation: isolate;
+}
+.playtrove-fullscreen[hidden] { display: none; }
+.playtrove-fullscreen button { cursor: pointer; border: 1px solid transparent; border-radius: .55rem; padding: .65em 1em; transition: background .15s, border-color .15s, transform .15s; }
+.playtrove-fullscreen button:hover { background: var(--fs-border); }
+.playtrove-fullscreen button:focus-visible, .playtrove-fullscreen [tabindex="0"]:focus-visible, .playtrove-fullscreen textarea:focus-visible, .playtrove-fullscreen input:focus-visible { outline: 3px solid var(--fs-focus); outline-offset: 4px; }
+.playtrove-fullscreen button:disabled { cursor: default; opacity: .45; }
+.playtrove-fullscreen button[aria-pressed="true"] { border-color: var(--fs-focus); background: var(--fs-border); }
+.playtrove-fullscreen svg { width: 1.2em; height: 1.2em; flex-shrink: 0; }
+.playtrove-fullscreen .fs-main { position: relative; height: 100%; display: flex; flex-direction: column; }
+.playtrove-fullscreen .fs-background { position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 75% 25%, var(--sidebar-accent), var(--fs-background) 75%); }
+.playtrove-fullscreen .fs-background > img, .playtrove-fullscreen .fs-background > video { width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0; }
+.playtrove-fullscreen .fs-background > video { opacity: 0; transition: opacity .5s; }
+.playtrove-fullscreen .fs-background > video.fs-video-ready { opacity: 1; }
+.playtrove-fullscreen .fs-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--fs-background) 0%, transparent 70%), linear-gradient(90deg, var(--fs-scrim), transparent 85%); }
+.playtrove-fullscreen .fs-header { display: flex; min-height: 5.2rem; padding: .8rem 3.5vw; align-items: center; gap: 2vw; background: linear-gradient(var(--fs-surface), transparent); border-bottom: 1px solid var(--fs-border); }
+.playtrove-fullscreen .fs-brand { display: flex; align-items: center; gap: .8em; font-size: 1.5em; font-weight: 650; letter-spacing: .03em; }
+.playtrove-fullscreen .fs-brand > svg { width: 1.6em; height: 1.6em; }
+.playtrove-fullscreen .fs-collections { display: flex; gap: .25em; margin-left: 2vw; }
+.playtrove-fullscreen .fs-collections button { white-space: nowrap; }
+.playtrove-fullscreen .fs-header-tools { display: flex; align-items: center; gap: .25em; margin-left: auto; }
+.playtrove-fullscreen .fs-header-tools button { padding: .65em; }
+.playtrove-fullscreen .fs-library { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; }
+.playtrove-fullscreen .fs-game-info { padding: 4.5vh 6vw 2vh; max-width: 65vw; }
+.playtrove-fullscreen .fs-eyebrow { color: var(--fs-muted); text-transform: uppercase; letter-spacing: .16em; font-size: .82em; margin-bottom: .8em; }
+.playtrove-fullscreen .fs-game-info h1, .playtrove-fullscreen .fs-signature h1 { font-size: clamp(2.4rem, 4.4vw, 5.5rem); line-height: 1.08; font-weight: 680; text-wrap: balance; text-shadow: 0 3px 18px var(--fs-shadow); }
+.playtrove-fullscreen .fs-favorite { display: inline-block; margin-left: .3em; fill: currentColor; width: .5em !important; height: .5em !important; color: var(--fs-focus); vertical-align: middle; }
+.playtrove-fullscreen .fs-info-meta { display: flex; gap: 1.5em; margin-top: 1.2em; color: var(--fs-muted); }
+.playtrove-fullscreen .fs-info-meta span { display: flex; align-items: center; gap: .4em; }
+.playtrove-fullscreen .fs-library-bottom { min-height: 0; margin-bottom: 1vh; }
+.playtrove-fullscreen .fs-rail-heading { display: flex; align-items: center; gap: 1.5em; padding: 0 6vw .7em; }
+.playtrove-fullscreen .fs-rail-heading h2 { font-weight: 600; font-size: 1.2em; }
+.playtrove-fullscreen .fs-rail-heading > span { color: var(--fs-muted); font-size: .85em; }
+.playtrove-fullscreen .fs-rail-heading button { margin-left: auto; }
+.playtrove-fullscreen .fs-cover-rail { display: flex; gap: 1.35vw; overflow-x: auto; padding: 1em 6vw 1em; scroll-padding-inline: 6vw; scrollbar-width: thin; }
+.playtrove-fullscreen .fs-cover { width: clamp(8rem, 13vw, 15rem); flex-shrink: 0; padding: .3em; display: flex; flex-direction: column; gap: .6em; text-align: left; background: var(--fs-surface); }
+.playtrove-fullscreen .fs-cover [data-slot="game-cover"] { width: 100%; max-width: 100%; border-radius: .25rem; }
+.playtrove-fullscreen .fs-cover span { font-size: .8em; padding: 0 .35em .25em; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.playtrove-fullscreen .fs-cover[aria-current="true"] { outline: 3px solid var(--fs-focus); outline-offset: 3px; transform: translateY(-.35em); }
+.playtrove-fullscreen .fs-footer { flex-shrink: 0; min-height: 2.6rem; padding: .6rem 3.5vw; display: flex; gap: 1em; justify-content: space-between; color: var(--fs-muted); font-size: .75em; }
+.playtrove-fullscreen .fs-footer > span:last-child:not(:first-child) { max-width: 37%; text-align: right; }
+.playtrove-fullscreen .fs-empty { padding: 1rem 6vw 4vh; display: flex; gap: 1em; align-items: center; }
+.playtrove-fullscreen .fs-signature { flex: 1; min-height: 0; position: relative; padding: 6vh 4vw 3vh; display: grid; grid-template-columns: minmax(9rem, 17vw) minmax(0, 1fr); gap: 1.8vw; align-items: end; }
+.playtrove-fullscreen .fs-signature-cover { border-radius: .8rem; padding: .8em; background: var(--fs-glass); align-self: end; margin-bottom: 3vh; backdrop-filter: blur(18px); }
+.playtrove-fullscreen .fs-signature-cover [data-slot="game-cover"] { --cover-max-height: 36vh; width: 100%; margin-inline: auto; }
+.playtrove-fullscreen .fs-signature-content { min-height: 0; align-self: stretch; display: flex; flex-direction: column; gap: 1em; }
+.playtrove-fullscreen .fs-signature h1 { font-size: clamp(2.2rem, 4vw, 5rem); max-width: 75%; }
+.playtrove-fullscreen .fs-back { padding: .35em .6em; display: flex; align-items: center; gap: .5em; width: fit-content; }
+.playtrove-fullscreen .fs-details-actions { display: flex; gap: .6em; margin-top: .3em; }
+.playtrove-fullscreen .fs-details-actions button { display: flex; align-items: center; gap: .65em; background: var(--fs-surface); }
+.playtrove-fullscreen .fs-primary { color: var(--fs-background); background: var(--fs-focus); font-weight: 700; }
+.playtrove-fullscreen .fs-primary:hover { background: var(--fs-foreground); }
+.playtrove-fullscreen .fs-play { min-width: 9em; justify-content: center; }
+.playtrove-fullscreen .fs-facts { display: flex; gap: 2em; flex-wrap: wrap; padding: 1em; background: var(--fs-glass); border-radius: .8em; width: fit-content; backdrop-filter: blur(18px); }
+.playtrove-fullscreen .fs-facts dt { color: var(--fs-muted); font-size: .75em; margin-bottom: .2em; }
+.playtrove-fullscreen .fs-facts dd { font-weight: 550; }
+.playtrove-fullscreen .fs-signature-columns { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, .75fr); gap: 1.5em; min-height: 0; margin-top: auto; }
+.playtrove-fullscreen .fs-description, .playtrove-fullscreen .fs-achievement-card { padding: 1.2em; background: var(--fs-glass); border: 1px solid var(--fs-border); border-radius: .9em; backdrop-filter: blur(18px); max-height: 35vh; overflow-y: auto; }
+.playtrove-fullscreen .fs-description h2, .playtrove-fullscreen .fs-achievement-card h2 { font-weight: 600; margin-bottom: .5em; }
+.playtrove-fullscreen .fs-description p, .playtrove-fullscreen .fs-achievement-card p { color: var(--fs-muted); font-size: .9em; line-height: 1.55; margin-bottom: 1em; }
+.playtrove-fullscreen .fs-review-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.playtrove-fullscreen .fs-achievement-card > svg { margin-bottom: .5em; width: 1.8em; height: 1.8em; }
+.playtrove-fullscreen .fs-modal-shade { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; background: var(--fs-scrim); backdrop-filter: blur(12px); padding: 4vh 5vw; }
+.playtrove-fullscreen .fs-modal { width: min(70rem, 100%); max-height: 92vh; overflow-y: auto; padding: 1.8em; border: 1px solid var(--fs-border); border-radius: 1em; background: var(--fs-surface); box-shadow: 0 1em 4em var(--fs-shadow); }
+.playtrove-fullscreen .fs-modal h2 { font-size: 1.6em; font-weight: 650; margin: .6em 0; }
+.playtrove-fullscreen .fs-dialog-actions { display: flex; flex-wrap: wrap; gap: .7em; margin-top: 1em; }
+.playtrove-fullscreen .fs-dialog-actions button, .playtrove-fullscreen .fs-options button, .playtrove-fullscreen .fs-preferences button { background: var(--fs-border); }
+.playtrove-fullscreen .fs-options { display: flex; flex-direction: column; gap: 1em; }
+.playtrove-fullscreen .fs-options > button { width: fit-content; display: flex; gap: .6em; align-items: center; }
+.playtrove-fullscreen .fs-status-options { display: flex; flex-wrap: wrap; gap: .6em; }
+.playtrove-fullscreen .fs-score { display: flex; align-items: center; gap: 1em; }
+.playtrove-fullscreen .fs-score h3 { width: 8em; }
+.playtrove-fullscreen .fs-score output { min-width: 4em; text-align: center; }
+.playtrove-fullscreen .fs-preferences { display: flex; flex-direction: column; gap: 1.4em; }
+.playtrove-fullscreen .fs-preferences label { display: flex; align-items: center; gap: 1em; }
+.playtrove-fullscreen .fs-preferences input { width: 1.4em; height: 1.4em; accent-color: var(--fs-focus); }
+.playtrove-fullscreen .fs-volume { display: flex; align-items: center; gap: 1em; }
+.playtrove-fullscreen .fs-volume span { margin-right: auto; }
+.playtrove-fullscreen .fs-volume output { min-width: 3em; text-align: center; }
+.playtrove-fullscreen .fs-keyboard textarea { width: 100%; padding: .8em; border: 1px solid var(--fs-border); border-radius: .5em; resize: vertical; min-height: 3em; max-height: 25vh; background: var(--fs-background); color: var(--fs-foreground); }
+.playtrove-fullscreen .fs-keyboard > output { display: block; text-align: right; color: var(--fs-muted); font-size: .75em; margin: .4em 0 .8em; }
+.playtrove-fullscreen .fs-keyboard-rows { display: flex; flex-direction: column; gap: .4em; }
+.playtrove-fullscreen .fs-keyboard-row { display: flex; justify-content: center; gap: .4em; }
+.playtrove-fullscreen .fs-keyboard-row button { min-width: 2.6em; padding: .45em .6em; background: var(--fs-border); }
+.playtrove-fullscreen .fs-keyboard .fs-dialog-actions { justify-content: flex-end; }
+.playtrove-fullscreen .fs-achievements-list { max-height: 48vh; overflow-y: auto; margin-top: 1em; }
+.playtrove-fullscreen .fs-achievements-list > div { margin: .5em; border-radius: .5em; }
+.playtrove-fullscreen .fs-error { color: var(--destructive); margin-top: 1em; overflow-wrap: anywhere; }
+.playtrove-fullscreen .fs-toast { position: absolute; bottom: 3rem; left: 5vw; max-width: 90vw; background: var(--fs-background); padding: 1em; border-radius: .5em; }
+.playtrove-fullscreen .fs-running { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; background: var(--fs-scrim); padding: 10vw; text-align: center; font-size: 1.5em; }
+.playtrove-fullscreen .fs-running svg { width: 3em; height: 3em; }
+@media (max-width: 1100px) {
+  .playtrove-fullscreen .fs-header { gap: .7em; min-height: 4.2rem; }
+  .playtrove-fullscreen .fs-brand { font-size: 1.15em; gap: .4em; }
+  .playtrove-fullscreen .fs-collections { margin-left: 0; gap: 0; }
+  .playtrove-fullscreen .fs-collections button { padding: .5em .65em; }
+  .playtrove-fullscreen .fs-header-tools { gap: 0; }
+  .playtrove-fullscreen .fs-signature { padding-top: 2vh; }
+  .playtrove-fullscreen .fs-signature-columns { gap: .8em; }
+  .playtrove-fullscreen .fs-signature-content { gap: .7em; }
+  .playtrove-fullscreen .fs-footer { flex-direction: column; gap: .2em; font-size: .65em; }
+  .playtrove-fullscreen .fs-footer > span:last-child:not(:first-child) { max-width: none; text-align: left; }
+}
+@media (max-height: 680px) {
+  .playtrove-fullscreen .fs-game-info { padding-top: 2vh; }
+  .playtrove-fullscreen .fs-cover-rail { max-height: 43vh; }
+  .playtrove-fullscreen .fs-cover [data-slot="game-cover"] { max-height: 30vh; }
+  .playtrove-fullscreen .fs-signature-content { gap: .5em; }
+  .playtrove-fullscreen .fs-signature h1 { font-size: 2.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .playtrove-fullscreen *, .playtrove-fullscreen *::before, .playtrove-fullscreen *::after { transition: none !important; scroll-behavior: auto !important; }
+}
+/* Signature: título sobre a arte e um cartão com capa/dados no canto inferior esquerdo. */
+.playtrove-fullscreen .fs-signature { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, .9fr); grid-template-rows: minmax(0, 1fr) auto; align-items: end; gap: 2vh 4vw; padding: 2vh 3.5vw 3vh; }
+.playtrove-fullscreen .fs-signature-heading { grid-column: 1 / -1; align-self: start; padding-left: 6vw; padding-top: 1vh; max-width: 78%; }
+.playtrove-fullscreen .fs-signature-heading .fs-back { margin-left: -6vw; margin-bottom: 2vh; }
+.playtrove-fullscreen .fs-signature-heading h1 { max-width: none; font-size: clamp(2.2rem, 4.4vw, 5.6rem); }
+.playtrove-fullscreen .fs-signature-card { display: grid; grid-template-columns: minmax(7rem, .55fr) minmax(0, 1fr); gap: 1em; background: var(--fs-glass); backdrop-filter: blur(18px); border: 1px solid var(--fs-border); border-radius: 1.1em; padding: 1em; min-height: 0; max-height: 48vh; overflow-y: auto; }
+.playtrove-fullscreen .fs-signature-cover { padding: 0; background: none; backdrop-filter: none; align-self: center; margin: 0; }
+.playtrove-fullscreen .fs-signature-cover [data-slot="game-cover"] { --cover-max-height: 35vh; }
+.playtrove-fullscreen .fs-signature-content { gap: .8em; align-self: center; }
+.playtrove-fullscreen .fs-signature-content .fs-eyebrow { margin: 0; font-size: .7em; letter-spacing: .04em; }
+.playtrove-fullscreen .fs-signature-content .fs-details-actions { gap: .4em; flex-wrap: wrap; }
+.playtrove-fullscreen .fs-signature-content .fs-play { min-width: 5em; }
+.playtrove-fullscreen .fs-signature-content .fs-details-actions button { padding: .5em .7em; }
+.playtrove-fullscreen .fs-facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .8em 1em; padding: 0; background: none; backdrop-filter: none; width: 100%; font-size: .85em; }
+.playtrove-fullscreen .fs-facts dd { overflow-wrap: anywhere; }
+.playtrove-fullscreen .fs-achievement-card { display: flex; align-items: center; gap: .5em; border-radius: .65em; padding: .6em; max-height: none; font-size: .75em; overflow: visible; }
+.playtrove-fullscreen .fs-achievement-card h2 { font-size: .9em; margin-bottom: .15em; }
+.playtrove-fullscreen .fs-achievement-card p { margin: 0; font-size: .9em; }
+.playtrove-fullscreen .fs-achievement-card > svg { margin: 0; flex-shrink: 0; }
+.playtrove-fullscreen .fs-achievement-card button { margin-left: auto; padding: .4em; }
+.playtrove-fullscreen .fs-signature-content > button { padding: .4em; text-align: left; font-size: .8em; }
+.playtrove-fullscreen .fs-signature > .fs-description { max-height: 32vh; border-radius: .9em; font-size: .9em; }
+@media (max-width: 1100px) {
+  .playtrove-fullscreen .fs-signature { gap: 1vh 2vw; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+  .playtrove-fullscreen .fs-signature-card { grid-template-columns: minmax(6rem, .48fr) minmax(0, 1fr); padding: .8em; gap: .8em; max-height: 50vh; }
+  .playtrove-fullscreen .fs-signature-content { gap: .6em; }
+  .playtrove-fullscreen .fs-signature-heading .fs-back { margin-bottom: 1vh; }
+}
+/* Library horizontal: hero livre e quadros quadrados, sem cortar as capas de outras proporções. */
+.playtrove-fullscreen .fs-game-info { padding-top: 12vh; }
+.playtrove-fullscreen .fs-cover [data-slot="game-cover"] { aspect-ratio: 1; max-width: 100% !important; --cover-max-height: 100vh; }
+.playtrove-fullscreen .fs-cover [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+.playtrove-fullscreen .fs-cover [data-slot="game-cover"][data-state="loaded"] { background: var(--fs-surface); }
+.playtrove-fullscreen .fs-rail-controls { color: var(--fs-muted); padding: .6em 6vw; font-size: .8em; }
+.playtrove-fullscreen .fs-cover-rail { padding-top: .7em; padding-bottom: .6em; }
+.playtrove-fullscreen .fs-cover span { display: none; }
+@media (max-height: 680px) { .playtrove-fullscreen .fs-game-info { padding-top: 5vh; } }
+.playtrove-fullscreen .fs-library { position: relative; }
+.playtrove-fullscreen .fs-library-stats { position: absolute; top: 19%; right: 4vw; width: min(22vw, 20rem); background: var(--fs-glass); border: 1px solid var(--fs-border); border-radius: .85em; padding: 1.15em; backdrop-filter: blur(18px); }
+.playtrove-fullscreen .fs-library-stats dl { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2em; }
+.playtrove-fullscreen .fs-library-stats dt { font-size: .65em; color: var(--fs-muted); margin-bottom: .35em; }
+.playtrove-fullscreen .fs-library-stats dd { font-size: .85em; font-weight: 550; display: flex; align-items: center; gap: .3em; overflow-wrap: anywhere; }
+.playtrove-fullscreen .fs-game-info h1, .playtrove-fullscreen .fs-signature-heading h1, .playtrove-fullscreen .fs-description { overflow-wrap: anywhere; }
+
+/* Barra do topo: relógio, avisos e o botão do menu principal. */
+.playtrove-fullscreen .fs-clock { font-size: 1.05em; font-weight: 600; font-variant-numeric: tabular-nums; margin-right: .4em; }
+.playtrove-fullscreen .fs-notices-button { position: relative; }
+.playtrove-fullscreen .fs-badge { position: absolute; top: .1em; right: .1em; min-width: 1.3em; padding: 0 .3em; border-radius: 1em; font-size: .65em; font-weight: 700; line-height: 1.3em; text-align: center; color: var(--fs-background); background: var(--fs-focus); }
+.playtrove-fullscreen .fs-menu-button { display: flex; align-items: center; gap: .5em; font-weight: 600; }
+.playtrove-fullscreen .fs-header-tools button[aria-pressed="true"] { border-color: var(--fs-focus); }
+/* Linhas de capas (1 a 3), rolando para o lado como no Playnite. */
+.playtrove-fullscreen .fs-cover-rail[data-rows] { display: grid; grid-auto-flow: column; grid-auto-columns: max-content; align-content: start; }
+.playtrove-fullscreen .fs-cover-rail[data-rows="1"] { grid-template-rows: auto; }
+.playtrove-fullscreen .fs-cover-rail[data-rows="2"] { grid-template-rows: repeat(2, auto); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="3"] { grid-template-rows: repeat(3, auto); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="2"] .fs-cover { width: clamp(6.5rem, 10vw, 12rem); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="3"] .fs-cover { width: clamp(5.5rem, 7.5vw, 9.5rem); }
+.playtrove-fullscreen .fs-library:has(.fs-cover-rail[data-rows="2"]) .fs-game-info, .playtrove-fullscreen .fs-library:has(.fs-cover-rail[data-rows="3"]) .fs-game-info { padding-top: 4vh; }
+/* Menu principal e a confirmação de energia. */
+.playtrove-fullscreen .fs-menu h3, .playtrove-fullscreen .fs-filters h3 { margin: 1.2em 0 .5em; font-size: .85em; text-transform: uppercase; letter-spacing: .12em; color: var(--fs-muted); }
+.playtrove-fullscreen .fs-menu-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(15em, 1fr)); gap: .5em; }
+.playtrove-fullscreen .fs-menu-items button { display: flex; align-items: center; gap: .8em; text-align: left; background: var(--fs-border); }
+.playtrove-fullscreen .fs-power-confirm p { color: var(--fs-muted); max-width: 40em; }
+/* Filtros e ordem: cada opção é um botão de ligar e desligar, com a quantidade de jogos. */
+.playtrove-fullscreen .fs-filters-head { display: flex; align-items: center; gap: 1em; }
+.playtrove-fullscreen .fs-filters-head h2 { margin-right: auto; }
+.playtrove-fullscreen .fs-chips { display: flex; flex-wrap: wrap; gap: .45em; }
+.playtrove-fullscreen .fs-chips button { display: flex; align-items: center; gap: .5em; background: var(--fs-border); }
+.playtrove-fullscreen .fs-chips small { color: var(--fs-muted); font-variant-numeric: tabular-nums; }
+.playtrove-fullscreen .fs-filters-empty { color: var(--fs-muted); font-size: .85em; }
+/* Ajuda e avisos. */
+.playtrove-fullscreen .fs-help dl { display: grid; grid-template-columns: max-content 1fr; gap: .7em 2em; }
+.playtrove-fullscreen .fs-help dl > div { display: contents; }
+.playtrove-fullscreen .fs-help dt { font-weight: 700; }
+.playtrove-fullscreen .fs-help dd { color: var(--fs-muted); }
+.playtrove-fullscreen .fs-notices ul { display: flex; flex-direction: column; gap: .5em; margin-top: 1em; }
+.playtrove-fullscreen .fs-notices li, .playtrove-fullscreen .fs-notice-banner { display: flex; flex-direction: column; gap: .2em; padding: .8em 1em; border-radius: .6em; background: var(--fs-surface); border: 1px solid var(--fs-border); }
+.playtrove-fullscreen .fs-notices li span, .playtrove-fullscreen .fs-notice-banner span { color: var(--fs-muted); font-size: .85em; }
+.playtrove-fullscreen .fs-notices li:focus-visible { outline: 3px solid var(--fs-focus); outline-offset: 2px; }
+.playtrove-fullscreen .fs-notice-banner { position: absolute; right: 3vw; bottom: 4rem; z-index: 3; max-width: min(28rem, 90vw); box-shadow: 0 1em 2em var(--fs-shadow); }
+/* O botão principal de um diálogo (ex.: Desligar) continua em destaque, acima da regra dos botões do diálogo. */
+.playtrove-fullscreen .fs-dialog-actions .fs-primary { color: var(--fs-background); background: var(--fs-focus); }
+.playtrove-fullscreen .fs-dialog-actions .fs-primary:hover { background: var(--fs-foreground); }
+/* Favoritos e Recentes não têm título: o espaço separa da ordem. */
+.playtrove-fullscreen .fs-filters section:not(:has(h3)) { margin-top: 1.2em; }

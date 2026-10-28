@@ -40,6 +40,7 @@ use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
 use crate::test_hooks::{self, TestHooks, open_in_browser, show_in_explorer};
 use crate::test_mode::test_mode;
+use crate::theme_pack::{self, AnikiPack, AnikiPackStatus, InstallError};
 use crate::updates::{UpdateService, UpdateStatus};
 use crate::validation::{
     to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_ra_account,
@@ -157,10 +158,80 @@ pub fn fullscreen_get_config(state: State<'_, AppState>) -> FullscreenConfig {
 }
 
 #[tauri::command]
-pub fn fullscreen_set_config(app: AppHandle, state: State<'_, AppState>, patch: Value) -> AppResult<FullscreenConfig> {
+pub fn fullscreen_set_config(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    pack: State<'_, AnikiPack>,
+    patch: Value,
+) -> AppResult<FullscreenConfig> {
+    // O tema Aniki só vale com o pacote oficial instalado (a instalação já troca o tema sozinha).
+    if patch.get("theme").and_then(Value::as_str) == Some("aniki") && !pack.installed() {
+        return Err(AppError::text(state.language(), "errors.anikiMissing", &[]));
+    }
     let config = fullscreen::set_config(&state.db(), &patch, state.language())?;
     let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
     Ok(config)
+}
+
+/// Bloqueia, suspende, reinicia ou desliga o Windows (o menu principal da tela cheia confirma antes).
+/// Nos testes do app, só anota a ação, como os endereços que iriam para o navegador.
+#[tauri::command]
+pub fn system_power(state: State<'_, AppState>, hooks: State<'_, crate::test_hooks::TestHooks>, action: Value) -> AppResult<()> {
+    let language = state.language();
+    let action = action
+        .as_str()
+        .filter(|action| crate::power::ACTIONS.contains(action))
+        .ok_or_else(|| AppError::text(language, "errors.invalidValue", &[]))?;
+    if crate::test_hooks::active() {
+        hooks.record_opened(&format!("power:{action}"));
+        return Ok(());
+    }
+    crate::power::run(action).map_err(|_| AppError::text(language, "errors.powerFailed", &[]))
+}
+
+#[tauri::command]
+pub fn themes_aniki_status(pack: State<'_, AnikiPack>) -> AnikiPackStatus {
+    pack.status()
+}
+
+/// Baixa o pacote oficial do Aniki da release do autor e, quando termina, troca o tema da tela cheia.
+#[tauri::command(async)]
+pub fn themes_aniki_install(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    pack: State<'_, AnikiPack>,
+) -> AppResult<AnikiPackStatus> {
+    let report = |status: AnikiPackStatus| {
+        let _ = app.emit(theme_pack::PROGRESS_EVENT, status);
+    };
+    match pack.install(&theme_pack::download, &report) {
+        Ok(()) => {
+            let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "aniki"}), state.language())?;
+            let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
+        }
+        // Cancelar não é erro, e um segundo pedido acompanha o download que já está em andamento.
+        Err(InstallError::Cancelled | InstallError::Busy) => {}
+        Err(error) => return Err(AppError::text(state.language(), error.message_key(), &[])),
+    }
+    Ok(pack.status())
+}
+
+#[tauri::command]
+pub fn themes_aniki_cancel(pack: State<'_, AnikiPack>) {
+    pack.cancel();
+}
+
+/// Apaga o pacote do Aniki; se ele era o tema escolhido, a tela cheia volta ao tema Playtrove.
+#[tauri::command(async)]
+pub fn themes_aniki_remove(app: AppHandle, state: State<'_, AppState>, pack: State<'_, AnikiPack>) -> AppResult<AnikiPackStatus> {
+    pack.remove().map_err(|error| AppError::text(state.language(), error.message_key(), &[]))?;
+    if fullscreen::get_config(&state.db()).theme == "aniki" {
+        let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "playtrove"}), state.language())?;
+        let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
+    }
+    let status = pack.status();
+    let _ = app.emit(theme_pack::PROGRESS_EVENT, &status);
+    Ok(status)
 }
 
 // ---------------------------------------------------------------- biblioteca e jogos
@@ -196,6 +267,13 @@ pub fn games_set_evaluation(app: AppHandle, state: State<'_, AppState>, game_id:
     library::save_game_evaluation(&state.db(), language, game_id, to_evaluation(&evaluation, language)?, Utc::now())?;
     notify_library_changed(&app);
     Ok(())
+}
+
+/// A cor de destaque tirada da arte do jogo, para a cor dinâmica da tela cheia ("#rrggbb" ou null).
+#[tauri::command(async)]
+pub fn games_accent_color(state: State<'_, AppState>, images: State<'_, ImagesDir>, game_id: Value) -> AppResult<Option<String>> {
+    let game_id = to_id(&game_id, state.language())?;
+    Ok(crate::dynamic_color::game_accent(&state.db(), &images.0, game_id)?)
 }
 
 /// Escolhe um MP4/WebM local e guarda uma cópia nos dados do app.
@@ -732,8 +810,8 @@ pub fn metadata_download(
     game_ids: Value,
 ) -> AppResult<usize> {
     let (metadata_ids, music_only_ids) = if game_ids.is_null() {
-        let has_igdb = credentials::read_metadata_credentials(&state.db(), &secrets).igdb.is_some();
-        let ids = library::list_games_needing_metadata(&state.db(), has_igdb)?;
+        let keys = credentials::read_metadata_credentials(&state.db(), &secrets);
+        let ids = library::list_games_needing_metadata(&state.db(), keys.igdb.is_some(), keys.steam_grid_db_key.is_some())?;
         let music = prepare_missing_music(&state)?.into_iter().filter(|id| !ids.contains(id)).collect();
         (ids, music)
     } else {

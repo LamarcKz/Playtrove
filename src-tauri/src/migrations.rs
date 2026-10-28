@@ -13,7 +13,7 @@ const DEFAULT_STATUSES: [&str; 9] =
 
 type Migration = fn(&Transaction) -> rusqlite::Result<()>;
 
-const MIGRATIONS: [Migration; 12] = [
+const MIGRATIONS: [Migration; 13] = [
     // 1: status, jogos, emuladores, pastas de ROMs e configurações.
     |db| {
         db.execute_batch(
@@ -227,6 +227,8 @@ const MIGRATIONS: [Migration; 12] = [
         END;",
         )
     },
+    // 13: a logo do jogo (a imagem com o nome, transparente) e a última busca por ela no SteamGridDB.
+    |db| db.execute_batch("ALTER TABLE games ADD COLUMN logo_image TEXT; ALTER TABLE games ADD COLUMN logo_checked_at TEXT;"),
 ];
 
 /// O status padrão (a chave do dicionário) de cada nome de DEFAULT_STATUSES.

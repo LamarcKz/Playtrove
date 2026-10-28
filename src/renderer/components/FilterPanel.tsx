@@ -1,6 +1,5 @@
 import { useId } from "react"
 import { History, Star, X, type LucideIcon } from "lucide-react"
-import { genreLabel, type Messages } from "@shared/i18n"
 import type { Game } from "@shared/types"
 import { FilterSelect } from "@/components/FilterSelect"
 import { Button } from "@/components/ui/button"
@@ -16,39 +15,11 @@ import {
   matchesScore,
   PLAYTIME_RANGES,
   RECENT_DAYS,
-  releaseYear,
+  SCORE_FILTERS,
   SCORE_RANGES,
+  VALUE_FILTERS,
   type LibraryFilters,
 } from "@/lib/filters"
-import type { ScoreKind } from "@/lib/score"
-
-/**
- * Os filtros de texto que vêm dos dados dos jogos (os valores e as quantidades são contados na hora).
- * Os de metadados ficam desativados até algum jogo ter o dado. Os gêneros aparecem no idioma do app.
- */
-const VALUE_FILTERS: {
-  field: keyof Messages["fields"]
-  key: "libraries" | "platforms" | "genres" | "developers" | "publishers" | "years"
-  pick: (game: Game) => string | string[] | null
-  label?: (value: string, t: Messages) => string
-}[] = [
-  { field: "library", key: "libraries", pick: (game) => game.library },
-  { field: "platform", key: "platforms", pick: (game) => game.platform },
-  { field: "genre", key: "genres", pick: (game) => game.genres, label: genreLabel },
-  { field: "developer", key: "developers", pick: (game) => game.developers },
-  { field: "publisher", key: "publishers", pick: (game) => game.publishers },
-  { field: "releaseYear", key: "years", pick: releaseYear },
-]
-
-/** Os filtros da avaliação do usuário (ficam desativados até algum jogo ser avaliado). */
-const SCORE_FILTERS: {
-  key: "ratings" | "difficulties"
-  kind: ScoreKind
-  pick: (game: Game) => number | null
-}[] = [
-  { key: "ratings", kind: "rating", pick: (game) => game.rating },
-  { key: "difficulties", kind: "difficulty", pick: (game) => game.difficulty },
-]
 
 interface FilterPanelProps {
   /** Todos os jogos, para montar as opções e mostrar quantos há em cada uma. */
