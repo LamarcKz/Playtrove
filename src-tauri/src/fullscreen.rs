@@ -13,12 +13,17 @@ pub const CONFIG_EVENT: &str = "fullscreen:config";
 /// Onde o trailer do tema Playtrove toca: na biblioteca e nos detalhes (padrão), só nos detalhes ou em
 /// nenhum lugar.
 pub const TRAILERS: [&str; 3] = ["all", "details", "off"];
+/// Os temas da tela cheia; o primeiro (Playtrove) é o padrão.
+pub const THEMES: [&str; 4] = ["playtrove", "horizonte", "mosaico", "painel"];
+/// No Mosaico, o trailer só toca nos detalhes (padrão) ou fica desligado.
+pub const MOSAICO_TRAILERS: [&str; 2] = ["details", "off"];
 /// Quantas linhas de capas a biblioteca do tema Playtrove mostra (como no Playnite).
 const COVER_ROWS: std::ops::RangeInclusive<u8> = 1..=3;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FullscreenConfig {
+    pub theme: String,
     pub start_on_launch: bool,
     pub music_playback: bool,
     pub music_volume: u8,
@@ -29,6 +34,9 @@ pub struct FullscreenConfig {
     pub ui_sounds_volume: u8,
     pub swap_confirm: bool,
     pub playtrove_trailers: String,
+    pub horizonte_trailers: String,
+    pub mosaico_trailers: String,
+    pub painel_trailers: String,
 }
 
 pub fn get_config(db: &Connection) -> FullscreenConfig {
@@ -38,6 +46,7 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
         _ => default,
     };
     FullscreenConfig {
+        theme: choice(db, "fullscreenTheme", &THEMES),
         start_on_launch: boolean("fullscreenStartOnLaunch", false),
         music_playback: boolean("fullscreenMusicPlayback", true),
         music_volume: number(db, "fullscreenMusicVolume").filter(|volume| *volume <= 100).unwrap_or(20),
@@ -47,6 +56,9 @@ pub fn get_config(db: &Connection) -> FullscreenConfig {
         ui_sounds_volume: number(db, "fullscreenUiSoundsVolume").filter(|volume| *volume <= 100).unwrap_or(40),
         swap_confirm: boolean("fullscreenSwapConfirm", false),
         playtrove_trailers: choice(db, "fullscreenPlaytroveTrailers", &TRAILERS),
+        horizonte_trailers: choice(db, "fullscreenHorizonteTrailers", &TRAILERS),
+        mosaico_trailers: choice(db, "fullscreenMosaicoTrailers", &MOSAICO_TRAILERS),
+        painel_trailers: choice(db, "fullscreenPainelTrailers", &TRAILERS),
     }
 }
 
@@ -69,7 +81,10 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     let fields = patch.as_object().ok_or_else(invalid)?;
     let mut config = get_config(db);
     for (name, value) in fields {
+        let option =
+            |options: &[&str]| value.as_str().filter(|text| options.contains(text)).map(str::to_string).ok_or_else(invalid);
         match name.as_str() {
+            "theme" => config.theme = option(&THEMES)?,
             "startOnLaunch" => config.start_on_launch = to_bool(value, language)?,
             "musicPlayback" => config.music_playback = to_bool(value, language)?,
             "musicVolume" => {
@@ -89,15 +104,16 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
                 config.ui_sounds_volume = value.as_u64().filter(|volume| *volume <= 100).ok_or_else(invalid)? as u8;
             }
             "swapConfirm" => config.swap_confirm = to_bool(value, language)?,
-            "playtroveTrailers" => {
-                config.playtrove_trailers =
-                    value.as_str().filter(|trailers| TRAILERS.contains(trailers)).ok_or_else(invalid)?.to_string();
-            }
+            "playtroveTrailers" => config.playtrove_trailers = option(&TRAILERS)?,
+            "horizonteTrailers" => config.horizonte_trailers = option(&TRAILERS)?,
+            "mosaicoTrailers" => config.mosaico_trailers = option(&MOSAICO_TRAILERS)?,
+            "painelTrailers" => config.painel_trailers = option(&TRAILERS)?,
             _ => return Err(invalid()),
         }
     }
     let flag = |value: bool| Some(if value { "1" } else { "0" });
     let transaction = db.unchecked_transaction()?;
+    set_setting(&transaction, "fullscreenTheme", Some(&config.theme))?;
     set_setting(&transaction, "fullscreenStartOnLaunch", flag(config.start_on_launch))?;
     set_setting(&transaction, "fullscreenMusicPlayback", flag(config.music_playback))?;
     set_setting(&transaction, "fullscreenMusicVolume", Some(&config.music_volume.to_string()))?;
@@ -107,6 +123,9 @@ pub fn set_config(db: &Connection, patch: &Value, language: Language) -> AppResu
     set_setting(&transaction, "fullscreenUiSoundsVolume", Some(&config.ui_sounds_volume.to_string()))?;
     set_setting(&transaction, "fullscreenSwapConfirm", flag(config.swap_confirm))?;
     set_setting(&transaction, "fullscreenPlaytroveTrailers", Some(&config.playtrove_trailers))?;
+    set_setting(&transaction, "fullscreenHorizonteTrailers", Some(&config.horizonte_trailers))?;
+    set_setting(&transaction, "fullscreenMosaicoTrailers", Some(&config.mosaico_trailers))?;
+    set_setting(&transaction, "fullscreenPainelTrailers", Some(&config.painel_trailers))?;
     transaction.commit()?;
     Ok(config)
 }
@@ -122,9 +141,10 @@ mod tests {
     fn padroes_e_contrato_serializado() {
         let db = memory_database();
         let expected = json!({
+            "theme": "playtrove",
             "startOnLaunch": false, "musicPlayback": true, "musicVolume": 20,
             "coverRows": 1, "showClock": true, "uiSounds": true, "uiSoundsVolume": 40, "swapConfirm": false,
-            "playtroveTrailers": "all",
+            "playtroveTrailers": "all", "horizonteTrailers": "all", "mosaicoTrailers": "details", "painelTrailers": "all",
         });
         assert_eq!(serde_json::to_value(get_config(&db)).unwrap(), expected);
     }
@@ -168,7 +188,6 @@ mod tests {
             json!({"musicVolume": null}),
             json!({"startOnLaunch": true, "musicVolume": 300}),
             // Preferências que a tela cheia não tem mais.
-            json!({"theme": "playtrove"}),
             json!({"libraryLayout": "horizontal"}),
             json!({"coverRows": 0}),
             json!({"coverRows": 4}),
@@ -177,6 +196,10 @@ mod tests {
             json!({"uiSoundsVolume": 101}),
             json!({"swapConfirm": 1}),
             json!({"playtroveTrailers": "sempre"}),
+            json!({"theme": "ps5"}),
+            json!({"theme": 1}),
+            json!({"mosaicoTrailers": "all"}),
+            json!({"painelTrailers": "sempre"}),
         ] {
             assert!(set_config(&db, &invalid, Language::En).is_err(), "patch aceito: {invalid}");
             assert_eq!(get_config(&db), before);
@@ -225,5 +248,34 @@ mod tests {
         assert_eq!(get_config(&db), saved);
         set_setting(&db, "fullscreenCoverRows", Some("9")).unwrap();
         assert_eq!(get_config(&db).cover_rows, 1);
+    }
+
+    #[test]
+    fn tema_e_trailers_de_cada_tema_persistem() {
+        let db = memory_database();
+        let saved = set_config(
+            &db,
+            &json!({"theme": "mosaico", "horizonteTrailers": "off", "mosaicoTrailers": "off", "painelTrailers": "details"}),
+            Language::PtBr,
+        )
+        .unwrap();
+        assert_eq!(
+            (
+                saved.theme.as_str(),
+                saved.horizonte_trailers.as_str(),
+                saved.mosaico_trailers.as_str(),
+                saved.painel_trailers.as_str()
+            ),
+            ("mosaico", "off", "off", "details")
+        );
+        assert_eq!(get_config(&db), saved);
+        for theme in THEMES {
+            assert_eq!(set_config(&db, &json!({ "theme": theme }), Language::PtBr).unwrap().theme, theme);
+        }
+        // Um tema que não existe mais (ou nunca existiu) volta ao Playtrove.
+        set_setting(&db, "fullscreenTheme", Some("aniki")).unwrap();
+        set_setting(&db, "fullscreenMosaicoTrailers", Some("all")).unwrap();
+        let config = get_config(&db);
+        assert_eq!((config.theme.as_str(), config.mosaico_trailers.as_str()), ("playtrove", "details"));
     }
 }

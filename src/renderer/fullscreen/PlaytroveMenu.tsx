@@ -1,4 +1,4 @@
-import { Lock, LogOut, Minimize2, Monitor, Moon, Power, RefreshCw, RotateCcw, Settings2, Shuffle, CircleQuestionMark, type LucideIcon } from "lucide-react"
+import { Lock, LogOut, Minimize2, Monitor, Moon, Palette, Power, RefreshCw, RotateCcw, Settings2, Shuffle, CircleQuestionMark, type LucideIcon } from "lucide-react"
 import { POWER_ACTIONS, type PowerAction } from "@shared/fullscreen"
 import { useI18n } from "@/hooks/useI18n"
 
@@ -8,6 +8,7 @@ interface MenuProps {
   canRandom: boolean
   updating: boolean
   onDesktop: () => void
+  onTheme: () => void
   onSettings: () => void
   onUpdate: () => void
   onRandom: () => void
@@ -17,13 +18,14 @@ interface MenuProps {
   onPower: (action: PowerAction) => void
 }
 
-/** O menu principal do tema Playtrove, como o MainMenu da tela cheia do Playnite (Options ou o botão Menu). */
-export function PlaytroveMenu({ canRandom, updating, onDesktop, onSettings, onUpdate, onRandom, onHelp, onMinimize, onExit, onPower }: MenuProps) {
+/** O menu principal da tela cheia, como o MainMenu do Playnite (Options ou o botão Menu); o mesmo nos quatro temas. */
+export function PlaytroveMenu({ canRandom, updating, onDesktop, onTheme, onSettings, onUpdate, onRandom, onHelp, onMinimize, onExit, onPower }: MenuProps) {
   const { t } = useI18n()
   return <div className="fs-menu" data-testid="playtrove-menu">
     <h2>{t.fullscreen.mainMenu}</h2>
     <div className="fs-menu-items">
       <button type="button" data-fs-default onClick={onDesktop}><Monitor />{t.fullscreen.desktopMode}</button>
+      <button type="button" onClick={onTheme}><Palette />{t.fullscreen.theme}</button>
       <button type="button" onClick={onSettings}><Settings2 />{t.fullscreen.settings}</button>
       <button type="button" disabled={updating} onClick={onUpdate}><RefreshCw />{updating ? t.fullscreen.updatingLibrary : t.fullscreen.updateLibrary}</button>
       <button type="button" disabled={!canRandom} onClick={onRandom}><Shuffle />{t.fullscreen.randomGame}</button>

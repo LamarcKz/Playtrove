@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import type { FullscreenConfig } from "../../src/shared/fullscreen"
 import { FullscreenConfigQueue } from "../../src/renderer/lib/fullscreenConfig"
 
-const initial: FullscreenConfig = { startOnLaunch: false, musicPlayback: true, musicVolume: 20, coverRows: 1, showClock: true, uiSounds: true, uiSoundsVolume: 40, swapConfirm: false, playtroveTrailers: "all" }
+const initial: FullscreenConfig = { theme: "playtrove", startOnLaunch: false, musicPlayback: true, musicVolume: 20, coverRows: 1, showClock: true, uiSounds: true, uiSoundsVolume: 40, swapConfirm: false, playtroveTrailers: "all", horizonteTrailers: "all", mosaicoTrailers: "details", painelTrailers: "all" }
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason: unknown) => void

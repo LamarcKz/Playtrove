@@ -3,6 +3,10 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "./fullscreenPlaytrove.css";
+@import "./fullscreenThemeBase.css";
+@import "./fullscreenHorizonte.css";
+@import "./fullscreenMosaico.css";
+@import "./fullscreenPainel.css";
 
 /* A classe "dark" no <html> (ver index.html) liga o tema escuro, que é o padrão do app. */
 @custom-variant dark (&:is(.dark *));
@@ -215,9 +219,33 @@
 .fs-dialog-actions { display: flex; flex-wrap: wrap; gap: .7em; margin-top: 1em; }
 .fs-choice { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; }
 .fs-choice > span { margin-right: auto; }
-.fs-theme { display: flex; flex-direction: column; gap: .7em; }
-.fs-theme small { opacity: .75; }
-.fs-theme-confirm p { margin-bottom: .2em; }
-.fs-theme-progress { display: flex; align-items: center; gap: 1em; flex-wrap: wrap; }
-.fs-theme-progress progress { flex: 1; min-width: 10em; accent-color: var(--fs-focus); }
-.fs-theme-remove { align-self: flex-start; }
+/* A escolha do tema da tela cheia (Configurações → Geral e a própria tela cheia): um desenho pequeno de cada tema. */
+.fs-theme-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: .8em; }
+.fs-theme-picker > button { display: flex; flex-direction: column; align-items: flex-start; gap: .35em; padding: .7em; border: 1px solid var(--border); border-radius: .7rem; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.fs-theme-picker > button[aria-checked="true"] { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
+.fs-theme-picker small { opacity: .7; font-size: .8em; line-height: 1.3; }
+.fs-theme-preview { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: .4rem; }
+.fs-theme-preview > i { position: absolute; display: block; }
+.fs-theme-preview[data-preview="playtrove"] { background: linear-gradient(160deg, #1d2a44, #0d1220); }
+.fs-theme-preview[data-preview="playtrove"] > i:nth-child(1) { left: 8%; top: 18%; width: 40%; height: 9%; border-radius: 2px; background: #e7ecf5; }
+.fs-theme-preview[data-preview="playtrove"] > i:nth-child(n+2) { bottom: 10%; width: 18%; height: 38%; border-radius: 2px; background: #3a4d75; }
+.fs-theme-preview[data-preview="playtrove"] > i:nth-child(2) { left: 8%; background: #5b7cc7; }
+.fs-theme-preview[data-preview="playtrove"] > i:nth-child(3) { left: 30%; }
+.fs-theme-preview[data-preview="playtrove"] > i:nth-child(4) { left: 52%; }
+.fs-theme-preview[data-preview="horizonte"] { background: radial-gradient(ellipse at 70% 30%, #1f3a6e, #050914 70%); }
+.fs-theme-preview[data-preview="horizonte"] > i:nth-child(-n+3) { top: 10%; width: 9%; aspect-ratio: 1; border-radius: 3px; background: #2c4a86; }
+.fs-theme-preview[data-preview="horizonte"] > i:nth-child(1) { left: 6%; width: 13%; outline: 1.5px solid #fff; background: #4f74c4; }
+.fs-theme-preview[data-preview="horizonte"] > i:nth-child(2) { left: 24%; }
+.fs-theme-preview[data-preview="horizonte"] > i:nth-child(3) { left: 37%; }
+.fs-theme-preview[data-preview="horizonte"] > i:nth-child(4) { left: 6%; bottom: 12%; width: 88%; height: 18%; border-radius: 3px; background: linear-gradient(90deg, #ffffff22 30%, transparent 31% 35%, #ffffff22 36% 65%, transparent 66% 70%, #ffffff22 71%); }
+.fs-theme-preview[data-preview="mosaico"] { background: #2b2d31; }
+.fs-theme-preview[data-preview="mosaico"] > i:nth-child(-n+3) { top: 18%; width: 26%; aspect-ratio: 1; border-radius: 3px; background: #45484f; }
+.fs-theme-preview[data-preview="mosaico"] > i:nth-child(1) { left: 6%; outline: 2px solid #e4202c; }
+.fs-theme-preview[data-preview="mosaico"] > i:nth-child(2) { left: 37%; }
+.fs-theme-preview[data-preview="mosaico"] > i:nth-child(3) { left: 68%; }
+.fs-theme-preview[data-preview="mosaico"] > i:nth-child(4) { left: 22%; bottom: 10%; width: 56%; height: 12%; background: radial-gradient(circle, #6b6e76 45%, transparent 50%) 0 50% / 16.6% 100% repeat-x; }
+.fs-theme-preview[data-preview="painel"] { background: linear-gradient(180deg, #14301d, #050806 75%); }
+.fs-theme-preview[data-preview="painel"] > i:nth-child(1) { left: 6%; top: 14%; width: 20%; height: 32%; border-radius: 2px; outline: 1.5px solid #3cdb5c; background: #2c6b3a; }
+.fs-theme-preview[data-preview="painel"] > i:nth-child(2) { left: 30%; top: 22%; width: 60%; height: 24%; background: linear-gradient(90deg, #ffffff26 30%, transparent 31% 35%, #ffffff26 36% 65%, transparent 66% 70%, #ffffff26 71%); }
+.fs-theme-preview[data-preview="painel"] > i:nth-child(3) { left: 6%; bottom: 10%; width: 40%; height: 30%; border-radius: 2px; background: #ffffff20; }
+.fs-theme-preview[data-preview="painel"] > i:nth-child(4) { left: 50%; bottom: 10%; width: 44%; height: 30%; border-radius: 2px; background: #ffffff20; }

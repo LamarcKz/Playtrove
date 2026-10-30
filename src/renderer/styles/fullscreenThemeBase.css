@@ -1,0 +1,99 @@
+/*
+ * O que os temas Horizonte, Mosaico e Painel dividem na tela cheia: o quadro da tela, os botões, o foco, as capas, os
+ * painéis (menu, busca, filtros, avisos, ajuda, configurações, tema, troféus e opções do jogo), o aviso no canto e a
+ * tela de jogo em execução. Tudo por variáveis, que cada tema define no próprio arquivo:
+ * --fs-background, --fs-surface, --fs-glass, --fs-foreground, --fs-muted, --fs-accent, --fs-on-accent, --fs-focus,
+ * --fs-border, --fs-shadow, --fs-scrim, --fs-radius (cantos) e --fs-control-radius (botões).
+ */
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  color: var(--fs-foreground);
+  background: var(--fs-background);
+  font-size: clamp(13px, 1.05vw, 20px);
+  isolation: isolate;
+}
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen)[hidden] { display: none; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) button { cursor: pointer; display: inline-flex; align-items: center; gap: .55em; border: 1px solid transparent; border-radius: var(--fs-control-radius); padding: .6em 1em; color: inherit; background: var(--fs-surface); transition: background .15s, border-color .15s, transform .15s, box-shadow .15s; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) button:hover { background: var(--fs-border); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) button:disabled { cursor: default; opacity: .45; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) button[aria-pressed="true"] { border-color: var(--fs-focus); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(button, [tabindex="0"], textarea, input):focus-visible { outline: 3px solid var(--fs-focus); outline-offset: 3px; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) svg { width: 1.2em; height: 1.2em; flex-shrink: 0; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) dt { color: var(--fs-muted); font-size: .75em; margin-bottom: .15em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) dd { font-weight: 550; overflow-wrap: anywhere; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) h1 { overflow-wrap: anywhere; text-wrap: balance; }
+/* A logo do jogo: inteira, sem passar do espaço; sem logo, o nome. */
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) h1 > img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; object-position: left center; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-review-snippet { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--fs-muted); font-size: .85em; white-space: pre-wrap; overflow-wrap: anywhere; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-dev-badge { align-self: center; border-radius: .3em; padding: 0 .4em; font-size: .65em; font-weight: 700; line-height: 1.5; color: var(--dev-foreground); background: var(--dev); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-badge { position: absolute; top: .1em; right: .1em; min-width: 1.3em; padding: 0 .3em; border-radius: 1em; font-size: .65em; font-weight: 700; line-height: 1.3em; text-align: center; color: var(--fs-on-accent); background: var(--fs-accent); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-empty { display: flex; gap: 1em; align-items: center; padding: 1em 5vw; }
+
+/* As capas: quadro quadrado, com a arte inteira dentro (sem cortar as capas de outras proporções). */
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(.hz-tile, .ms-tile, .pn-tile) [data-slot="game-cover"] { aspect-ratio: 1; max-width: 100% !important; --cover-max-height: 100vh; border-radius: inherit; background: var(--fs-surface); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(.hz-tile, .ms-tile, .pn-tile) [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+
+/* O fundo: a arte do jogo e o trailer, com um véu para o texto ficar legível. */
+:is(.horizonte-fullscreen, .painel-fullscreen) .fs-background { position: absolute; inset: 0; z-index: -1; background: var(--fs-background); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-background > :is(img, video) { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-background > video { opacity: 0; transition: opacity .6s; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-background > video.fs-video-ready { opacity: 1; }
+
+/* Os painéis. */
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-modal-shade { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 4vh 5vw; background: var(--fs-scrim); backdrop-filter: blur(12px); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-modal { width: min(70rem, 100%); max-height: 92vh; overflow-y: auto; padding: 1.6em; border: 1px solid var(--fs-border); border-radius: var(--fs-radius); background: var(--fs-glass); box-shadow: 0 1em 4em var(--fs-shadow); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-modal h2 { font-size: 1.5em; font-weight: 650; margin: .5em 0; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-modal h3 { margin: 1.1em 0 .5em; font-size: .85em; text-transform: uppercase; letter-spacing: .1em; color: var(--fs-muted); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-back { padding: .35em .7em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-dialog-actions { display: flex; flex-wrap: wrap; gap: .7em; margin-top: 1em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(.fs-dialog-actions, .fs-options, .fs-preferences) button { background: var(--fs-border); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-dialog-actions .fs-primary { color: var(--fs-on-accent); background: var(--fs-accent); font-weight: 700; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-options { display: flex; flex-direction: column; gap: 1em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-options > button { width: fit-content; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-status-options { display: flex; flex-wrap: wrap; gap: .6em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-score { display: flex; align-items: center; gap: 1em; flex-wrap: wrap; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-score h3 { width: 8em; margin: 0; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-score output { min-width: 4em; text-align: center; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-preferences input { accent-color: var(--fs-accent); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-theme-picker > button { align-items: flex-start; border-color: var(--fs-border); background: transparent; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-theme-picker > button[aria-checked="true"] { border-color: var(--fs-accent); box-shadow: 0 0 0 1px var(--fs-accent); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-keyboard textarea { width: 100%; min-height: 3em; max-height: 25vh; padding: .8em; resize: vertical; border: 1px solid var(--fs-border); border-radius: .5em; color: var(--fs-foreground); background: var(--fs-background); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-keyboard > output { display: block; margin: .4em 0 .8em; text-align: right; font-size: .75em; color: var(--fs-muted); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-keyboard-rows { display: flex; flex-direction: column; gap: .4em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-keyboard-row { display: flex; justify-content: center; gap: .4em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-keyboard-row button { min-width: 2.6em; justify-content: center; padding: .45em .6em; background: var(--fs-border); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-keyboard .fs-dialog-actions { justify-content: flex-end; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-achievements-list { max-height: 48vh; overflow-y: auto; margin-top: 1em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-achievements-list > div { margin: .5em; border-radius: .5em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-menu-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(14em, 1fr)); gap: .5em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-menu-items button { text-align: left; background: var(--fs-border); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-power-confirm p { max-width: 40em; color: var(--fs-muted); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-filters-head { display: flex; align-items: center; gap: 1em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-filters-head h2 { margin-right: auto; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-filters section:not(:has(h3)) { margin-top: 1.1em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-chips { display: flex; flex-wrap: wrap; gap: .45em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-chips button { background: var(--fs-border); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-chips small, .fs-filters-empty { color: var(--fs-muted); font-variant-numeric: tabular-nums; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-help dl { display: grid; grid-template-columns: max-content 1fr; gap: .7em 2em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-help dl > div { display: contents; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-help dt { font-size: 1em; font-weight: 700; color: inherit; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-help dd { font-weight: 400; color: var(--fs-muted); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-notices ul { display: flex; flex-direction: column; gap: .5em; margin-top: 1em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(.fs-notices li, .fs-notice-banner) { display: flex; flex-direction: column; gap: .2em; padding: .8em 1em; border: 1px solid var(--fs-border); border-radius: var(--fs-control-radius); background: var(--fs-surface); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(.fs-notices li, .fs-notice-banner) span { font-size: .85em; color: var(--fs-muted); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-notice-banner { position: absolute; right: 3vw; bottom: 4rem; z-index: 3; max-width: min(28rem, 90vw); background: var(--fs-glass); box-shadow: 0 1em 2em var(--fs-shadow); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-error { margin-top: 1em; color: var(--destructive); overflow-wrap: anywhere; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-toast { position: absolute; bottom: 3rem; left: 5vw; max-width: 90vw; padding: 1em; border-radius: .5em; background: var(--fs-background); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-running { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; padding: 10vw; text-align: center; font-size: 1.5em; background: var(--fs-scrim); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-running svg { width: 3em; height: 3em; }
+/* Os troféus de toda a biblioteca. */
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-trophy-games { display: flex; flex-direction: column; gap: .5em; margin-top: 1em; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-trophy-games > button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .3em .8em; text-align: left; background: var(--fs-border); }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-trophy-games > button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-trophy-games > button > :last-child { grid-column: 1 / -1; }
+@media (prefers-reduced-motion: reduce) {
+  :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(*, *::before, *::after) { transition: none !important; scroll-behavior: auto !important; }
+}
