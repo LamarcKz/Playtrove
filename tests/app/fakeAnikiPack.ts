@@ -64,14 +64,18 @@ function zip(files: Record<string, Buffer>) {
 }
 
 export interface FakeAnikiPack {
-  /** As variáveis que fazem o app baixar este pacote no lugar da release oficial. */
+  /** As variáveis que fazem o app baixar estes pacotes no lugar das páginas oficiais. */
   env: Record<string, string>
-  /** Quantas vezes o pacote foi baixado. */
+  /** Quantas vezes o tema foi baixado. */
   downloads: () => number
   close: () => Promise<void>
 }
 
-/** O pacote do tema Aniki de mentira, com mídias sintéticas (nada do pacote de verdade). */
+/**
+ * Os quatro pacotes do Aniki de mentira, na ordem do app: o Playnite (aqui um .zip; o app reconhece
+ * o .7z de verdade pelos primeiros bytes), o tema, com mídias sintéticas (nada do pacote de verdade),
+ * o Aniki Helper e o IGDB.
+ */
 export async function startFakeAnikiPack(options: { wrongHash?: boolean } = {}): Promise<FakeAnikiPack> {
   const pictures = [
     "Images/Back.png", "Images/Plat.png", "Images/Or.png", "Images/Argent.png", "Images/Bronze.png",
@@ -80,28 +84,38 @@ export async function startFakeAnikiPack(options: { wrongHash?: boolean } = {}):
     ...["A", "B", "X", "Y", "LS", "RS", "Start", "Back", "LeftShoulder", "RightShoulder"].map((button) => `Images/Buttons/Controller/PlayStation/Button-${button}.png`),
     ...["A", "B", "X", "Y", "LS", "RS", "Start", "Back", "LeftShoulder", "RightShoulder"].map((button) => `Images/Buttons/Controller/PlayStation/Playstation Dark/Button-${button}.png`),
   ]
-  const pack = zip({
+  const theme = zip({
+    "theme.yaml": Buffer.from("Id: Aniki_ReMake_bb8728bd-ac83-4324-88b1-ee5c586527d1"),
     ...Object.fromEntries(pictures.map((path) => [path, PIXEL])),
     ...Object.fromEntries(["navigation", "activation", "OpenPanel", "OpenAdditionalView", "CloseAdditionalView", "EnterGameDetails", "ExitGameDetails", "HomeHubOpen", "HomeHubClose", "ChangeDisplay"].map((name) => [`audio/${name}.wav`, silentWav()])),
     ...Object.fromEntries(["LoginOST", "HubOST", "SecondaryViewsOST", "ScreenSaverOST"].map((name) => [`audio/${name}.mp3`, silentWav()])),
     "Views/Main.xaml": Buffer.from("<Grid />"),
   })
+  const packages = [
+    zip({ "Playnite.FullscreenApp.exe": Buffer.from("exe"), "Playnite.DesktopApp.exe": Buffer.from("exe") }),
+    theme,
+    zip({ "extension.yaml": Buffer.from("Id: AnikiHelper_96a983a3-3f13-4dce-a474-4052b718bb52") }),
+    zip({ "extension.yaml": Buffer.from("Id: IGDBMetadata_Builtin") }),
+  ]
   let downloads = 0
   const server = createServer((request, response) => {
-    if (request.url !== "/aniki.pthm") {
+    const index = Number(/^\/pacote-(\d)$/.exec(request.url ?? "")?.[1])
+    const pack = packages[index]
+    if (!pack) {
       response.writeHead(404).end()
       return
     }
-    downloads++
+    if (index === 1) downloads++
     response.writeHead(200, { "Content-Type": "application/octet-stream", "Content-Length": pack.length }).end(pack)
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const { port } = server.address() as AddressInfo
+  const sources = packages.map((pack, index) => ({
+    url: `http://127.0.0.1:${port}/pacote-${index}`,
+    sha256: options.wrongHash && index === 1 ? "0".repeat(64) : createHash("sha256").update(pack).digest("hex"),
+  }))
   return {
-    env: {
-      PLAYTROVE_ANIKI_PACK_URL: `http://127.0.0.1:${port}/aniki.pthm`,
-      PLAYTROVE_ANIKI_PACK_SHA256: options.wrongHash ? "0".repeat(64) : createHash("sha256").update(pack).digest("hex"),
-    },
+    env: { PLAYTROVE_ANIKI_PACKAGES: JSON.stringify(sources) },
     downloads: () => downloads,
     close: () => new Promise((resolve) => server.close(() => resolve())),
   }

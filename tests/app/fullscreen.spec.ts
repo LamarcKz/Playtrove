@@ -542,7 +542,7 @@ test("o tema Aniki é baixado com confirmação, vale na tela cheia e remover vo
     await expect(themes.getByRole("radio", { name: "Playtrove" })).toBeChecked()
     await themes.getByRole("radio", { name: "Aniki ReMake" }).click()
     const confirm = page.getByRole("group", { name: "Aniki ReMake" })
-    await expect(confirm).toContainText("380 MB")
+    await expect(confirm).toContainText("612 MB")
     await confirm.getByRole("button", { name: "Cancelar", exact: true }).click()
     expect(pack.downloads()).toBe(0)
     await themes.getByRole("radio", { name: "Aniki ReMake" }).click()
@@ -564,7 +564,7 @@ test("o tema Aniki é baixado com confirmação, vale na tela cheia e remover vo
     await app.focus()
     await page.keyboard.press("F11")
     await expect(page.getByRole("button", { name: "Tela cheia", exact: true })).toBeVisible()
-    await page.getByRole("button", { name: "Remover o pacote do Aniki", exact: true }).click()
+    await page.getByRole("button", { name: "Remover o Aniki e o Playnite", exact: true }).click()
     await expect(themes.getByRole("radio", { name: "Playtrove" })).toBeChecked()
     expect(await page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ theme: "playtrove" })
     // Outro endereço para o mesmo arquivo: a imagem carregada antes fica no cache do WebView.

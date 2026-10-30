@@ -71,14 +71,17 @@ export interface FullscreenConfig extends AnikiPresentationConfig, GameLaunchSpl
 export const POWER_ACTIONS = ["lock", "sleep", "restart", "shutdown"] as const
 export type PowerAction = (typeof POWER_ACTIONS)[number]
 
-/** O pacote oficial do Aniki: instalado, baixando ("download") ou extraindo as mídias ("extract"). */
+/** O Aniki pelo Playnite: instalado, baixando ("download") ou extraindo ("extract") um dos pacotes. */
 export interface AnikiPackStatus {
   version: string
-  /** Tamanho do pacote oficial, em bytes. */
+  /** Tamanho dos pacotes oficiais juntos, em bytes. */
   size: number
   installed: boolean
   installing: boolean
   phase: "download" | "extract" | null
   received: number
   total: number
+  /** O pacote da vez (1 a `steps`; 0 parado). */
+  step: number
+  steps: number
 }

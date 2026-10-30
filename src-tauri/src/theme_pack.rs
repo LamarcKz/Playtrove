@@ -1,7 +1,7 @@
-//! Tema Aniki ReMake da tela cheia. Como no Playnite, o pacote oficial vem da release do autor (MIT, © 2025
-//! Mike Aniki) e não do repositório do Playtrove, porque traz arte de terceiros (logos de consoles e lojas,
-//! selos, personagens). O arquivo tem hash fixo, e só as mídias (imagens, sons, vídeos e fontes) são extraídas
-//! para os dados do app; a tela as lê pelo protocolo `playtrove-theme`.
+//! O tema Aniki ReMake, como no Playnite: o Playtrove baixa das páginas oficiais o Playnite portátil, o
+//! tema, o Aniki Helper e o IGDB (que o assistente do próprio Playnite instalaria) e deixa os
+//! complementos com o assistente do Aniki. Cada pacote tem endereço e SHA-256 fixos, conferidos antes
+//! de abrir; nada disso vai no instalador do Playtrove.
 
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, Read, Write};
@@ -16,23 +16,53 @@ use sha2::{Digest, Sha256};
 use tauri::http::{Method, Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
+use crate::i18n::Language;
 use crate::test_mode::test_mode;
 
 pub const THEME_PROTOCOL: &str = "playtrove-theme";
 pub const PROGRESS_EVENT: &str = "themes:aniki-progress";
 pub const ANIKI_VERSION: &str = "3.6.0";
-/// O tamanho do pacote oficial, mostrado antes de baixar.
+pub const THEME_ID: &str = "Aniki_ReMake_bb8728bd-ac83-4324-88b1-ee5c586527d1";
+pub const HELPER_ID: &str = "AnikiHelper_96a983a3-3f13-4dce-a474-4052b718bb52";
+pub const PLAYNITE_SIZE: u64 = 133_044_541;
 pub const ANIKI_SIZE: u64 = 380_465_812;
-const ANIKI_URL: &str = "https://github.com/Mike-Aniki/Aniki-ReMake/releases/download/v3.6.0/Aniki_ReMake_bb8728bd-ac83-4324-88b1-ee5c586527d1_3_6_0.pthm";
-const ANIKI_SHA256: &str = "21a3757a0cffce8006831503192083ba3ed14247616a4a0548f7c1fabd226dd7";
+pub const HELPER_SIZE: u64 = 98_556_358;
+pub const IGDB_SIZE: u64 = 270_419;
+/// Endereço, SHA-256, tamanho e onde cada pacote fica dentro da pasta do Playnite.
+const PACKAGES: [(&str, &str, u64, &str); 4] = [
+    (
+        "https://github.com/JosefNemec/Playnite/releases/download/10.63/10.63.7z",
+        "9af9a0db330c97879697beac9f819c16f9f544e712261a83fa4e62a8f9a2c787",
+        PLAYNITE_SIZE,
+        "",
+    ),
+    (
+        "https://github.com/Mike-Aniki/Aniki-ReMake/releases/download/v3.6.0/Aniki_ReMake_bb8728bd-ac83-4324-88b1-ee5c586527d1_3_6_0.pthm",
+        "21a3757a0cffce8006831503192083ba3ed14247616a4a0548f7c1fabd226dd7",
+        ANIKI_SIZE,
+        "Themes/Fullscreen/Aniki_ReMake_bb8728bd-ac83-4324-88b1-ee5c586527d1",
+    ),
+    (
+        "https://github.com/Mike-Aniki/AnikiHelper/releases/download/v1.7.0/AnikiHelper_96a983a3-3f13-4dce-a474-4052b718bb52_1_7_0.pext",
+        "c0dfb8ce7c3fc4083e7bc6fc74a946dc16af9c9357c83589ab2eda02af21c17e",
+        HELPER_SIZE,
+        "Extensions/AnikiHelper_96a983a3-3f13-4dce-a474-4052b718bb52",
+    ),
+    (
+        "https://playnite.link/download/extensions/bins/IGDBMetadata_Builtin_2_15.pext",
+        "c35896117a1dbefd4e5024fff4562743c48049da2da3f7f3bbc4ca33206164c9",
+        IGDB_SIZE,
+        "Extensions/IGDBMetadata_Builtin",
+    ),
+];
 const DOWNLOAD_LIMIT: u64 = 400 * 1024 * 1024;
-const MEDIA_LIMIT: u64 = 512 * 1024 * 1024;
-const FILE_LIMIT: u64 = 64 * 1024 * 1024;
-const MAX_ENTRIES: usize = 10_000;
-/// A cada quanto o progresso do download vira aviso para a tela.
+/// O Playnite tem arquivos grandes (o navegador embutido): o limite é por arquivo e pelo total.
+const FILE_LIMIT: u64 = 512 * 1024 * 1024;
+const EXTRACT_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
+const MAX_ENTRIES: usize = 20_000;
 const REPORT_STEP: u64 = 2 * 1024 * 1024;
-/// Gravado por último: sem ele (ou com o hash de outro pacote), a pasta não conta como instalada.
 const MARKER: &str = ".playtrove-aniki";
+const SEVEN_ZIP_SIGNATURE: [u8; 6] = [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -51,6 +81,9 @@ pub struct AnikiPackStatus {
     pub phase: Option<Phase>,
     pub received: u64,
     pub total: u64,
+    /// Qual dos pacotes está sendo baixado (1 a `steps`; 0 parado).
+    pub step: u8,
+    pub steps: u8,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -63,7 +96,6 @@ pub enum InstallError {
 }
 
 impl InstallError {
-    /// A mensagem da tela (`errors.*` dos dicionários).
     pub fn message_key(&self) -> &'static str {
         match self {
             InstallError::Download | InstallError::Busy | InstallError::Cancelled => "errors.anikiDownload",
@@ -79,9 +111,15 @@ impl From<std::io::Error> for InstallError {
     }
 }
 
-/// Quem busca o pacote: o leitor da resposta e o tamanho anunciado (os testes passam um arquivo em memória).
 pub type Fetched = Result<(Box<dyn Read + Send>, Option<u64>), String>;
 pub type Fetch<'a> = &'a dyn Fn(&str) -> Fetched;
+
+/// De onde vem um pacote; os testes do app trocam pelos de um servidor local.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PackageSource {
+    pub url: String,
+    pub sha256: String,
+}
 
 #[derive(Default)]
 struct Progress {
@@ -89,51 +127,73 @@ struct Progress {
     phase: Option<Phase>,
     received: u64,
     total: u64,
+    step: u8,
 }
 
 pub struct AnikiPack {
     root: PathBuf,
-    url: String,
-    sha256: String,
+    sources: Vec<PackageSource>,
     progress: Mutex<Progress>,
     cancel: AtomicBool,
 }
 
 impl AnikiPack {
-    /// `root` é a pasta `themes` dos dados do app. Nos testes do app, o pacote vem do servidor de mentira.
     pub fn new(root: PathBuf) -> Self {
-        let (url, sha256) = match &test_mode().aniki_pack {
-            Some((url, sha256)) => (url.clone(), sha256.clone()),
-            None => (ANIKI_URL.to_string(), ANIKI_SHA256.to_string()),
+        let sources = match &test_mode().aniki_packages {
+            Some(sources) => sources.clone(),
+            None => PACKAGES
+                .iter()
+                .map(|(url, sha256, _, _)| PackageSource { url: url.to_string(), sha256: sha256.to_string() })
+                .collect(),
         };
-        Self::with_source(root, url, sha256)
+        Self::with_sources(root, sources)
     }
 
-    fn with_source(root: PathBuf, url: String, sha256: String) -> Self {
-        AnikiPack { root, url, sha256, progress: Mutex::new(Progress::default()), cancel: AtomicBool::new(false) }
+    fn with_sources(root: PathBuf, sources: Vec<PackageSource>) -> Self {
+        AnikiPack { root, sources, progress: Mutex::new(Progress::default()), cancel: AtomicBool::new(false) }
     }
 
     fn progress(&self) -> MutexGuard<'_, Progress> {
         self.progress.lock().unwrap_or_else(|error| error.into_inner())
     }
 
+    fn folder(&self) -> PathBuf {
+        self.root.join("aniki")
+    }
+
+    fn playnite_dir(&self) -> PathBuf {
+        self.folder().join("playnite")
+    }
+
+    pub fn playnite_exe(&self) -> PathBuf {
+        self.playnite_dir().join("Playnite.FullscreenApp.exe")
+    }
+
+    /// Os dados do Playnite (`--userdatadir`), separados da biblioteca do Playtrove.
+    pub fn data_dir(&self) -> PathBuf {
+        self.folder().join("data")
+    }
+
+    /// A marca guarda os hashes dos pacotes: trocar uma versão pede outra instalação.
+    fn marker(&self) -> String {
+        self.sources.iter().map(|source| source.sha256.as_str()).collect::<Vec<_>>().join(",")
+    }
+
     pub fn installed(&self) -> bool {
-        self.installed_dir().is_some()
+        std::fs::read_to_string(self.playnite_dir().join(MARKER)).is_ok_and(|marker| marker == self.marker())
     }
 
-    fn installed_dir(&self) -> Option<PathBuf> {
-        let directory = self.root.join(pack_name()).canonicalize().ok()?;
-        let marker = std::fs::read_to_string(directory.join(MARKER)).ok()?;
-        (marker == self.sha256).then_some(directory)
+    fn theme_dir(&self) -> Option<PathBuf> {
+        self.installed().then(|| self.playnite_dir().join(PACKAGES[1].3)).and_then(|directory| directory.canonicalize().ok())
     }
 
-    /// Uma mídia do pacote instalado; nomes com `..` ou fora da pasta do pacote não são entregues.
+    /// Uma mídia do tema instalado; nomes com `..` ou fora da pasta do tema não são entregues.
     fn asset_file(&self, relative: &str) -> Option<PathBuf> {
         mime(relative)?;
         if relative.split('/').any(|part| part.is_empty() || part == "." || part == ".." || part.contains('\\')) {
             return None;
         }
-        let directory = self.installed_dir()?;
+        let directory = self.theme_dir()?;
         let file = directory.join(relative).canonicalize().ok()?;
         (file.starts_with(&directory) && file.is_file()).then_some(file)
     }
@@ -143,12 +203,14 @@ impl AnikiPack {
         let progress = self.progress();
         AnikiPackStatus {
             version: ANIKI_VERSION,
-            size: ANIKI_SIZE,
+            size: PACKAGES.iter().map(|package| package.2).sum(),
             installed,
             installing: progress.installing,
             phase: progress.phase,
             received: progress.received,
             total: progress.total,
+            step: progress.step,
+            steps: self.sources.len() as u8,
         }
     }
 
@@ -166,7 +228,7 @@ impl AnikiPack {
             if progress.installing {
                 return Err(InstallError::Busy);
             }
-            *progress = Progress { installing: true, phase: Some(Phase::Download), received: 0, total: ANIKI_SIZE };
+            *progress = Progress { installing: true, ..Progress::default() };
         }
         self.cancel.store(false, Ordering::SeqCst);
         report(self.status());
@@ -180,22 +242,37 @@ impl AnikiPack {
         std::fs::create_dir_all(&self.root)?;
         let root = self.root.canonicalize()?;
         let suffix = format!("part-{}", std::process::id());
-        let download = root.join(format!("{}.pthm.{suffix}", pack_name()));
-        let staging = root.join(format!("{}.{suffix}", pack_name()));
+        let download = root.join(format!("aniki-download.{suffix}"));
+        let staging = root.join(format!("aniki-playnite.{suffix}"));
         let result = (|| {
-            self.download(fetch, &download, report)?;
-            {
-                let mut progress = self.progress();
-                progress.phase = Some(Phase::Extract);
+            std::fs::create_dir(&staging)?;
+            let mut budget = Budget::default();
+            for (index, source) in self.sources.iter().enumerate() {
+                {
+                    let mut progress = self.progress();
+                    *progress = Progress {
+                        installing: true,
+                        phase: Some(Phase::Download),
+                        received: 0,
+                        total: PACKAGES.get(index).map_or(0, |package| package.2),
+                        step: index as u8 + 1,
+                    };
+                }
+                report(self.status());
+                self.download(fetch, source, &download, report)?;
+                self.progress().phase = Some(Phase::Extract);
+                report(self.status());
+                let target = staging.join(PACKAGES.get(index).map_or("", |package| package.3));
+                extract(&download, &target, &self.cancel, &mut budget)?;
+                std::fs::remove_file(&download)?;
             }
-            report(self.status());
-            extract(&download, &staging, &self.cancel)?;
-            std::fs::write(staging.join(MARKER), &self.sha256)?;
-            let target = root.join(pack_name());
+            // A marca vai por último: uma pasta sem ela é uma instalação que não terminou.
+            std::fs::write(staging.join(MARKER), self.marker())?;
+            let target = self.playnite_dir();
             if target.exists() {
-                // Uma pasta sem a marca é uma instalação que não terminou.
                 std::fs::remove_dir_all(&target)?;
             }
+            std::fs::create_dir_all(self.folder())?;
             std::fs::rename(&staging, &target)?;
             Ok(())
         })();
@@ -206,8 +283,14 @@ impl AnikiPack {
         result
     }
 
-    fn download(&self, fetch: Fetch<'_>, path: &Path, report: &dyn Fn(AnikiPackStatus)) -> Result<(), InstallError> {
-        let (mut reader, length) = fetch(&self.url).map_err(|_| InstallError::Download)?;
+    fn download(
+        &self,
+        fetch: Fetch<'_>,
+        source: &PackageSource,
+        path: &Path,
+        report: &dyn Fn(AnikiPackStatus),
+    ) -> Result<(), InstallError> {
+        let (mut reader, length) = fetch(&source.url).map_err(|_| InstallError::Download)?;
         if length.is_some_and(|length| length > DOWNLOAD_LIMIT) {
             return Err(InstallError::Download);
         }
@@ -242,27 +325,59 @@ impl AnikiPack {
         file.flush()?;
         drop(file);
         self.progress().received = received;
-        if format!("{:x}", hash.finalize()) != self.sha256 {
+        if format!("{:x}", hash.finalize()) != source.sha256 {
             return Err(InstallError::Integrity);
         }
         Ok(())
     }
 
-    /// Apaga o pacote instalado (a configuração volta ao tema Playtrove em quem chama).
+    /// Apaga o Playnite e os dados dele (a configuração volta ao tema Playtrove em quem chama).
     pub fn remove(&self) -> Result<(), InstallError> {
         if self.progress().installing {
             return Err(InstallError::Busy);
         }
-        let target = self.root.join(pack_name());
-        if target.exists() {
-            std::fs::remove_dir_all(target)?;
+        if self.folder().exists() {
+            std::fs::remove_dir_all(self.folder())?;
         }
         Ok(())
     }
+
+    /// O primeiro uso do Playnite fica feito (o assistente que vale é o do Aniki), no idioma do Playtrove,
+    /// com a busca de metadados ao importar e o Aniki como tema da tela cheia. O resto do que o Playnite
+    /// já gravou no arquivo fica como está.
+    pub fn write_playnite_config(&self, language: Language) -> std::io::Result<()> {
+        let data = self.data_dir();
+        std::fs::create_dir_all(&data)?;
+        let library = data.join("library");
+        let language = match language {
+            Language::PtBr => "pt_BR",
+            Language::En => "en_US",
+        };
+        merge_json(
+            &data.join("config.json"),
+            serde_json::json!({
+                "FirstTimeWizardComplete": true,
+                "Language": language,
+                "DatabasePath": library.to_string_lossy(),
+                "DownloadMetadataOnImport": true,
+            }),
+        )?;
+        merge_json(&data.join("fullscreenConfig.json"), serde_json::json!({ "Theme": THEME_ID }))
+    }
 }
 
-fn pack_name() -> String {
-    format!("aniki-{ANIKI_VERSION}")
+fn merge_json(path: &Path, values: serde_json::Value) -> std::io::Result<()> {
+    let mut current = std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| serde_json::from_str::<serde_json::Value>(text.trim_start_matches('\u{feff}')).ok())
+        .filter(serde_json::Value::is_object)
+        .unwrap_or_else(|| serde_json::json!({}));
+    if let (Some(current), Some(values)) = (current.as_object_mut(), values.as_object()) {
+        for (key, value) in values {
+            current.insert(key.clone(), value.clone());
+        }
+    }
+    std::fs::write(path, serde_json::to_vec_pretty(&current)?)
 }
 
 fn mime(path: &str) -> Option<&'static str> {
@@ -279,44 +394,101 @@ fn mime(path: &str) -> Option<&'static str> {
     })
 }
 
-/// Só as mídias saem do pacote: XAML, scripts e arquivos compactados internos ficam de fora.
-fn extract(archive: &Path, staging: &Path, cancel: &AtomicBool) -> Result<(), InstallError> {
-    let mut zip = zip::ZipArchive::new(BufReader::new(File::open(archive)?)).map_err(|_| InstallError::Integrity)?;
-    if zip.len() > MAX_ENTRIES {
+/// O que todos os pacotes juntos já extraíram.
+#[derive(Default)]
+struct Budget {
+    entries: usize,
+    bytes: u64,
+}
+
+impl Budget {
+    fn add(&mut self, size: u64) -> Result<(), InstallError> {
+        self.entries += 1;
+        self.bytes += size;
+        if self.entries > MAX_ENTRIES || size > FILE_LIMIT || self.bytes > EXTRACT_LIMIT {
+            return Err(InstallError::Integrity);
+        }
+        Ok(())
+    }
+}
+
+/// Um caminho de dentro do pacote, só com partes normais (nada de `..`, raiz ou letra de disco).
+fn enclosed(name: &str) -> Option<PathBuf> {
+    let path = Path::new(name);
+    let inside = !name.is_empty() && path.components().all(|part| matches!(part, std::path::Component::Normal(_)));
+    inside.then(|| path.to_path_buf())
+}
+
+/// O Playnite vem em .7z; o tema e os complementos, em .zip (.pthm e .pext).
+fn extract(archive: &Path, target: &Path, cancel: &AtomicBool, budget: &mut Budget) -> Result<(), InstallError> {
+    let mut signature = [0u8; 6];
+    let is_seven_zip = File::open(archive)?.read_exact(&mut signature).is_ok() && signature == SEVEN_ZIP_SIGNATURE;
+    std::fs::create_dir_all(target)?;
+    if is_seven_zip { extract_seven_zip(archive, target, cancel, budget) } else { extract_zip(archive, target, cancel, budget) }
+}
+
+fn write_entry(target: &Path, relative: &Path, reader: &mut dyn Read, size: u64) -> Result<(), InstallError> {
+    let destination = target.join(relative);
+    if let Some(parent) = destination.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let mut output = OpenOptions::new().write(true).create_new(true).open(&destination)?;
+    let copied = std::io::copy(&mut reader.take(FILE_LIMIT + 1), &mut output)?;
+    if copied > FILE_LIMIT || copied != size {
         return Err(InstallError::Integrity);
     }
-    std::fs::create_dir(staging)?;
-    let mut total = 0u64;
+    Ok(())
+}
+
+fn extract_zip(archive: &Path, target: &Path, cancel: &AtomicBool, budget: &mut Budget) -> Result<(), InstallError> {
+    let mut zip = zip::ZipArchive::new(BufReader::new(File::open(archive)?)).map_err(|_| InstallError::Integrity)?;
     for index in 0..zip.len() {
         if cancel.load(Ordering::SeqCst) {
             return Err(InstallError::Cancelled);
         }
         let mut entry = zip.by_index(index).map_err(|_| InstallError::Integrity)?;
+        let relative = entry.enclosed_name().ok_or(InstallError::Integrity)?;
         if entry.is_dir() {
             continue;
         }
-        let relative = entry.enclosed_name().ok_or(InstallError::Integrity)?;
-        if relative.to_str().and_then(mime).is_none() {
-            continue;
-        }
-        if entry.is_symlink() || entry.size() > FILE_LIMIT {
+        if entry.is_symlink() {
             return Err(InstallError::Integrity);
         }
-        total += entry.size();
-        if total > MEDIA_LIMIT {
-            return Err(InstallError::Integrity);
-        }
-        let destination = staging.join(&relative);
-        if let Some(parent) = destination.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let mut output = OpenOptions::new().write(true).create_new(true).open(&destination)?;
-        let copied = std::io::copy(&mut (&mut entry).take(FILE_LIMIT + 1), &mut output)?;
-        if copied > FILE_LIMIT || copied != entry.size() {
-            return Err(InstallError::Integrity);
-        }
+        budget.add(entry.size())?;
+        let size = entry.size();
+        write_entry(target, &relative, &mut entry, size)?;
     }
     Ok(())
+}
+
+fn extract_seven_zip(archive: &Path, target: &Path, cancel: &AtomicBool, budget: &mut Budget) -> Result<(), InstallError> {
+    let mut reader =
+        sevenz_rust2::ArchiveReader::open(archive, sevenz_rust2::Password::empty()).map_err(|_| InstallError::Integrity)?;
+    let mut failure = None;
+    let result = reader.for_each_entries(|entry, data| {
+        let step = (|| {
+            if cancel.load(Ordering::SeqCst) {
+                return Err(InstallError::Cancelled);
+            }
+            let relative = enclosed(&entry.name.replace('\\', "/")).ok_or(InstallError::Integrity)?;
+            if entry.is_directory || entry.is_anti_item {
+                return Ok(());
+            }
+            budget.add(entry.size)?;
+            write_entry(target, &relative, data, entry.size)
+        })();
+        match step {
+            Ok(()) => Ok(true),
+            Err(error) => {
+                failure = Some(error);
+                Ok(false)
+            }
+        }
+    });
+    if let Some(error) = failure {
+        return Err(error);
+    }
+    result.map_err(|_| InstallError::Integrity)
 }
 
 pub fn handle_request<R: Runtime>(context: UriSchemeContext<'_, R>, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
@@ -337,7 +509,7 @@ fn asset_response(pack: &AnikiPack, request: Request<Vec<u8>>) -> Response<Vec<u
     crate::videos::file_response(&file, mime, &request)
 }
 
-/// O download de verdade, pela release oficial (o GitHub redireciona para o armazenamento dele).
+/// O download de verdade, pelas páginas oficiais (o GitHub redireciona para o armazenamento dele).
 pub fn download(url: &str) -> Fetched {
     let config = ureq::Agent::config_builder()
         .timeout_connect(Some(Duration::from_secs(30)))
@@ -362,6 +534,7 @@ mod tests {
     use zip::write::SimpleFileOptions;
 
     use super::*;
+    use crate::i18n::Language;
     use crate::test_support::temp_folder;
 
     fn archive(files: &[(&str, &[u8])]) -> Vec<u8> {
@@ -373,18 +546,46 @@ mod tests {
         zip.finish().unwrap().into_inner()
     }
 
-    /// Um pacote de mentira com o próprio hash, servido da memória.
-    fn fake(name: &str, bytes: &[u8]) -> (AnikiPack, PathBuf, impl Fn(&str) -> Fetched) {
+    /// O formato do pacote do Playnite.
+    fn seven_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
+        let mut writer = sevenz_rust2::ArchiveWriter::new(Cursor::new(Vec::new())).unwrap();
+        for (name, content) in files {
+            writer.push_archive_entry(sevenz_rust2::ArchiveEntry::new_file(name), Some(Cursor::new(content.to_vec()))).unwrap();
+        }
+        writer.finish().unwrap().into_inner()
+    }
+
+    /// Os quatro pacotes de mentira: o Playnite (.7z), o tema, o Helper e o IGDB (.zip).
+    fn packages() -> Vec<Vec<u8>> {
+        vec![
+            seven_zip(&[
+                ("Playnite.FullscreenApp.exe", b"exe"),
+                ("Playnite.DesktopApp.exe", b"exe"),
+                ("Localization/pt_BR.xaml", b"<x/>"),
+            ]),
+            archive(&[("theme.yaml", b"Id: Aniki"), ("Images/Back.png", b"png"), ("Views/Main.xaml", b"<xaml/>")]),
+            archive(&[("extension.yaml", b"Id: AnikiHelper"), ("AnikiHelper.dll", b"dll")]),
+            archive(&[("extension.yaml", b"Id: IGDBMetadata_Builtin"), ("IGDBMetadata.dll", b"dll")]),
+        ]
+    }
+
+    /// Serve os pacotes da memória; `wrong` troca o hash esperado de um deles.
+    fn fake(name: &str, bytes: Vec<Vec<u8>>, wrong: Option<usize>) -> (AnikiPack, PathBuf, impl Fn(&str) -> Fetched) {
         let root = temp_folder(name);
-        let pack = AnikiPack::with_source(
-            root.clone(),
-            "https://servidor.test/aniki.pthm".into(),
-            format!("{:x}", Sha256::digest(bytes)),
-        );
-        let bytes = bytes.to_vec();
+        let sources = bytes
+            .iter()
+            .enumerate()
+            .map(|(index, content)| PackageSource {
+                url: format!("https://servidor.test/{index}"),
+                sha256: if wrong == Some(index) { "0".repeat(64) } else { format!("{:x}", Sha256::digest(content)) },
+            })
+            .collect();
+        let pack = AnikiPack::with_sources(root.clone(), sources);
         let fetch = move |url: &str| -> Fetched {
-            assert_eq!(url, "https://servidor.test/aniki.pthm");
-            Ok((Box::new(Cursor::new(bytes.clone())), Some(bytes.len() as u64)))
+            let index: usize = url.trim_start_matches("https://servidor.test/").parse().unwrap();
+            let content = bytes[index].clone();
+            let length = content.len() as u64;
+            Ok((Box::new(Cursor::new(content)), Some(length)))
         };
         (pack, root, fetch)
     }
@@ -394,60 +595,44 @@ mod tests {
     }
 
     #[test]
-    fn instala_so_as_midias_e_serve_somente_de_dentro_do_pacote() {
-        let bytes = archive(&[
-            ("Images/Back.png", b"png"),
-            ("audio/navigation.wav", b"wav"),
-            ("Startup Video/Startup.mp4", b"mp4"),
-            ("Views/Main.xaml", b"<xaml/>"),
-            ("Themes Option/pacote.zip", b"zip"),
-        ]);
-        let (pack, root, fetch) = fake("aniki-instalar", &bytes);
-        let reports = Mutex::new(Vec::new());
-        pack.install(&fetch, &|status| reports.lock().unwrap().push(status.phase)).unwrap();
+    fn instala_os_quatro_pacotes_e_marca_por_ultimo() {
+        let (pack, root, fetch) = fake("aniki-quatro", packages(), None);
+        let steps = Mutex::new(Vec::new());
+        pack.install(&fetch, &|status| steps.lock().unwrap().push((status.step, status.steps))).unwrap();
         assert!(pack.installed());
-        assert_eq!(reports.into_inner().unwrap(), [Some(Phase::Download), Some(Phase::Extract), None]);
-        let directory = root.join(pack_name());
-        assert_eq!(std::fs::read(directory.join("Images/Back.png")).unwrap(), b"png");
-        assert!(directory.join("Startup Video/Startup.mp4").is_file());
-        assert!(!directory.join("Views").exists());
-        assert!(!directory.join("Themes Option").exists());
-        // Só a pasta instalada fica: o download e a pasta temporária somem.
+        let playnite = root.join("aniki").join("playnite");
+        assert_eq!(pack.playnite_exe(), playnite.join("Playnite.FullscreenApp.exe"));
+        assert!(pack.playnite_exe().is_file());
+        // O tema vai inteiro (o Playnite precisa do XAML), não só as mídias.
+        assert!(playnite.join("Themes/Fullscreen").join(THEME_ID).join("theme.yaml").is_file());
+        assert!(playnite.join("Themes/Fullscreen").join(THEME_ID).join("Views/Main.xaml").is_file());
+        assert!(playnite.join("Extensions").join(HELPER_ID).join("extension.yaml").is_file());
+        assert!(playnite.join("Extensions/IGDBMetadata_Builtin/extension.yaml").is_file());
+        assert_eq!(pack.data_dir(), root.join("aniki").join("data"));
+        // Só a pasta do Aniki fica: os downloads e a pasta temporária somem.
         assert_eq!(std::fs::read_dir(&root).unwrap().count(), 1);
-
-        let response = asset_response(&pack, request("aniki/Images/Back.png"));
-        assert_eq!((response.status(), response.body().as_slice()), (StatusCode::OK, b"png".as_slice()));
-        let response = asset_response(&pack, request("aniki/Startup%20Video/Startup.mp4"));
-        assert_eq!(response.status(), StatusCode::OK);
-        for invalid in [
-            "aniki/../x.png",
-            "aniki/Images/../../x.png",
-            "aniki/Images//Back.png",
-            "aniki/Images%5CBack.png",
-            "aniki/.playtrove-aniki",
-            "aniki/Images/Nada.png",
-            "outro/Images/Back.png",
-        ] {
-            assert_eq!(asset_response(&pack, request(invalid)).status(), StatusCode::NOT_FOUND, "{invalid}");
-        }
+        let steps = steps.into_inner().unwrap();
+        assert!(steps.contains(&(1, 4)) && steps.contains(&(4, 4)));
 
         pack.remove().unwrap();
         assert!(!pack.installed());
-        assert_eq!(asset_response(&pack, request("aniki/Images/Back.png")).status(), StatusCode::NOT_FOUND);
+        assert!(!root.join("aniki").exists());
     }
 
     #[test]
-    fn hash_errado_ou_caminho_para_fora_nao_instalam_nada() {
-        let bytes = archive(&[("Images/Back.png", b"png")]);
-        let (_, root, fetch) = fake("aniki-hash", &bytes);
-        let pack = AnikiPack::with_source(root.clone(), "https://servidor.test/aniki.pthm".into(), ANIKI_SHA256.into());
+    fn hash_errado_em_qualquer_pacote_nao_instala() {
+        let (pack, root, fetch) = fake("aniki-hash", packages(), Some(2));
         assert_eq!(pack.install(&fetch, &|_| {}), Err(InstallError::Integrity));
         assert!(!pack.installed());
         assert_eq!(std::fs::read_dir(&root).unwrap().count(), 0);
         assert!(!pack.status().installing);
+    }
 
-        let escape = archive(&[("Images/Back.png", b"png"), ("../fora.png", b"png")]);
-        let (pack, root, fetch) = fake("aniki-fora", &escape);
+    #[test]
+    fn caminho_fora_da_pasta_no_zip_e_recusado() {
+        let mut bytes = packages();
+        bytes[1] = archive(&[("theme.yaml", b"Id: Aniki"), ("../fora.png", b"png")]);
+        let (pack, root, fetch) = fake("aniki-fora", bytes, None);
         assert_eq!(pack.install(&fetch, &|_| {}), Err(InstallError::Integrity));
         assert!(!pack.installed());
         assert_eq!(std::fs::read_dir(&root).unwrap().count(), 0);
@@ -455,7 +640,18 @@ mod tests {
     }
 
     #[test]
-    fn cancelar_durante_o_download_nao_deixa_arquivos() {
+    fn caminho_fora_da_pasta_no_7z_e_recusado() {
+        let mut bytes = packages();
+        bytes[0] = seven_zip(&[("Playnite.FullscreenApp.exe", b"exe"), ("../fora.exe", b"exe")]);
+        let (pack, root, fetch) = fake("aniki-fora-7z", bytes, None);
+        assert_eq!(pack.install(&fetch, &|_| {}), Err(InstallError::Integrity));
+        assert!(!pack.installed());
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 0);
+        assert!(!root.parent().unwrap().join("fora.exe").exists());
+    }
+
+    #[test]
+    fn cancelar_no_meio_apaga_os_temporarios() {
         // Bytes sem padrão, para o pacote passar dos 2 MiB que geram o aviso de progresso.
         let mut seed = 0x9e37_79b9_7f4a_7c15u64;
         let noise: Vec<u8> = (0..3 * 1024 * 1024)
@@ -466,12 +662,13 @@ mod tests {
                 seed as u8
             })
             .collect();
-        let bytes = archive(&[("Images/Back.png", &noise)]);
-        let (pack, root, fetch) = fake("aniki-cancelar", &bytes);
-        // Um pedido de cancelar antigo não vale para a próxima instalação; este chega no meio do download.
+        let mut bytes = packages();
+        bytes[1] = archive(&[("theme.yaml", b"Id: Aniki"), ("Images/Back.png", &noise)]);
+        let (pack, root, fetch) = fake("aniki-cancelar", bytes, None);
+        // Um pedido de cancelar antigo não vale para a próxima instalação; este chega no meio do tema.
         pack.cancel();
         let cancel = |status: AnikiPackStatus| {
-            if status.phase == Some(Phase::Download) && status.received > 0 {
+            if status.step == 2 && status.received > 0 {
                 pack.cancel();
             }
         };
@@ -483,8 +680,51 @@ mod tests {
     }
 
     #[test]
-    fn status_mostra_o_pacote_oficial() {
+    fn config_do_playnite_segue_o_idioma_e_guarda_o_resto() {
+        let (pack, _root, fetch) = fake("aniki-config", packages(), None);
+        pack.install(&fetch, &|_| {}).unwrap();
+        std::fs::create_dir_all(pack.data_dir()).unwrap();
+        // O Playnite grava o arquivo com BOM e com as escolhas dele.
+        std::fs::write(pack.data_dir().join("config.json"), "\u{feff}{\"GridItemWidth\": 240, \"Language\": \"pt_BR\"}").unwrap();
+        pack.write_playnite_config(Language::En).unwrap();
+        let read = |name: &str| -> serde_json::Value {
+            let text = std::fs::read_to_string(pack.data_dir().join(name)).unwrap();
+            serde_json::from_str(text.trim_start_matches('\u{feff}')).unwrap()
+        };
+        let config = read("config.json");
+        assert_eq!(config["Language"], "en_US");
+        assert_eq!(config["FirstTimeWizardComplete"], true);
+        assert_eq!(config["DownloadMetadataOnImport"], true);
+        assert_eq!(config["GridItemWidth"], 240);
+        assert_eq!(config["DatabasePath"], pack.data_dir().join("library").to_string_lossy().as_ref());
+        assert_eq!(read("fullscreenConfig.json")["Theme"], THEME_ID);
+        pack.write_playnite_config(Language::PtBr).unwrap();
+        assert_eq!(read("config.json")["Language"], "pt_BR");
+    }
+
+    #[test]
+    fn serve_as_midias_do_tema_instalado_e_nada_fora_dele() {
+        let (pack, _root, fetch) = fake("aniki-midias", packages(), None);
+        pack.install(&fetch, &|_| {}).unwrap();
+        let response = asset_response(&pack, request("aniki/Images/Back.png"));
+        assert_eq!((response.status(), response.body().as_slice()), (StatusCode::OK, b"png".as_slice()));
+        for invalid in [
+            "aniki/../x.png",
+            "aniki/Images/../../x.png",
+            "aniki/Images//Back.png",
+            "aniki/Images%5CBack.png",
+            "aniki/Views/Main.xaml",
+            "aniki/Images/Nada.png",
+            "outro/Images/Back.png",
+        ] {
+            assert_eq!(asset_response(&pack, request(invalid)).status(), StatusCode::NOT_FOUND, "{invalid}");
+        }
+    }
+
+    #[test]
+    fn status_mostra_os_quatro_pacotes_oficiais() {
         let status = AnikiPack::new(temp_folder("aniki-status")).status();
-        assert_eq!((status.version, status.size, status.installed, status.installing), ("3.6.0", ANIKI_SIZE, false, false));
+        assert_eq!((status.version, status.installed, status.installing, status.steps), ("3.6.0", false, false, 4));
+        assert_eq!(status.size, PLAYNITE_SIZE + ANIKI_SIZE + HELPER_SIZE + IGDB_SIZE);
     }
 }

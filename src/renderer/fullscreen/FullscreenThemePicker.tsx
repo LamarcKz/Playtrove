@@ -6,7 +6,8 @@ import { useAnikiPack } from "@/hooks/useAnikiPack"
 
 /**
  * O tema da tela cheia, como no Playnite: Playtrove ou Aniki ReMake. Escolher o Aniki pela primeira vez
- * pede confirmação e baixa o pacote oficial do autor; até terminar, continua o tema atual.
+ * pede confirmação e baixa das páginas oficiais o Playnite, o tema e o Helper; até terminar, continua o
+ * tema atual.
  */
 export function FullscreenThemePicker() {
   const { t } = useI18n()
@@ -34,8 +35,8 @@ export function FullscreenThemePicker() {
         </div>
       </div>}
       {status.installing && <div className="fs-theme-progress">
-        <progress max={100} value={percent} aria-label={t.fullscreen.anikiDownloading(percent)} />
-        <span>{status.phase === "extract" ? t.fullscreen.anikiExtracting : t.fullscreen.anikiDownloading(percent)}</span>
+        <progress max={100} value={percent} aria-label={t.fullscreen.anikiDownloading(status.step, status.steps, percent)} />
+        <span>{status.phase === "extract" ? t.fullscreen.anikiExtracting(status.step, status.steps) : t.fullscreen.anikiDownloading(status.step, status.steps, percent)}</span>
         <button type="button" onClick={pack.cancel}>{t.fullscreen.anikiCancel}</button>
       </div>}
       {status.installed && !status.installing && <button type="button" className="fs-theme-remove" onClick={() => void pack.remove()}>{t.fullscreen.anikiRemove}</button>}
