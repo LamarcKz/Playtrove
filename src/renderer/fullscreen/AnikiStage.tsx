@@ -4,7 +4,7 @@ import { useLayoutEffect, useRef, type ReactNode } from "react"
 export const STAGE_WIDTH = 1920
 export const STAGE_HEIGHT = 1080
 
-export function AnikiStage({ children }: { children: ReactNode }) {
+export function AnikiStage({ children, inert = false }: { children: ReactNode; inert?: boolean }) {
   const stage = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const node = stage.current
@@ -14,5 +14,5 @@ export function AnikiStage({ children }: { children: ReactNode }) {
     addEventListener("resize", fit)
     return () => removeEventListener("resize", fit)
   }, [])
-  return <div ref={stage} className="aniki-stage" data-testid="aniki-stage">{children}</div>
+  return <div ref={stage} inert={inert} className="aniki-stage" data-testid="aniki-stage">{children}</div>
 }

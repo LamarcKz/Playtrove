@@ -1,11 +1,21 @@
 /** A parte da mídia usada pelo player; os testes fornecem um áudio sem dispositivo real. */
-export type ThemeMusicAudio = Pick<HTMLAudioElement, "src" | "loop" | "volume" | "play" | "pause" | "load" | "removeAttribute">
+export type ThemeMusicAudio = Pick<HTMLAudioElement, "src" | "loop" | "volume" | "play" | "pause" | "load" | "removeAttribute"> & {
+  currentTime?: number
+  addEventListener?: (event: "loadedmetadata", listener: () => void) => void
+  removeEventListener?: (event: "loadedmetadata", listener: () => void) => void
+}
 
 interface PlaybackOptions {
   url: string | null
   enabled: boolean
   suspended: boolean
   volume: number
+  /** Duração de cada rampa; o desktop e o tema Playtrove mantêm os 500 ms padrão. */
+  transitionMs?: number
+  /** Cada grupo lembra somente sua última URL; ausente conserva o comportamento padrão. */
+  positionKey?: string | null
+  /** O Login do Aniki fecha a faixa ao perder foco, em vez de preservar a posição. */
+  resetOnSuspend?: boolean
 }
 
 export interface ThemeMusicPlayback {
@@ -31,10 +41,15 @@ export class ThemeMusicPlayer {
   private manuallyPaused = false
   private disposed = false
   private transitioning = false
+  private positionKey: string | null = null
+  private positions = new Map<string, { url: string; seconds: number }>()
+  private pendingPosition: { url: string; seconds: number } | null = null
+  private metadataLoaded = () => this.restorePosition(true)
 
   constructor(private audio: ThemeMusicAudio, private onChange: (state: ThemeMusicPlayback) => void) {
     audio.loop = true
     owners.set(audio, this)
+    audio.addEventListener?.("loadedmetadata", this.metadataLoaded)
   }
 
   update(options: PlaybackOptions) {
@@ -45,6 +60,11 @@ export class ThemeMusicPlayer {
     if (!options.enabled || options.suspended || this.manuallyPaused || this.state.blocked) {
       this.stop()
       this.changeSource(options.url)
+      if (options.suspended && options.resetOnSuspend) {
+        this.pendingPosition = null
+        if (this.positionKey) this.positions.delete(this.positionKey)
+        this.seek(0)
+      }
       return
     }
 
@@ -110,7 +130,10 @@ export class ThemeMusicPlayer {
 
   dispose() {
     this.disposed = true
+    this.audio.removeEventListener?.("loadedmetadata", this.metadataLoaded)
     this.stop()
+    this.positions.clear()
+    this.pendingPosition = null
     this.audio.removeAttribute("src")
     this.audio.load()
     if (owners.get(this.audio) === this) owners.delete(this.audio)
@@ -136,6 +159,7 @@ export class ThemeMusicPlayer {
     const revision = ++this.revision
     this.activeAttempt = revision
     this.audio.volume = 0
+    this.restorePosition()
     void this.audio.play().then(() => {
       if (this.disposed || revision !== this.revision) {
         const owner = owners.get(this.audio)
@@ -166,20 +190,40 @@ export class ThemeMusicPlayer {
   }
 
   private changeSource(url: string | null) {
-    if (url === this.currentUrl) return
+    const nextKey = this.options?.positionKey ?? null
+    if (url === this.currentUrl) { this.positionKey = nextKey; return }
+    const seconds = this.pendingPosition?.url === this.currentUrl ? this.pendingPosition.seconds : this.audio.currentTime
+    if (this.currentUrl && this.positionKey && seconds !== undefined && Number.isFinite(seconds) && seconds >= 0) {
+      this.positions.set(this.positionKey, { url: this.currentUrl, seconds })
+    }
+    const saved = nextKey ? this.positions.get(nextKey) : undefined
+    this.pendingPosition = url && saved?.url === url ? saved : null
     this.audio.removeAttribute("src")
     if (url) this.audio.src = url
-    this.audio.load()
     this.currentUrl = url
+    this.positionKey = nextKey
+    this.audio.load()
+    this.restorePosition()
     this.publish({ failed: false })
+  }
+
+  private seek(seconds: number): boolean {
+    try { this.audio.currentTime = seconds; return true }
+    catch { return false }
+  }
+
+  private restorePosition(metadataReady = false) {
+    if (this.disposed || !this.pendingPosition || this.pendingPosition.url !== this.currentUrl) return
+    if (this.seek(this.pendingPosition.seconds) && (metadataReady || !this.audio.addEventListener)) this.pendingPosition = null
   }
 
   private rampTo(target: number, onComplete?: () => void) {
     this.stopRamp()
     const from = this.audio.volume
     const started = Date.now()
+    const duration = this.options?.transitionMs ?? 500
     this.ramp = setInterval(() => {
-      const progress = Math.min(1, (Date.now() - started) / 500)
+      const progress = Math.min(1, (Date.now() - started) / duration)
       this.audio.volume = from + (target - from) * progress
       if (progress === 1) {
         this.stopRamp()

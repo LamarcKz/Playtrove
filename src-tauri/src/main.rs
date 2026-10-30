@@ -2,6 +2,9 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod achievements;
+mod aniki_custom_media;
+mod aniki_news;
+mod audio_output;
 mod commands;
 mod controller_input;
 mod controllers;
@@ -15,8 +18,15 @@ mod emulator_window;
 mod emulators;
 mod errors;
 mod fullscreen;
+mod fullscreen_profiles;
+mod game_launch_splash;
+mod game_media;
+mod game_overlay;
+mod game_window;
+mod hub_data;
 mod i18n;
 mod images;
+mod launch_splash_state;
 mod launcher;
 mod library;
 mod links;
@@ -68,6 +78,7 @@ fn main() {
         .register_asynchronous_uri_scheme_protocol(videos::VIDEO_PROTOCOL, videos::handle_request)
         .register_asynchronous_uri_scheme_protocol(music::MUSIC_PROTOCOL, music::handle_request)
         .register_asynchronous_uri_scheme_protocol(music_previews::PREVIEW_PROTOCOL, music_previews::handle_request)
+        .register_asynchronous_uri_scheme_protocol(game_media::GALLERY_PROTOCOL, game_media::handle_request)
         .register_asynchronous_uri_scheme_protocol(theme_pack::THEME_PROTOCOL, theme_pack::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
@@ -86,6 +97,7 @@ fn main() {
             app.manage(images::ImagesDir(folder.join("images")));
             app.manage(theme_pack::AnikiPack::new(folder.join("themes")));
             app.manage(music_previews::MusicPreviewCache::new(folder.join("music-previews"))?);
+            app.manage(aniki_news::AnikiNewsService::new(folder.join("aniki-news")));
             app.manage(test_hooks::TestHooks::default());
             app.manage(secrets::Secrets::new(&folder));
             app.manage(AppState::new(db, language));
@@ -101,6 +113,9 @@ fn main() {
             // A atualização do app (5 segundos depois de abrir, procura uma versão nova).
             updates::start(app.handle());
             let window = window::create_main_window(app.handle(), language, folder.join("webview"))?;
+            app.manage(game_overlay::GameOverlay::start(app.handle().clone(), folder.join("webview")));
+            app.manage(game_launch_splash::GameLaunchSplash::start(app.handle().clone(), folder.join("webview")));
+            aniki_news::prefetch_after_startup(app.handle().clone());
 
             // O banco estava danificado: avisa o que foi recuperado e onde ficou o arquivo danificado.
             if let Some(report) = repair {
@@ -110,6 +125,22 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::game_launch_splash_get_state,
+            commands::game_launch_splash_rendered,
+            aniki_news::aniki_news_get_config,
+            aniki_news::aniki_news_set_config,
+            aniki_news::aniki_news_read,
+            aniki_news::aniki_news_refresh,
+            aniki_news::aniki_news_cancel,
+            aniki_news::aniki_news_open_article,
+            aniki_custom_media::aniki_custom_media_get_avatar,
+            aniki_custom_media::aniki_custom_media_pick_avatar,
+            aniki_custom_media::aniki_custom_media_remove_avatar,
+            aniki_custom_media::aniki_custom_media_get_global_splash,
+            aniki_custom_media::aniki_custom_media_pick_global_splash,
+            aniki_custom_media::aniki_custom_media_remove_global_splash,
+            aniki_custom_media::aniki_custom_media_pick_logo,
+            aniki_custom_media::aniki_custom_media_remove_logo,
             commands::app_version,
             commands::app_open_link,
             commands::app_report_bug,
@@ -118,11 +149,28 @@ fn main() {
             commands::window_minimize,
             commands::window_toggle_maximize,
             commands::window_close,
+            commands::window_finish_close,
             commands::window_get_state,
             commands::window_set_fullscreen,
             commands::fullscreen_get_config,
             commands::fullscreen_set_config,
+            commands::game_overlay_get_state,
+            commands::game_overlay_get_input,
+            commands::game_overlay_open,
+            commands::game_overlay_return_to_game,
+            commands::game_overlay_return_to_app,
+            commands::game_overlay_request_close_game,
+            fullscreen_profiles::fullscreen_profiles_export,
+            fullscreen_profiles::fullscreen_profiles_import,
+            fullscreen_profiles::fullscreen_profiles_reset,
             commands::system_power,
+            commands::audio_output_get,
+            commands::audio_output_set_device,
+            commands::audio_output_set_volume,
+            commands::audio_output_set_muted,
+            commands::game_media_list,
+            commands::game_media_import,
+            commands::game_media_remove,
             commands::themes_aniki_status,
             commands::themes_aniki_install,
             commands::themes_aniki_cancel,
@@ -148,6 +196,9 @@ fn main() {
             commands::music_cancel_preview,
             commands::games_play,
             commands::games_get_running,
+            commands::games_get_running_sessions,
+            commands::games_resume,
+            commands::games_request_close,
             commands::games_show_rom,
             commands::statuses_create,
             commands::statuses_rename,
@@ -164,6 +215,7 @@ fn main() {
             commands::rom_folders_remove,
             commands::rom_folders_scan,
             commands::stats_daily_playtime,
+            commands::stats_hub_game_activity,
             commands::metadata_get_config,
             commands::metadata_set_igdb,
             commands::metadata_set_steam_grid_db,
@@ -187,6 +239,9 @@ fn main() {
             test_hooks::test_window,
             test_hooks::test_focus_window,
             test_hooks::test_controller_input,
+            test_hooks::test_open_game_overlay,
+            test_hooks::test_open_game_launch_splash,
+            test_hooks::test_game_overlay_input,
             test_hooks::test_set_window_size,
             test_hooks::test_hold_images,
             test_hooks::test_image_requests,
@@ -198,6 +253,8 @@ fn main() {
     app.run(|app, event| {
         // Fechando o app com jogos abertos: registra o tempo jogado até agora (os emuladores continuam).
         if let RunEvent::Exit = event {
+            app.state::<game_launch_splash::GameLaunchSplash>().shutdown();
+            app.state::<game_overlay::GameOverlay>().shutdown();
             app.state::<music_previews::MusicPreviewCache>().cancel();
             commands::finish_open_games(app);
         }

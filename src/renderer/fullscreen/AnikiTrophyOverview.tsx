@@ -3,7 +3,8 @@ import { TROPHY_GRADES, type AchievementGameRow, type Rarity } from "@shared/ach
 import type { FullscreenConfig } from "@shared/fullscreen"
 import type { Game } from "@shared/types"
 import { GameCover } from "@/components/GameCover"
-import { ProgressBar, TrophyIcon } from "@/components/AchievementParts"
+import { ProgressBar } from "@/components/AchievementParts"
+import { AnikiRankImage, AnikiTrophyIcon as TrophyIcon } from "./AnikiImage"
 import { useAchievementsOverview } from "@/hooks/useAchievements"
 import { useI18n } from "@/hooks/useI18n"
 import { progressPercent } from "@/lib/achievements"
@@ -42,7 +43,7 @@ export function AnikiTrophyOverview({ games, config, onOpen }: Props) {
         <p>{config.profileName || t.fullscreen.defaultProfileName}</p>
       </div>
       <div className="aniki-overview-level">
-        <strong>{t.fullscreen.level(level.level)}</strong>
+        <strong className="aniki-level-line"><AnikiRankImage rank={level.rank} />{t.fullscreen.level(level.level)}</strong>
         {level.rank && <span>{t.fullscreen.ranks[level.rank.tier]} {level.rank.step}</span>}
         <ProgressBar value={level.progress} label={t.fullscreen.nextLevel} className="aniki-overview-progress" />
         <small>{t.fullscreen.pointsToNext(level.pointsToNext.toLocaleString(t.locale))}</small>

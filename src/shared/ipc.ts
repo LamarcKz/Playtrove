@@ -5,7 +5,16 @@
  */
 import type { AchievementsConfig, AchievementsOverview, GameAchievements, UnlockedAchievement } from "./achievements"
 import type { ConnectedController, ControllerInputSnapshot } from "./controllers"
+import type { AudioOutputState } from "./audioOutput"
+import type { GameMediaItem } from "./gameMedia"
 import type { GameEvaluation } from "./evaluation"
+import type { RunningSession } from "./gameSession"
+import type { GameOverlayApi } from "./gameOverlay"
+import type { GameLaunchSplashApi } from "./gameLaunchSplash"
+import type { AnikiCustomMediaApi } from "./anikiCustomMedia"
+import type { AnikiNewsApi } from "./anikiNews"
+import type { HubGameActivity } from "./anikiHub"
+import type { FullscreenProfilesApi } from "./fullscreenProfiles"
 import type { AnikiPackStatus, FullscreenConfig, PowerAction } from "./fullscreen"
 import type { Language } from "./i18n"
 import type {
@@ -30,10 +39,15 @@ import type {
 export const EVENTS = {
   /** A janela mudou de maximização, tela cheia ou foco nativo. */
   windowState: "window:state",
+  windowCloseRequest: "window:close-request",
   fullscreenConfig: "fullscreen:config",
   /** O download e a instalação do pacote do Aniki andaram. */
   anikiProgress: "themes:aniki-progress",
   controllersInput: "controllers:input",
+  gameOverlayState: "game-overlay:state",
+  gameOverlayInput: "game-overlay:input",
+  gameLaunchSplashState: "game-launch-splash:state",
+  anikiAvatarChange: "aniki:avatar-changed",
   /** Algo mudou na biblioteca: a interface pede os dados de novo. */
   libraryChanged: "library:changed",
   /** Os jogos abertos agora (um abriu ou fechou). */
@@ -70,6 +84,11 @@ export interface WindowState {
 
 /** As funções que a interface chama em `window.api` (cada uma é um comando do Rust, pela ponte lib/tauriApi.ts). */
 export interface AppApi {
+  gameLaunchSplash: GameLaunchSplashApi
+  anikiCustomMedia: AnikiCustomMediaApi
+  anikiNews: AnikiNewsApi
+  gameOverlay: GameOverlayApi
+  fullscreenProfiles: FullscreenProfilesApi
   app: {
     getVersion: () => Promise<string>
     /** Abre um dos sites de EXTERNAL_LINKS no navegador padrão. */
@@ -86,6 +105,8 @@ export interface AppApi {
     /** Maximiza a janela ou, se ela já estiver maximizada, restaura o tamanho anterior. */
     toggleMaximize: () => void
     close: () => void
+    finishClose: () => Promise<void>
+    onCloseRequest: (callback: () => void) => () => void
     /** Consulta o estado nativo da janela. */
     getState: () => Promise<WindowState>
     setFullscreen: (enabled: boolean) => Promise<WindowState>
@@ -100,6 +121,19 @@ export interface AppApi {
   /** O Windows: bloquear, suspender, reiniciar e desligar (a tela pede confirmação antes). */
   system: {
     power: (action: PowerAction) => Promise<void>
+  }
+  /** Saída padrão e volume geral do Windows; testes usam um adaptador em memória. */
+  audioOutput: {
+    get: () => Promise<AudioOutputState>
+    setDevice: (id: string) => Promise<AudioOutputState>
+    setVolume: (volume: number) => Promise<AudioOutputState>
+    setMuted: (muted: boolean) => Promise<AudioOutputState>
+  }
+  /** Galeria por jogo: importa pelo diálogo e remove somente cópias internas. */
+  gameMedia: {
+    list: (gameId: number) => Promise<GameMediaItem[]>
+    import: (gameId: number) => Promise<GameMediaItem[]>
+    remove: (gameId: number, mediaId: string) => Promise<GameMediaItem[]>
   }
   /** O tema Aniki ReMake: o pacote oficial vem da release do autor, como no Playnite. */
   themes: {
@@ -123,6 +157,11 @@ export interface AppApi {
     play: (gameId: number) => Promise<void>
     /** Ids dos jogos abertos agora. */
     getRunning: () => Promise<number[]>
+    getRunningSessions: () => Promise<RunningSession[]>
+    /** Retorna somente à janela do processo original iniciado pelo app. */
+    resume: (gameId: number) => Promise<void>
+    /** Solicita fechamento; a sessão continua ativa até o processo terminar. */
+    requestClose: (gameId: number) => Promise<void>
     /** Chama `callback` com os jogos abertos sempre que um abre ou fecha. Devolve uma função para parar de ouvir. */
     onRunningChange: (callback: (gameIds: number[]) => void) => () => void
     setFavorite: (gameId: number, favorite: boolean) => Promise<void>
@@ -189,6 +228,7 @@ export interface AppApi {
     scan: (id?: number) => Promise<ScanResult>
   }
   stats: {
+    hubGameActivity: () => Promise<HubGameActivity[]>
     /** Quanto se jogou em cada um dos últimos 30 dias, do mais antigo para hoje. */
     dailyPlaytime: () => Promise<DailyPlaytime[]>
   }

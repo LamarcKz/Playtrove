@@ -53,6 +53,7 @@ export class AppProcess {
   async focus(): Promise<void> {
     await this.invoke("test_focus_window")
     await expect.poll(async () => (await this.window()).foreground).toBe(true)
+    await expect.poll(() => this.page.evaluate(() => document.hasFocus())).toBe(true)
   }
 
   /** Tira do maximizado e deixa a página com este tamanho. */

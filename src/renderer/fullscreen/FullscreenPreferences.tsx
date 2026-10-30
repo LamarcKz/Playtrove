@@ -40,7 +40,7 @@ export function FullscreenPreferences() {
       </div>
       <label className="fs-profile-name">{t.fullscreen.profileName}<input type="text" maxLength={32} value={draft ?? config.profileName} placeholder={t.fullscreen.defaultProfileName} onChange={(event) => setDraft(event.target.value)} onBlur={() => { if (draft !== null) void save({ profileName: draft.trim() }).finally(() => setDraft(null)) }} /></label>
       <div className="fs-avatars" role="group" aria-label={t.fullscreen.avatar}>
-        {PROFILE_AVATARS.map((avatar) => <button type="button" key={avatar} aria-label={t.fullscreen.avatars[avatar]} aria-pressed={config.profileAvatar === avatar} onClick={() => void save({ profileAvatar: avatar })}><AnikiAvatar avatar={avatar} size={40} /></button>)}
+        {PROFILE_AVATARS.map((avatar) => <button type="button" key={avatar} aria-label={t.fullscreen.avatars[avatar]} aria-pressed={config.anikiAvatarIndex === null && config.profileAvatar === avatar} onClick={() => void save({ profileAvatar: avatar, anikiAvatarIndex: null })}><AnikiAvatar avatar={avatar} anikiAvatarIndex={null} size={40} /></button>)}
       </div>
       <div className="fs-choice" role="radiogroup" aria-label={t.fullscreen.effects}><span>{t.fullscreen.effects}</span>
         {FULLSCREEN_EFFECTS.map((effects) => <label key={effects}><input type="radio" name="fullscreen-effects" checked={config.effects === effects} onChange={() => void save({ effects })} />{t.fullscreen.effectsNames[effects]}</label>)}

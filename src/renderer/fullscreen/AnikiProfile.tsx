@@ -4,7 +4,8 @@ import type { FullscreenConfig } from "@shared/fullscreen"
 import type { DailyPlaytime, Game } from "@shared/types"
 import { genreLabel } from "@shared/i18n"
 import { GameCover } from "@/components/GameCover"
-import { AchievementBadge, ProgressBar, TrophyIcon } from "@/components/AchievementParts"
+import { AchievementBadge, ProgressBar } from "@/components/AchievementParts"
+import { AnikiRankImage, AnikiTrophyIcon as TrophyIcon } from "./AnikiImage"
 import { useAchievementsOverview } from "@/hooks/useAchievements"
 import { useI18n } from "@/hooks/useI18n"
 import { COLLECTOR_CURVE, achievementLevel, collectorScore } from "@/lib/collectorLevel"
@@ -56,7 +57,7 @@ export function AnikiProfile({ games, config, onOpen }: Props) {
       <div className="aniki-profile-identity">
         <h2>{config.profileName || t.fullscreen.defaultProfileName}</h2>
         {stats.topGenre && <p className="aniki-hub-rank">{t.fullscreen.fanOf(genreLabel(stats.topGenre, t))}</p>}
-        <p className="aniki-profile-level">{t.fullscreen.level(level.level)}{level.rank && ` · ${t.fullscreen.ranks[level.rank.tier]} ${level.rank.step}`}</p>
+        <p className="aniki-profile-level aniki-level-line"><AnikiRankImage rank={level.rank} />{t.fullscreen.level(level.level)}{level.rank && ` · ${t.fullscreen.ranks[level.rank.tier]} ${level.rank.step}`}</p>
         <ProgressBar value={level.progress} label={t.fullscreen.nextLevel} className="aniki-profile-progress" />
         <p className="aniki-profile-points">{t.fullscreen.collectorPoints(level.score.toLocaleString(t.locale))} · {t.fullscreen.pointsToNext(level.pointsToNext.toLocaleString(t.locale))}</p>
       </div>

@@ -12,6 +12,49 @@
       "platinum": "Platinado"
     },
     "errors": {
+      "anikiCustomMedia": {
+        "invalid": "Escolha uma imagem PNG, JPEG ou WebP válida, dentro do limite de tamanho e dimensões.",
+        "read": "Não foi possível ler a imagem escolhida.",
+        "save": "Não foi possível salvar a imagem. A escolha anterior foi preservada.",
+        "remove": "Não foi possível remover a imagem personalizada.",
+        "avatarTitle": "Escolher avatar",
+        "logoTitle": "Escolher logo",
+        "globalSplashTitle": "Escolher imagem de abertura",
+        "fileType": "Imagens"
+      },
+      "gameSessionEnded": "Esta sessão de jogo já terminou.",
+      "gameSessionControlUnavailable": "Não foi possível preparar o controle deste processo. Você pode voltar ao jogo pelo Windows.",
+      "gameSessionWindowUnavailable": "A janela original do jogo ainda não está disponível. Tente novamente em instantes.",
+      "gameSessionOperationFailed": "O Windows não concluiu a ação na janela do jogo.",
+      "gameOverlayDisabled": "Ative o centro de controle nas configurações do Aniki antes de usá-lo.",
+      "gameOverlayInputHeld": "Solte o botão de confirmar antes de retomar o jogo.",
+      "fullscreenProfiles": {
+        "invalid": "Escolha um arquivo de preferências do Playtrove válido e compatível. Nenhuma preferência foi alterada.",
+        "import": "Não foi possível ler ou aplicar o arquivo de preferências. Nenhuma preferência foi alterada.",
+        "export": "Não foi possível exportar as preferências. Confira a pasta escolhida e tente novamente.",
+        "reset": "Não foi possível restaurar os padrões. Nenhuma preferência foi alterada.",
+        "importTitle": "Importar preferências da tela cheia do Playtrove",
+        "exportTitle": "Exportar preferências da tela cheia do Playtrove",
+        "fileType": "Preferências do Playtrove (JSON)",
+        "fileName": "Playtrove-preferencias-tela-cheia.json"
+      },
+      "gameMedia": {
+        "read": "Não foi possível ler a galeria deste jogo. Tente atualizar.",
+        "save": "Não foi possível guardar as capturas. Confira o espaço disponível e tente de novo.",
+        "invalid": "Escolha imagens PNG, JPEG ou WebP válidas, com até 32 MiB e 40 milhões de pixels cada.",
+        "tooMany": "Importe até 20 imagens por vez.",
+        "remove": "Não foi possível remover a cópia da captura. Tente de novo.",
+        "notFound": "Essa captura não está mais disponível. Atualize a galeria.",
+        "importTitle": "Escolha as capturas deste jogo",
+        "imageFiles": "Imagens PNG, JPEG e WebP"
+      },
+      "audioOutput": {
+        "unavailable": "Não foi possível consultar o áudio do Windows. Confira os dispositivos e tente atualizar.",
+        "deviceUnavailable": "Essa saída de áudio não está mais disponível. Atualize os dispositivos.",
+        "invalidVolume": "O volume do Windows precisa ser um número entre 0 e 100.",
+        "changeFailed": "O Windows não aceitou a alteração de áudio. Atualize os dispositivos e tente de novo.",
+        "switchUnsupported": "A troca da saída padrão não está disponível nesta versão do Windows."
+      },
       "invalidId": "Id inválido.",
       "invalidValue": "Valor inválido.",
       "invalidOrder": "Ordem inválida.",
@@ -149,6 +192,49 @@
       "platinum": "Platinum"
     },
     "errors": {
+      "anikiCustomMedia": {
+        "invalid": "Choose a valid PNG, JPEG or WebP image within the size and dimension limits.",
+        "read": "The selected image could not be read.",
+        "save": "The image could not be saved. The previous choice was preserved.",
+        "remove": "The custom image could not be removed.",
+        "avatarTitle": "Choose avatar",
+        "logoTitle": "Choose logo",
+        "globalSplashTitle": "Choose launch image",
+        "fileType": "Images"
+      },
+      "gameSessionEnded": "This game session has ended.",
+      "gameSessionControlUnavailable": "Controls for this process could not be prepared. You can return to the game through Windows.",
+      "gameSessionWindowUnavailable": "The original game window is not available yet. Try again shortly.",
+      "gameSessionOperationFailed": "Windows could not complete the action on the game window.",
+      "gameOverlayDisabled": "Enable the control center in the Aniki settings before using it.",
+      "gameOverlayInputHeld": "Release the confirm button before returning to the game.",
+      "fullscreenProfiles": {
+        "invalid": "Choose a valid, compatible Playtrove preferences file. No preferences were changed.",
+        "import": "The preferences file could not be read or applied. No preferences were changed.",
+        "export": "Preferences could not be exported. Check the selected folder and try again.",
+        "reset": "Defaults could not be restored. No preferences were changed.",
+        "importTitle": "Import Playtrove fullscreen preferences",
+        "exportTitle": "Export Playtrove fullscreen preferences",
+        "fileType": "Playtrove preferences (JSON)",
+        "fileName": "Playtrove-fullscreen-preferences.json"
+      },
+      "gameMedia": {
+        "read": "This game's gallery could not be read. Try refreshing.",
+        "save": "The screenshots could not be saved. Check available space and try again.",
+        "invalid": "Choose valid PNG, JPEG or WebP images, up to 32 MiB and 40 million pixels each.",
+        "tooMany": "Import up to 20 images at a time.",
+        "remove": "The screenshot copy could not be removed. Try again.",
+        "notFound": "This screenshot is no longer available. Refresh the gallery.",
+        "importTitle": "Choose screenshots for this game",
+        "imageFiles": "PNG, JPEG and WebP images"
+      },
+      "audioOutput": {
+        "unavailable": "Windows audio could not be read. Check the devices and refresh.",
+        "deviceUnavailable": "This audio output is no longer available. Refresh the devices.",
+        "invalidVolume": "Windows volume must be a number between 0 and 100.",
+        "changeFailed": "Windows could not apply the audio change. Refresh the devices and try again.",
+        "switchUnsupported": "Switching the default output is unavailable on this Windows version."
+      },
       "invalidId": "Invalid id.",
       "invalidValue": "Invalid value.",
       "invalidOrder": "Invalid order.",

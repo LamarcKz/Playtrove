@@ -6,6 +6,23 @@ import { crc32 } from "node:zlib"
 /** Um PNG de 1×1, para a imagem do pacote carregar de verdade pelo protocolo do tema. */
 const PIXEL = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64")
 
+function silentWav() {
+  const data = Buffer.alloc(44 + 800)
+  data.write("RIFF")
+  data.writeUInt32LE(data.length - 8, 4)
+  data.write("WAVEfmt ", 8)
+  data.writeUInt32LE(16, 16)
+  data.writeUInt16LE(1, 20)
+  data.writeUInt16LE(1, 22)
+  data.writeUInt32LE(8000, 24)
+  data.writeUInt32LE(16000, 28)
+  data.writeUInt16LE(2, 32)
+  data.writeUInt16LE(16, 34)
+  data.write("data", 36)
+  data.writeUInt32LE(800, 40)
+  return data
+}
+
 /** Um .zip sem compressão, montado à mão (o formato do .pthm do Playnite). */
 function zip(files: Record<string, Buffer>) {
   const locals: Buffer[] = []
@@ -56,9 +73,17 @@ export interface FakeAnikiPack {
 
 /** O pacote do tema Aniki de mentira, com mídias sintéticas (nada do pacote de verdade). */
 export async function startFakeAnikiPack(options: { wrongHash?: boolean } = {}): Promise<FakeAnikiPack> {
+  const pictures = [
+    "Images/Back.png", "Images/Plat.png", "Images/Or.png", "Images/Argent.png", "Images/Bronze.png",
+    "Images/UserLevel/Bronze1.png", "Icons/Source/Sony Playstation.png", "Icons/Source/Sony Playstation 2.png",
+    "Themes Option/3.Avatar/Avatar.png", "Themes Option/3.Avatar/Avatar (2).png",
+    ...["A", "B", "X", "Y", "LS", "RS", "Start", "Back", "LeftShoulder", "RightShoulder"].map((button) => `Images/Buttons/Controller/PlayStation/Button-${button}.png`),
+    ...["A", "B", "X", "Y", "LS", "RS", "Start", "Back", "LeftShoulder", "RightShoulder"].map((button) => `Images/Buttons/Controller/PlayStation/Playstation Dark/Button-${button}.png`),
+  ]
   const pack = zip({
-    "Images/Back.png": PIXEL,
-    "audio/navigation.wav": Buffer.from("RIFF"),
+    ...Object.fromEntries(pictures.map((path) => [path, PIXEL])),
+    ...Object.fromEntries(["navigation", "activation", "OpenPanel", "OpenAdditionalView", "CloseAdditionalView", "EnterGameDetails", "ExitGameDetails", "HomeHubOpen", "HomeHubClose", "ChangeDisplay"].map((name) => [`audio/${name}.wav`, silentWav()])),
+    ...Object.fromEntries(["LoginOST", "HubOST", "SecondaryViewsOST", "ScreenSaverOST"].map((name) => [`audio/${name}.mp3`, silentWav()])),
     "Views/Main.xaml": Buffer.from("<Grid />"),
   })
   let downloads = 0
