@@ -20,6 +20,7 @@ export interface TestWindow {
   maximized: boolean
   fullscreen: boolean
   foreground: boolean
+  visible: boolean
   size: [number, number]
   workArea: [number, number]
 }

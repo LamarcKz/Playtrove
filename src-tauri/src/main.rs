@@ -2,8 +2,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod achievements;
+mod aniki_bridge;
 mod aniki_custom_media;
 mod aniki_news;
+mod aniki_session;
 mod audio_output;
 mod commands;
 mod controller_input;
@@ -96,6 +98,7 @@ fn main() {
             }
             app.manage(images::ImagesDir(folder.join("images")));
             app.manage(theme_pack::AnikiPack::new(folder.join("themes")));
+            app.manage(aniki_session::AnikiSession::default());
             app.manage(music_previews::MusicPreviewCache::new(folder.join("music-previews"))?);
             app.manage(aniki_news::AnikiNewsService::new(folder.join("aniki-news")));
             app.manage(test_hooks::TestHooks::default());
@@ -174,6 +177,7 @@ fn main() {
             commands::themes_aniki_status,
             commands::themes_aniki_install,
             commands::themes_aniki_cancel,
+            commands::aniki_enter,
             commands::themes_aniki_remove,
             commands::library_get,
             commands::games_set_status,
@@ -236,6 +240,7 @@ fn main() {
             commands::updates_set_auto_check,
             test_hooks::test_mock_open_dialog,
             test_hooks::test_opened,
+            test_hooks::test_aniki_exit,
             test_hooks::test_window,
             test_hooks::test_focus_window,
             test_hooks::test_controller_input,

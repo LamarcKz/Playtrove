@@ -18,6 +18,10 @@
     <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Net.Http" />
+    <!-- O aviso de erro do Playnite (ShowErrorMessage) usa os tipos do WPF. -->
+    <Reference Include="PresentationFramework" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
 
   <ItemGroup>

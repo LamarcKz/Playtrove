@@ -103,6 +103,7 @@ export function createTauriApi(): AppApi {
       cancelAniki: () => invoke("themes_aniki_cancel"),
       removeAniki: () => invoke("themes_aniki_remove"),
       onAnikiProgress: (callback) => subscribe(EVENTS.anikiProgress, callback),
+      enterAniki: () => invoke("aniki_enter"),
     },
     library: {
       get: () => invoke("library_get"),

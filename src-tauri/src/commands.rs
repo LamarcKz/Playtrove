@@ -304,6 +304,12 @@ pub fn themes_aniki_install(
     Ok(pack.status())
 }
 
+/// Abre o Playnite com o Aniki no lugar da tela cheia do Playtrove (o tema Aniki instalado e escolhido).
+#[tauri::command(async)]
+pub fn aniki_enter(app: AppHandle) -> AppResult<()> {
+    crate::aniki_session::enter(&app)
+}
+
 #[tauri::command]
 pub fn themes_aniki_cancel(pack: State<'_, AnikiPack>) {
     pack.cancel();
@@ -675,9 +681,15 @@ pub fn statuses_set_rules(app: AppHandle, state: State<'_, AppState>, rules: Val
 /// registra o tempo jogado e relê o tempo que ele mesmo registrou (ele grava ao fechar), as conquistas e os
 /// troféus.
 #[tauri::command(async)]
-pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
+pub fn games_play(app: AppHandle, state: State<'_, AppState>, game_id: Value) -> AppResult<()> {
+    play_game(&app, to_id(&game_id, state.language())?)
+}
+
+/// Abre o jogo: o Jogar do desktop, da tela cheia e do tema Aniki (pelo Playnite).
+pub fn play_game(app: &AppHandle, game_id: i64) -> AppResult<()> {
+    let state = app.state::<AppState>();
+    let launcher = app.state::<Launcher>();
     let language = state.language();
-    let game_id = to_id(&game_id, language)?;
     let (prepared, config) = {
         let db = state.db();
         (launcher.prepare(&db, language, game_id)?, fullscreen::get_config(&db))
@@ -739,8 +751,8 @@ pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_
             return Err(error);
         }
     }
-    notify_running(&app);
-    notify_library_changed(&app);
+    notify_running(app);
+    notify_library_changed(app);
     Ok(())
 }
 

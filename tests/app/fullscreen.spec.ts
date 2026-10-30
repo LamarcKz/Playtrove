@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test"
-import { writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { ControllerButton } from "../../src/shared/controllers"
 import { type AppProcess, type TestApp, createFiles, launchApp, mockOpenDialog, removeDataDir } from "./helpers"
@@ -533,7 +533,7 @@ test("sons da navegação tocam ao passar o mouse, ao mover o foco e ao confirma
   }
 })
 
-test("o tema Aniki é baixado com confirmação, vale na tela cheia e remover volta ao tema Playtrove", async () => {
+test("o tema Aniki é baixado com confirmação, abre o Playnite no lugar da tela cheia e remover volta ao tema Playtrove", async () => {
   const pack = await startFakeAnikiPack()
   const { app, page, dataDir } = await launchApp({ env: pack.env })
   try {
@@ -559,11 +559,33 @@ test("o tema Aniki é baixado com confirmação, vale na tela cheia e remover vo
     }), `http://playtrove-theme.localhost/aniki/${path}`)
     expect(await load("Images/Back.png")).toBe(true)
     expect(await load("Views/Main.xaml")).toBe(false)
+    // Com o Aniki, a tela cheia é o Playnite com ele: a biblioteca vai para o plugin, a ponte sobe e a
+    // janela do Playtrove some (nos testes, o Playnite não abre de verdade).
     await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
-    await expect(page.getByTestId("aniki-setup")).toBeVisible()
+    await expect.poll(async () => (await app.opened()).filter((item) => item === "aniki:enter").length).toBe(1)
+    await expect.poll(async () => (await app.window())?.visible).toBe(false)
+    expect((await app.window())?.fullscreen).toBe(false)
+    const playnite = join(dataDir, "themes", "aniki")
+    const plugin = join(playnite, "data", "ExtensionsData", "7b0d4c1e-2f58-4a3b-9d61-8c5e0a2f7b93")
+    expect(existsSync(join(playnite, "playnite", "Playnite.FullscreenApp.exe"))).toBe(true)
+    expect(existsSync(join(playnite, "data", "Extensions", "PlaytroveBridge", "PlaytroveBridge.dll"))).toBe(true)
+    const library = JSON.parse(readFileSync(join(plugin, "library.json"), "utf8")) as { games: { title: string, cover?: string }[] }
+    expect(library.games.length).toBeGreaterThan(0)
+    expect(library.games.every((game) => game.cover === undefined)).toBe(true)
+    const config = JSON.parse(readFileSync(join(playnite, "data", "config.json"), "utf8")) as Record<string, unknown>
+    expect(config).toMatchObject({ Language: "pt_BR", FirstTimeWizardComplete: true, CheckForLibraryUpdates: 1 })
+    expect(existsSync(join(plugin, "bridge.json"))).toBe(true)
+    // "Voltar ao modo janela" no Playnite: a janela volta, no modo janela, e a ponte fecha.
+    await app.invoke("test_aniki_exit", { kind: "window" })
+    await expect.poll(async () => (await app.window())?.visible).toBe(true)
+    await expect(page.getByRole("button", { name: "Tela cheia", exact: true })).toBeVisible()
+    expect(existsSync(join(plugin, "bridge.json"))).toBe(false)
+    // O F11 também entra no Aniki.
     await app.focus()
     await page.keyboard.press("F11")
-    await expect(page.getByRole("button", { name: "Tela cheia", exact: true })).toBeVisible()
+    await expect.poll(async () => (await app.opened()).filter((item) => item === "aniki:enter").length).toBe(2)
+    await app.invoke("test_aniki_exit", { kind: "window" })
+    await expect.poll(async () => (await app.window())?.visible).toBe(true)
     await page.getByRole("button", { name: "Remover o Aniki e o Playnite", exact: true }).click()
     await expect(themes.getByRole("radio", { name: "Playtrove" })).toBeChecked()
     expect(await page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ theme: "playtrove" })

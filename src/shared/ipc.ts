@@ -144,6 +144,8 @@ export interface AppApi {
     /** Apaga o pacote; se ele era o tema escolhido, volta o tema Playtrove. */
     removeAniki: () => Promise<AnikiPackStatus>
     onAnikiProgress: (callback: (status: AnikiPackStatus) => void) => () => void
+    /** Abre o Playnite com o Aniki no lugar da tela cheia; a janela do Playtrove some até ele fechar. */
+    enterAniki: () => Promise<void>
   }
   library: {
     /** Jogos, status e regras, de uma vez. */
