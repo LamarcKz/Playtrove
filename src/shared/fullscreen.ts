@@ -2,13 +2,14 @@ import type { AnikiColorPreset } from "./anikiColors"
 import type { ControllerIconStyle } from "./anikiAppearance"
 import type { InGameOverlayHotkey } from "./gameOverlay"
 import type { AnikiPresentationConfig } from "./anikiPresentation"
+import type { GameLaunchSplashConfig } from "./gameLaunchSplash"
 
 /** Os temas da tela cheia, como os do Playnite: o do Playtrove (padrão) e o Aniki ReMake, baixado da release do autor. */
 export const FULLSCREEN_THEMES = ["playtrove", "aniki"] as const
 export type FullscreenTheme = (typeof FULLSCREEN_THEMES)[number]
 /** Avatares próprios do Playtrove para o perfil do Aniki (a mesma lista do Rust, em src-tauri/src/fullscreen.rs). */
 export const PROFILE_AVATARS = ["gamepad", "trophy", "star", "crown", "ghost", "swords", "rocket", "flame", "skull", "sparkles", "shield", "zap"] as const
-export type ProfileAvatar = (typeof PROFILE_AVATARS)[number]
+export type ProfileAvatar = (typeof PROFILE_AVATARS)[number] | "custom"
 /** Layouts do Aniki (as mesmas listas do Rust); o primeiro de cada uma é o padrão. */
 export const LIBRARY_LAYOUTS = ["horizontal", "vertical", "list"] as const
 export type LibraryLayout = (typeof LIBRARY_LAYOUTS)[number]
@@ -25,7 +26,7 @@ export const FULLSCREEN_TRAILERS = ["off", "details", "all"] as const
 export type FullscreenTrailers = (typeof FULLSCREEN_TRAILERS)[number]
 
 /** Preferências próprias do modo de tela cheia, independentes do desktop. */
-export interface FullscreenConfig extends AnikiPresentationConfig {
+export interface FullscreenConfig extends AnikiPresentationConfig, GameLaunchSplashConfig {
   /** "aniki" só é aceito com o pacote do Aniki instalado. */
   theme: FullscreenTheme
   startOnLaunch: boolean

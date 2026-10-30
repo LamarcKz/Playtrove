@@ -20,6 +20,7 @@ chrono = "0.4.45"
 hidapi = { version = "2.6.7", default-features = false, features = ["windows-native"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
 percent-encoding = "2.3.2"
+quick-xml = "0.42.0"
 regex = "1"
 rusqlite = { version = "0.40.2", features = ["bundled"] }
 serde = { version = "1.0.229", features = ["derive"] }

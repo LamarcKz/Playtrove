@@ -2882,6 +2882,7 @@ dependencies = [
  "hidapi",
  "image",
  "percent-encoding",
+ "quick-xml",
  "regex",
  "rusqlite",
  "serde",

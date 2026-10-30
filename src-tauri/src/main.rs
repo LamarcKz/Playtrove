@@ -2,6 +2,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod achievements;
+mod aniki_custom_media;
+mod aniki_news;
 mod audio_output;
 mod commands;
 mod controller_input;
@@ -17,12 +19,14 @@ mod emulators;
 mod errors;
 mod fullscreen;
 mod fullscreen_profiles;
+mod game_launch_splash;
 mod game_media;
 mod game_overlay;
 mod game_window;
 mod hub_data;
 mod i18n;
 mod images;
+mod launch_splash_state;
 mod launcher;
 mod library;
 mod links;
@@ -93,6 +97,7 @@ fn main() {
             app.manage(images::ImagesDir(folder.join("images")));
             app.manage(theme_pack::AnikiPack::new(folder.join("themes")));
             app.manage(music_previews::MusicPreviewCache::new(folder.join("music-previews"))?);
+            app.manage(aniki_news::AnikiNewsService::new(folder.join("aniki-news")));
             app.manage(test_hooks::TestHooks::default());
             app.manage(secrets::Secrets::new(&folder));
             app.manage(AppState::new(db, language));
@@ -109,6 +114,8 @@ fn main() {
             updates::start(app.handle());
             let window = window::create_main_window(app.handle(), language, folder.join("webview"))?;
             app.manage(game_overlay::GameOverlay::start(app.handle().clone(), folder.join("webview")));
+            app.manage(game_launch_splash::GameLaunchSplash::start(app.handle().clone(), folder.join("webview")));
+            aniki_news::prefetch_after_startup(app.handle().clone());
 
             // O banco estava danificado: avisa o que foi recuperado e onde ficou o arquivo danificado.
             if let Some(report) = repair {
@@ -118,6 +125,22 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::game_launch_splash_get_state,
+            commands::game_launch_splash_rendered,
+            aniki_news::aniki_news_get_config,
+            aniki_news::aniki_news_set_config,
+            aniki_news::aniki_news_read,
+            aniki_news::aniki_news_refresh,
+            aniki_news::aniki_news_cancel,
+            aniki_news::aniki_news_open_article,
+            aniki_custom_media::aniki_custom_media_get_avatar,
+            aniki_custom_media::aniki_custom_media_pick_avatar,
+            aniki_custom_media::aniki_custom_media_remove_avatar,
+            aniki_custom_media::aniki_custom_media_get_global_splash,
+            aniki_custom_media::aniki_custom_media_pick_global_splash,
+            aniki_custom_media::aniki_custom_media_remove_global_splash,
+            aniki_custom_media::aniki_custom_media_pick_logo,
+            aniki_custom_media::aniki_custom_media_remove_logo,
             commands::app_version,
             commands::app_open_link,
             commands::app_report_bug,
@@ -217,6 +240,7 @@ fn main() {
             test_hooks::test_focus_window,
             test_hooks::test_controller_input,
             test_hooks::test_open_game_overlay,
+            test_hooks::test_open_game_launch_splash,
             test_hooks::test_game_overlay_input,
             test_hooks::test_set_window_size,
             test_hooks::test_hold_images,
@@ -229,6 +253,7 @@ fn main() {
     app.run(|app, event| {
         // Fechando o app com jogos abertos: registra o tempo jogado até agora (os emuladores continuam).
         if let RunEvent::Exit = event {
+            app.state::<game_launch_splash::GameLaunchSplash>().shutdown();
             app.state::<game_overlay::GameOverlay>().shutdown();
             app.state::<music_previews::MusicPreviewCache>().cancel();
             commands::finish_open_games(app);

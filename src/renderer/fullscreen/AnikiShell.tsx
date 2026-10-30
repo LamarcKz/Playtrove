@@ -8,7 +8,7 @@ import { useFullscreenActive, useFullscreenInput } from "@/hooks/useFullscreenIn
 import { fullscreenGames, restoreFullscreenSelection, sortFullscreenGames, type FullscreenAction, type FullscreenCollection, type FullscreenSort } from "@/lib/fullscreenNavigation"
 import { EMPTY_FILTERS, filterGames, hasActiveFilters, type LibraryFilters } from "@/lib/filters"
 import { FullscreenLaunchGuard } from "@/lib/fullscreenSession"
-import { AnikiSettings, SETTINGS_CATEGORIES, type SettingsCategory } from "./AnikiSettings"
+import { AnikiSettings, SETTINGS_CATEGORIES, type SettingsCategory, type SplashDurationField } from "./AnikiSettings"
 import { AnikiSetup, SETUP_STEPS, type SetupDraft } from "./AnikiSetup"
 import { AnikiLogin } from "./AnikiLogin"
 import { FullscreenKeyboard } from "./FullscreenKeyboard"
@@ -39,12 +39,15 @@ import { useFullscreenNotices } from "@/hooks/useFullscreenNotices"
 import { AnikiGallery, type AnikiGalleryHandle } from "./AnikiGallery"
 import { AnikiMaintenance, type AnikiMaintenanceHandle } from "./AnikiMaintenance"
 import { AnikiMusicPlayer } from "./AnikiMusicPlayer"
+import { AnikiNews, type AnikiNewsHandle } from "./AnikiNews"
+import { AnikiCustomMediaPicker, type AnikiCustomMediaPickerHandle } from "./AnikiCustomMediaPicker"
 import { AnikiLifecycleVideo } from "./AnikiLifecycleVideo"
 import { AnikiScreenSaver, type AnikiScreenSaverHandle } from "./AnikiScreenSaver"
 import { AnikiRunningSession, type AnikiRunningSessionHandle } from "./AnikiRunningSession"
 import { screenSaverHasBackground } from "@/lib/anikiPresentation"
 
-type Panel = "preferences" | "options" | "search" | "review" | "achievements" | "description" | "menu" | "quickAccess" | "quickOptions" | "profileName" | "profile" | "trophyOverview" | "setup" | "login" | "filters" | "notices" | "help" | "power" | "audio" | "gallery" | "maintenance" | "music" | null
+type CustomMediaPanel = "customAvatar" | "customLogo" | "customSplash"
+type Panel = "preferences" | "options" | "search" | "review" | "achievements" | "description" | "menu" | "quickAccess" | "quickOptions" | "profileName" | "profile" | "trophyOverview" | "setup" | "login" | "filters" | "notices" | "help" | "power" | "audio" | "gallery" | "maintenance" | "music" | "news" | "splashDuration" | CustomMediaPanel | null
 interface Props { enabled: boolean; games: Game[]; initialGameId: number | null; onExit: () => void; onOpenEmulators: () => void }
 const collections: FullscreenCollection[] = ["all", "recent", "favorites"]
 
@@ -56,7 +59,11 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
   const [selectedId, setSelectedId] = useState<number | null>(initialGameId)
   const [details, setDetails] = useState(false)
   const [panel, setPanel] = useState<Panel>(null)
+  const [splashDurationField, setSplashDurationField] = useState<SplashDurationField | null>(null)
+  const splashDurationTitle = splashDurationField === "gameLaunchSplashMinimumDurationMs" ? t.gameLaunchSplash.minimumEdit : t.gameLaunchSplash.maximumEdit
   const panelReturn = useRef<Panel>(null)
+  const customMediaReturn = useRef<Panel>(null)
+  const customMediaTarget = panel === "customAvatar" ? "avatar" : panel === "customLogo" ? "logo" : panel === "customSplash" ? "globalSplash" : null
   const [filters, setFilters] = useState<LibraryFilters>(EMPTY_FILTERS)
   const [sort, setSort] = useState<FullscreenSort>("collection")
   const [powerAction, setPowerAction] = useState<PowerAction | null>(null)
@@ -69,6 +76,8 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
   const [hubPageCount, setHubPageCount] = useState(HUB_PAGES)
   const gallery = useRef<AnikiGalleryHandle>(null)
   const maintenance = useRef<AnikiMaintenanceHandle>(null)
+  const news = useRef<AnikiNewsHandle>(null)
+  const customMedia = useRef<AnikiCustomMediaPickerHandle>(null)
   const [updating, setUpdating] = useState(false)
   const [lifecycle, setLifecycle] = useState<"startup" | "shutdown" | null>(null)
   const [startupWaiting, setStartupWaiting] = useState(false)
@@ -177,6 +186,7 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
 
   const closePanel = () => { reviewRevision.current++; panelReturn.current = null; setPanel(null); setError(null) }
   const openPanel = (next: Panel, from: Panel = panel) => { panelReturn.current = from; setPanel(next); setError(null) }
+  const openCustomMedia = (next: CustomMediaPanel) => { customMediaReturn.current = panel; setPanel(next); setError(null) }
   const openNotices = () => { notices.markSeen(); openPanel("notices") }
   const openFilters = () => { setHub(false); setDetails(false); openPanel("filters", null) }
   const openSetup = () => {
@@ -208,9 +218,13 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
   const back = () => {
     if (panel === "gallery" && gallery.current?.back()) return
     if (panel === "maintenance" && maintenance.current?.back()) return
+    if (panel === "news" && news.current?.back()) return
+    if (customMediaTarget && customMedia.current?.back()) return
     if (panel) sound("back")
     else if (details) sound("library")
-    if (panel === "review") cancelReview()
+    if (customMediaTarget) { setPanel(customMediaReturn.current); customMediaReturn.current = null; setError(null) }
+    else if (panel === "review") cancelReview()
+    else if (panel === "splashDuration") { setPanel("preferences"); setError(null) }
     else if (panel === "profileName") setPanel(nameReturn.current)
     else if (panel === "setup") { if (setupStep > 0) setSetupStep(setupStep - 1); else void finishSetup({}) }
     else if (panel && panelReturn.current) { setPanel(panelReturn.current); panelReturn.current = null; setError(null) }
@@ -246,6 +260,19 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
     finally { setEditing(false) }
   }
   const favorite = () => { if (game) void mutate(() => window.api.games.setFavorite(game.id, !game.favorite)) }
+  const applySplashDuration = (text: string) => {
+    if (!splashDurationField || editing) return
+    const [min, max] = splashDurationField === "gameLaunchSplashMinimumDurationMs" ? [500, 600000] : [1000, 120000]
+    const value = Number(text.trim())
+    if (!/^\d+$/.test(text.trim()) || !Number.isSafeInteger(value) || value < min || value > max) {
+      setError(t.gameLaunchSplash.invalidDuration(min, max))
+      return
+    }
+    void mutate(async () => {
+      await window.api.fullscreen.setConfig({ [splashDurationField]: value })
+      setPanel("preferences")
+    })
+  }
   const confirmPower = async () => {
     if (!powerAction) return
     await mutate(async () => { await window.api.system.power(powerAction); closePanel() })
@@ -306,7 +333,7 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
   const status = statuses.find((item) => item.id === game?.statusId)?.name
   const dynamic = useDynamicPalette(game, Boolean(config?.dynamicColors) && enabled)
   const canPlay = Boolean(game?.romPath && game.emulatorId)
-  const panelTitle = panel === "filters" ? t.filters.title : panel === "notices" ? t.fullscreen.notices : panel === "help" ? t.fullscreen.help : panel === "power" && powerAction ? t.fullscreen.powerActions[powerAction] : panel === "music" ? t.musicPlayer.title : panel === "audio" ? t.audioOutput.title : panel === "maintenance" ? t.fullscreenProfiles.title : panel === "profileName" ? t.fullscreen.profileName : panel === "search" ? t.fullscreen.search : panel === "review" ? t.fullscreen.review : t.fullscreen.options
+  const panelTitle = panel === "splashDuration" ? splashDurationTitle : panel === "customAvatar" ? t.anikiCustomMedia.avatarTitle : panel === "customLogo" ? t.anikiCustomMedia.logoTitle : panel === "customSplash" ? t.anikiCustomMedia.globalSplashTitle : panel === "news" ? t.anikiNews.title : panel === "filters" ? t.filters.title : panel === "notices" ? t.fullscreen.notices : panel === "help" ? t.fullscreen.help : panel === "power" && powerAction ? t.fullscreen.powerActions[powerAction] : panel === "music" ? t.musicPlayer.title : panel === "audio" ? t.audioOutput.title : panel === "maintenance" ? t.fullscreenProfiles.title : panel === "profileName" ? t.fullscreen.profileName : panel === "search" ? t.fullscreen.search : panel === "review" ? t.fullscreen.review : t.fullscreen.options
   const shortcuts: AnikiShortcut[] = [
     ...(canPlay ? [{ button: "square" as const, label: t.fullscreen.play }] : []),
     { button: "cross", label: t.fullscreen.details },
@@ -346,13 +373,13 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
         <AnikiMainMenu canRandom={games.length > 0} updating={updating} onSettings={() => openPanel("preferences")} onRandom={randomGame} onMinimize={() => { closePanel(); window.api.windowControls.minimize() }} onDesktop={() => { closePanel(); onExit() }} onExit={() => window.api.windowControls.close()} onUpdate={() => void updateLibrary()} onHelp={() => openPanel("help")} onPower={(action) => { setPowerAction(action); openPanel("power") }} />
       </section></div>}
       {panel === "quickAccess" && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.quickAccess}>
-        <AnikiQuickAccess canRandom={games.length > 0} updating={updating} onProfile={() => openPanel("profile")} onTrophies={() => openPanel("trophyOverview")} onSettings={() => openPanel("preferences")} onRandom={randomGame} onUpdate={() => void updateLibrary()} onPower={() => setPanel("menu")} onAudio={() => openPanel("audio")} onMusic={() => openPanel("music")} onNotices={openNotices} onHelp={() => openPanel("help")} onMaintenance={() => openPanel("maintenance")} />
+        <AnikiQuickAccess canRandom={games.length > 0} updating={updating} onProfile={() => openPanel("profile")} onTrophies={() => openPanel("trophyOverview")} onSettings={() => openPanel("preferences")} onRandom={randomGame} onUpdate={() => void updateLibrary()} onPower={() => setPanel("menu")} onAudio={() => openPanel("audio")} onMusic={() => openPanel("music")} onNotices={openNotices} onHelp={() => openPanel("help")} onMaintenance={() => openPanel("maintenance")} onNews={() => openPanel("news")} />
       </section></div>}
       {panel === "quickOptions" && <div className="aniki-menu-shade" onClick={(event) => { if (event.target === event.currentTarget) closePanel() }}><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.quickOptions} className="aniki-quick-options-panel">
         <AnikiQuickOptions />
       </section></div>}
       {panel === "preferences" && <div className="aniki-trophies-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.settings}>
-        <AnikiSettings category={settingsCategory} onCategory={setSettingsCategory} onEditName={editName} onRunSetup={openSetup} onPreviewScreenSaver={() => screenSaver.current?.preview()} canPreviewScreenSaver={Boolean(config && screenSaverHasBackground(games, config.screenSaverSource, visible))} />
+        <AnikiSettings category={settingsCategory} onCategory={setSettingsCategory} onEditName={editName} onRunSetup={openSetup} onPreviewScreenSaver={() => screenSaver.current?.preview()} canPreviewScreenSaver={Boolean(config && screenSaverHasBackground(games, config.screenSaverSource, visible))} onCustomAvatar={() => openCustomMedia("customAvatar")} onGlobalSplash={() => openCustomMedia("customSplash")} onEditSplashDuration={(field) => { setSplashDurationField(field); setPanel("splashDuration"); setError(null) }} />
       </section></div>}
       {panel === "setup" && setupDraft && <div className="aniki-trophies-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={t.fullscreen.setup.title}>
         <AnikiSetup step={setupStep} draft={setupDraft} onDraft={(patch) => setSetupDraft({ ...setupDraft, ...patch })} onStep={(step) => setSetupStep(Math.max(0, Math.min(SETUP_STEPS.length - 1, step)))} onApply={() => void finishSetup(setupDraft)} onEditName={editName} />
@@ -377,7 +404,7 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
         <AnikiGallery ref={gallery} game={game} />
       </section></div>}
       {panel && !["menu", "description", "achievements", "quickAccess", "quickOptions", "profile", "trophyOverview", "preferences", "setup", "login", "gallery"].includes(panel) && <div className="fs-modal-shade"><section ref={scope} role="dialog" aria-modal="true" aria-label={panelTitle} className={`fs-modal fs-modal-${panel}`}>
-        {panel === "profileName" && config ? <FullscreenKeyboard title={t.fullscreen.profileName} initial={nameReturn.current === "setup" && setupDraft ? setupDraft.profileName : config.profileName} onCancel={() => setPanel(nameReturn.current)} onApply={(text) => { if (nameReturn.current === "setup" && setupDraft) { setSetupDraft({ ...setupDraft, profileName: text.trim().slice(0, 32) }); setPanel("setup") } else void saveConfig({ profileName: text.trim() }).then(() => setPanel(nameReturn.current)) }} /> : panel === "search" ? <FullscreenKeyboard title={t.fullscreen.search} initial={query} onCancel={closePanel} onApply={(text) => { if (!query) searchReturn.current = { id: selectedId ?? resolvedId, details }; setQuery(text); setSelectedId(text ? null : searchReturn.current.id); setDetails(text ? false : searchReturn.current.details); closePanel() }} /> : panel === "review" && game ? <FullscreenKeyboard title={t.fullscreen.review} initial={game.review ?? ""} multiline onCancel={cancelReview} onApply={(text) => { const revision = reviewRevision.current; void mutate(async () => { await window.api.games.setEvaluation(game.id, { review: text || null }); if (revision === reviewRevision.current) { setPanel(reviewReturn.current); setError(null) } }) }} /> : <>
+        {panel === "splashDuration" && config && splashDurationField ? <FullscreenKeyboard title={splashDurationTitle} initial={String(config[splashDurationField])} onCancel={() => { setPanel("preferences"); setError(null) }} onApply={applySplashDuration} /> : panel === "profileName" && config ? <FullscreenKeyboard title={t.fullscreen.profileName} initial={nameReturn.current === "setup" && setupDraft ? setupDraft.profileName : config.profileName} onCancel={() => setPanel(nameReturn.current)} onApply={(text) => { if (nameReturn.current === "setup" && setupDraft) { setSetupDraft({ ...setupDraft, profileName: text.trim().slice(0, 32) }); setPanel("setup") } else void saveConfig({ profileName: text.trim() }).then(() => setPanel(nameReturn.current)) }} /> : panel === "search" ? <FullscreenKeyboard title={t.fullscreen.search} initial={query} onCancel={closePanel} onApply={(text) => { if (!query) searchReturn.current = { id: selectedId ?? resolvedId, details }; setQuery(text); setSelectedId(text ? null : searchReturn.current.id); setDetails(text ? false : searchReturn.current.details); closePanel() }} /> : panel === "review" && game ? <FullscreenKeyboard title={t.fullscreen.review} initial={game.review ?? ""} multiline onCancel={cancelReview} onApply={(text) => { const revision = reviewRevision.current; void mutate(async () => { await window.api.games.setEvaluation(game.id, { review: text || null }); if (revision === reviewRevision.current) { setPanel(reviewReturn.current); setError(null) } }) }} /> : <>
           <button type="button" className="fs-back" onClick={back}><ArrowLeft />{t.fullscreen.back}</button>
           {panel === "filters" && <PlaytroveFilters games={games} filters={filters} sort={sort} onFilters={setFilters} onSort={setSort} />}
           {panel === "notices" && <PlaytroveNotices notices={notices.notices} onClear={notices.clear} />}
@@ -385,12 +412,15 @@ export function AnikiShell({ enabled, games, initialGameId, onExit, onOpenEmulat
           {panel === "audio" && <AnikiAudioPanel />}
           {panel === "music" && <AnikiMusicPlayer />}
           {panel === "maintenance" && <AnikiMaintenance ref={maintenance} />}
+          {panel === "news" && <AnikiNews ref={news} api={window.api.anikiNews} labels={t.anikiNews} locale={t.locale} />}
+          {customMediaTarget && <AnikiCustomMediaPicker ref={customMedia} target={customMediaTarget} game={game ?? undefined} />}
           {panel === "power" && powerAction && <PowerConfirm action={powerAction} onConfirm={() => void confirmPower()} onCancel={back} />}
           {panel === "options" && game && <><h2>{game.title}</h2><div className="fs-options">
             <button type="button" aria-pressed={game.favorite} disabled={editing} onClick={favorite}><Star />{t.fullscreen.favorite}</button>
             <h3>{t.fields.status}</h3><div className="fs-status-options">{statuses.map((item) => <button type="button" key={item.id} disabled={editing} aria-pressed={game.statusId === item.id} onClick={() => void mutate(() => window.api.games.setStatus(game.id, item.id))}>{item.name}</button>)}</div>
             {(["rating", "difficulty"] as const).map((field) => <div key={field} className="fs-score"><h3>{t.fields[field]}</h3><button type="button" disabled={editing} aria-label={t.fields[field] + " −"} onClick={() => void mutate(() => window.api.games.setEvaluation(game.id, { [field]: Math.max(1, (game[field] ?? 2) - 1) }))}>{"−"}</button><output>{game[field] !== null ? (game[field]! / 2).toLocaleString(t.locale) + " / 5" : "—"}</output><button type="button" disabled={editing} aria-label={t.fields[field] + " +"} onClick={() => void mutate(() => window.api.games.setEvaluation(game.id, { [field]: Math.min(10, (game[field] ?? 0) + 1) }))}>{"+"}</button><button type="button" disabled={editing} aria-label={t.fields[field] + ": " + t.common.clear} onClick={() => void mutate(() => window.api.games.setEvaluation(game.id, { [field]: null }))}>{t.common.clear}</button></div>)}
             <button type="button" onClick={openReview}>{t.fullscreen.editReview}</button>
+            <button type="button" onClick={() => openCustomMedia("customLogo")}><FolderOpen />{t.anikiCustomMedia.logoTitle}</button>
             <button type="button" disabled={editing} onClick={() => void mutate(async () => { await window.api.metadata.download([game.id]); notices.push(t.fullscreen.metadataQueued(game.title)) })}><Download />{t.actions.downloadMetadata}</button>
             <button type="button" disabled={editing || !game.romPath} onClick={() => void mutate(() => window.api.games.showRom(game.id))}><FolderOpen />{t.actions.showRom}</button>
           </div></>}

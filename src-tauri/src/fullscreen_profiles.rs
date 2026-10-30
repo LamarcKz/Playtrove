@@ -23,13 +23,14 @@ use crate::test_hooks::{self, TestHooks};
 use crate::theme_pack::AnikiPack;
 
 pub const PROFILE_FORMAT: &str = "playtrove-fullscreen-preferences";
-pub const PROFILE_VERSION: u8 = 1;
+pub const PROFILE_VERSION: u8 = 2;
 const MAX_PROFILE_BYTES: u64 = 64 * 1024;
 static NEXT_EXPORT: AtomicU64 = AtomicU64::new(1);
 
 /// A versão do arquivo só muda quando essa lista é revista. Novos campos do app não são exportados
 /// implicitamente: somente preferências explicitamente aprovadas para esse formato.
-const FIELDS: [&str; 37] = [
+/// O schema legado permanece fechado nos seus 37 campos.
+const V1_FIELDS: [&str; 37] = [
     "theme",
     "startOnLaunch",
     "musicPlayback",
@@ -52,6 +53,53 @@ const FIELDS: [&str; 37] = [
     "screenSaverShowInfoCard",
     "screenSaverAnimateBackground",
     "screenSaverUseFadeTransitions",
+    "libraryLayout",
+    "detailsLayout",
+    "colorPreset",
+    "dynamicColors",
+    "effects",
+    "interface",
+    "loginScreen",
+    "trailers",
+    "setupDone",
+    "coverRows",
+    "showClock",
+    "uiSounds",
+    "uiSoundsVolume",
+    "swapConfirm",
+    "playtroveTrailers",
+];
+
+const FIELDS: [&str; 44] = [
+    "theme",
+    "startOnLaunch",
+    "musicPlayback",
+    "musicVolume",
+    "startDestination",
+    "profileName",
+    "profileAvatar",
+    "anikiAvatarIndex",
+    "controllerIconStyle",
+    "inGameOverlayEnabled",
+    "inGameOverlayHotkey",
+    "startupIntroVideoEnabled",
+    "shutdownVideoEnabled",
+    "screenSaverEnabled",
+    "screenSaverIdleDelayMinutes",
+    "screenSaverChangeIntervalSeconds",
+    "screenSaverSource",
+    "screenSaverAmbientMusicEnabled",
+    "screenSaverShowLogo",
+    "screenSaverShowInfoCard",
+    "screenSaverAnimateBackground",
+    "screenSaverUseFadeTransitions",
+    "gameLaunchSplashEnabled",
+    "gameLaunchSplashMinimumDurationMs",
+    "gameLaunchSplashMaximumWaitMs",
+    "gameLaunchSplashShowLogo",
+    "gameLaunchSplashLogoPosition",
+    "gameLaunchSplashBackgroundDimming",
+    "gameLaunchSplashSelectionMode",
     "libraryLayout",
     "detailsLayout",
     "colorPreset",
@@ -129,14 +177,17 @@ pub fn import_document(db: &Connection, language: Language, bytes: &[u8], aniki_
     }
     let file: ProfileFile = serde_json::from_slice(bytes).map_err(|_| invalid())?;
     let fields = file.config.as_object().ok_or_else(invalid)?;
-    if file.format != PROFILE_FORMAT
-        || file.version != PROFILE_VERSION
-        || fields.len() != FIELDS.len()
-        || FIELDS.iter().any(|key| !fields.contains_key(*key))
-    {
+    let expected: &[&str] = match file.version {
+        1 => &V1_FIELDS,
+        PROFILE_VERSION => &FIELDS,
+        _ => return Err(invalid()),
+    };
+    if file.format != PROFILE_FORMAT || fields.len() != expected.len() || expected.iter().any(|key| !fields.contains_key(*key)) {
         return Err(invalid());
     }
     // Usa o validador real em um banco descartável antes de tocar nas preferências persistidas.
+    // O schema v1 não contém o splash: o banco vazio fornece seus sete padrões, mesmo quando o
+    // destino já tem escolhas diferentes. O patch persistido sempre contém os 44 campos de v2.
     let temporary = preference_database().map_err(|_| invalid())?;
     let config = fullscreen::set_config(&temporary, &file.config, language).map_err(|_| invalid())?;
     if config.theme == "aniki" && !aniki_installed {
@@ -291,7 +342,8 @@ mod tests {
         let bytes = export_document(&db, Language::En).unwrap();
         let document: Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(document["format"], "playtrove-fullscreen-preferences");
-        assert_eq!(document["version"], 1);
+        assert_eq!(document["version"], 2);
+        assert_eq!(document["config"].as_object().unwrap().len(), 44);
         assert_eq!(document["config"], serde_json::to_value(get_config(&db)).unwrap());
         assert_eq!(document.as_object().unwrap().len(), 3);
         assert!(!String::from_utf8(bytes).unwrap().contains("SENTINELA_PRIVADA_NAO_EXPORTAR"));
@@ -324,7 +376,7 @@ mod tests {
         let before = get_config(&db);
         let mut invalid = Vec::new();
         let mut wrong = original.clone();
-        wrong["version"] = json!(2);
+        wrong["version"] = json!(3);
         invalid.push(wrong);
         let mut wrong = original.clone();
         wrong["extra"] = json!("secret");
@@ -358,7 +410,10 @@ mod tests {
         let db = memory_database();
         set_setting(&db, "themeMusicVolume", Some("77")).unwrap();
         set_setting(&db, "igdbClientSecret", Some("SEGREDO_SINTETICO")).unwrap();
-        set_config(&db, &json!({"theme": "aniki", "startOnLaunch": true, "musicVolume": 88, "profileName": "Teste", "libraryLayout": "vertical"}), Language::En).unwrap();
+        set_config(&db, &json!({"theme": "aniki", "startOnLaunch": true, "musicVolume": 88, "profileName": "Teste", "libraryLayout": "vertical",
+            "gameLaunchSplashEnabled": false, "gameLaunchSplashMinimumDurationMs": 500, "gameLaunchSplashMaximumWaitMs": 1000,
+            "gameLaunchSplashShowLogo": false, "gameLaunchSplashLogoPosition": "rightTop", "gameLaunchSplashBackgroundDimming": 0.8,
+            "gameLaunchSplashSelectionMode": "global"}), Language::En).unwrap();
         let mut expected = get_config(&memory_database());
         expected.theme = "aniki".into();
         assert_eq!(reset_config(&db, Language::En).unwrap(), expected);
@@ -398,5 +453,92 @@ mod tests {
         assert!(directory.is_dir());
         assert_eq!(std::fs::read_dir(&folder).unwrap().count(), 2);
         std::fs::remove_dir_all(folder).unwrap();
+    }
+
+    #[test]
+    fn legacy_v1_imports_exactly_37_fields_and_supplies_all_seven_splash_defaults() {
+        let source = memory_database();
+        set_config(&source, &json!({"profileAvatar": "custom", "musicVolume": 33}), Language::En).unwrap();
+        let mut config = serde_json::to_value(get_config(&source)).unwrap();
+        config.as_object_mut().unwrap().retain(|key, _| !key.starts_with("gameLaunchSplash"));
+        assert_eq!(config.as_object().unwrap().len(), 37);
+        let document = json!({"format": PROFILE_FORMAT, "version": 1, "config": config});
+        let target = memory_database();
+        set_config(
+            &target,
+            &json!({"gameLaunchSplashEnabled": false, "gameLaunchSplashMinimumDurationMs": 500,
+            "gameLaunchSplashMaximumWaitMs": 1000, "gameLaunchSplashShowLogo": false, "gameLaunchSplashLogoPosition": "center",
+            "gameLaunchSplashBackgroundDimming": 0, "gameLaunchSplashSelectionMode": "global"}),
+            Language::En,
+        )
+        .unwrap();
+        let imported = import_document(&target, Language::En, &serde_json::to_vec(&document).unwrap(), true).unwrap();
+        let result = serde_json::to_value(imported).unwrap();
+        assert_eq!(result["profileAvatar"], "custom");
+        assert_eq!(result["musicVolume"], 33);
+        assert_eq!(result["gameLaunchSplashMinimumDurationMs"], 2400);
+        assert_eq!(result["gameLaunchSplashMaximumWaitMs"], 90000);
+        assert_eq!(result["gameLaunchSplashBackgroundDimming"], json!(95.0 / 255.0));
+        assert_eq!(result["gameLaunchSplashLogoPosition"], "leftCenter");
+        assert_eq!(result["gameLaunchSplashSelectionMode"], "automatic");
+        assert_eq!(result["gameLaunchSplashEnabled"], true);
+        assert_eq!(result["gameLaunchSplashShowLogo"], true);
+        let mut incomplete = document.clone();
+        incomplete["config"].as_object_mut().unwrap().remove("profileName");
+        let before = get_config(&target);
+        assert!(import_document(&target, Language::En, &serde_json::to_vec(&incomplete).unwrap(), true).is_err());
+        assert_eq!(get_config(&target), before);
+        let mut unknown = document.clone();
+        unknown["config"]["unexpectedSplashField"] = json!(true);
+        assert!(import_document(&target, Language::En, &serde_json::to_vec(&unknown).unwrap(), true).is_err());
+        let duplicate = serde_json::to_string(&document).unwrap().replacen(
+            "\"profileAvatar\":",
+            "\"profileAvatar\": \"star\", \"profileAvatar\":",
+            1,
+        );
+        assert!(import_document(&target, Language::En, duplicate.as_bytes(), true).is_err());
+        assert_eq!(get_config(&target), before);
+    }
+
+    #[test]
+    fn v2_roundtrip_requires_all_44_fields_and_rejects_mislabeled_schema_before_writing() {
+        let source = memory_database();
+        let expected = set_config(&source, &json!({"gameLaunchSplashEnabled": false, "gameLaunchSplashMinimumDurationMs": 600000,
+            "gameLaunchSplashMaximumWaitMs": 1000, "gameLaunchSplashShowLogo": false, "gameLaunchSplashLogoPosition": "rightBottom",
+            "gameLaunchSplashBackgroundDimming": 0.8, "gameLaunchSplashSelectionMode": "global", "profileAvatar": "custom"}), Language::En).unwrap();
+        let bytes = export_document(&source, Language::En).unwrap();
+        let target = memory_database();
+        assert_eq!(import_document(&target, Language::En, &bytes, true).unwrap(), expected);
+        let original: Value = serde_json::from_slice(&bytes).unwrap();
+        let before = get_config(&target);
+        let mut bad = vec![];
+        for field in original["config"].as_object().unwrap().keys().filter(|field| field.starts_with("gameLaunchSplash")) {
+            let mut missing = original.clone();
+            missing["config"].as_object_mut().unwrap().remove(field);
+            bad.push(missing);
+        }
+        let mut wrong_version = original.clone();
+        wrong_version["version"] = json!(1);
+        bad.push(wrong_version);
+        let mut old_v2 = original.clone();
+        old_v2["config"].as_object_mut().unwrap().retain(|key, _| !key.starts_with("gameLaunchSplash"));
+        bad.push(old_v2);
+        let mut invalid = original.clone();
+        invalid["config"]["gameLaunchSplashBackgroundDimming"] = json!(1);
+        bad.push(invalid);
+        let mut unknown = original.clone();
+        unknown["config"]["unexpectedSplashField"] = json!(true);
+        bad.push(unknown);
+        for document in bad {
+            assert!(import_document(&target, Language::En, &serde_json::to_vec(&document).unwrap(), true).is_err());
+            assert_eq!(get_config(&target), before);
+        }
+        let duplicate = String::from_utf8(bytes).unwrap().replacen(
+            "\"gameLaunchSplashEnabled\":",
+            "\"gameLaunchSplashEnabled\": true, \"gameLaunchSplashEnabled\":",
+            1,
+        );
+        assert!(import_document(&target, Language::En, duplicate.as_bytes(), true).is_err());
+        assert_eq!(get_config(&target), before);
     }
 }

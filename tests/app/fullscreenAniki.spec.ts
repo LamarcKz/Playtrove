@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test"
 import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import { createServer } from "node:http"
 import type { ControllerButton } from "../../src/shared/controllers"
 import { type AppProcess, type TestApp, createFiles, launchApp, mockOpenDialog, removeDataDir } from "./helpers"
 import { type FakeAnikiPack, startFakeAnikiPack } from "./fakeAnikiPack"
@@ -51,6 +52,111 @@ test("o centro de controle usa janela própria, respeita o voltar e confirma o f
 function launchAniki(options: Parameters<typeof launchApp>[0] = {}) {
   return launchApp({ ...options, env: { ...pack.env, ...options.env } })
 }
+
+test("as imagens personalizadas preservam o original e o retorno aos painéis", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  const files = createFiles({ "imagem.png": "" })
+  const original = join(files, "imagem.png")
+  writeFileSync(original, Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64"))
+  try {
+    await startInLibrary(page)
+    await enterFullscreen(page)
+    await app.focus()
+    await press(app, "options")
+    await page.getByTestId("aniki-quick-access").getByRole("button", { name: "Configurações", exact: true }).click()
+    const preferences = page.getByRole("dialog", { name: "Configurações", exact: true })
+    await preferences.getByRole("button", { name: "Avatar personalizado", exact: true }).click()
+    const picker = page.getByTestId("aniki-custom-media")
+    await mockOpenDialog(app, original)
+    await picker.getByRole("button", { name: "Escolher imagem do avatar…", exact: true }).click()
+    await expect.poll(() => page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ profileAvatar: "custom", anikiAvatarIndex: null })
+    await expect.poll(() => picker.locator("img").evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBe(1)
+    await page.keyboard.press("Escape")
+    await expect(preferences).toBeVisible()
+    await preferences.getByRole("button", { name: "Avatar Aniki 1", exact: true }).click()
+    await expect.poll(() => page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ profileAvatar: "gamepad", anikiAvatarIndex: 1 })
+    expect(await page.evaluate(() => window.api.anikiCustomMedia.getAvatar())).toMatch(/avatar-local-/)
+    await preferences.getByRole("button", { name: "Abertura do jogo", exact: true }).click()
+    await preferences.getByRole("button", { name: "Imagem global de abertura", exact: true }).click()
+    await mockOpenDialog(app, original)
+    await picker.getByRole("button", { name: "Escolher imagem de abertura…", exact: true }).click()
+    await expect.poll(() => page.evaluate(() => window.api.anikiCustomMedia.getGlobalSplash())).toMatch(/splash-global-/)
+    await page.keyboard.press("Escape")
+    await expect(preferences).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(page.getByTestId("aniki-quick-access")).toBeVisible()
+    await page.keyboard.press("Escape")
+    await page.getByTestId("fullscreen-library").getByRole("button", { name: "Mar de Estrelas", exact: true }).click()
+    await press(app, "triangle")
+    const options = page.getByRole("dialog", { name: "Opções do jogo", exact: true })
+    await options.getByRole("button", { name: "Logo personalizada", exact: true }).click()
+    await mockOpenDialog(app, original)
+    await picker.getByRole("button", { name: "Escolher logo personalizada…", exact: true }).click()
+    await expect.poll(() => picker.locator("img").getAttribute("src")).toMatch(/logo-local-/)
+    await picker.getByRole("button", { name: "Remover logo personalizada", exact: true }).click()
+    await expect(picker.getByRole("button", { name: "Cancelar", exact: true })).toBeFocused()
+    await press(app, "circle")
+    await expect(picker.getByRole("alertdialog")).toHaveCount(0)
+    await page.keyboard.press("Escape")
+    await expect(options).toBeVisible()
+    expect(existsSync(original)).toBe(true)
+  } finally { await app.close(); removeDataDir(dataDir); removeDataDir(files) }
+})
+
+test("o leitor RSS usa o feed local, abre o artigo e volta da edição sem sair", async () => {
+  const server = createServer((request, response) => {
+    if (request.url !== "/feed") { response.writeHead(404).end(); return }
+    response.setHeader("content-type", "application/rss+xml")
+    response.end(`<rss version="2.0"><channel><title>Feed sintético</title><item><guid>item-1</guid><title>Notícia sintética</title><link>http://127.0.0.1:${(server.address() as { port: number }).port}/artigo</link><pubDate>${new Date().toUTCString()}</pubDate><description><![CDATA[<p>Conteúdo <b>sintético</b>.</p><script>window.__rssExecuted = true</script>]]></description></item></channel></rss>`)
+  })
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
+  const feed = `http://127.0.0.1:${(server.address() as { port: number }).port}/feed`
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await enterFullscreen(page)
+    await app.focus()
+    await press(app, "options")
+    const newsButton = page.getByTestId("aniki-quick-access").getByRole("button", { name: "Notícias", exact: true })
+    await expect(newsButton).toBeVisible()
+    await page.evaluate((url) => window.api.anikiNews.setConfig({ enabled: true, sourceA: { title: "Fonte sintética A", url }, sourceB: { title: "Fonte sintética B", url } }), feed)
+    await newsButton.click()
+    const news = page.getByTestId("aniki-news")
+    await expect(news.getByRole("button", { name: /Notícia sintética/ })).toBeVisible()
+    await expect(news.getByRole("article")).toContainText("Conteúdo sintético.")
+    expect(await page.evaluate(() => "__rssExecuted" in window)).toBe(false)
+    await news.getByRole("button", { name: "Abrir artigo original", exact: true }).click()
+    await expect.poll(() => app.opened()).toContain(feed.replace("/feed", "/artigo"))
+    await news.getByRole("button", { name: "Configurar fontes", exact: true }).click()
+    await page.keyboard.press("Escape")
+    await expect(news).toBeVisible()
+    await page.keyboard.press("Escape")
+    await expect(page.getByTestId("aniki-quick-access")).toBeVisible()
+  } finally {
+    await app.close(); removeDataDir(dataDir)
+    await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+  }
+})
+
+test("a abertura nativa do jogo respeita o mínimo sem roubar foco e fecha na falha", async () => {
+  const { app, page, dataDir } = await launchAniki()
+  try {
+    await app.focus()
+    const gameId = await page.evaluate(async () => (await window.api.library.get()).games[0].id)
+    await expect.poll(async () => (await app.window()).foreground).toBe(true)
+    const created = page.context().waitForEvent("page")
+    const started = Date.now()
+    await app.invoke("test_open_game_launch_splash", { gameId })
+    const splash = await created
+    await expect(splash.getByTestId("aniki-game-launch-splash")).toBeVisible()
+    expect((await app.window()).foreground).toBe(true)
+    await expect.poll(() => page.context().pages().length, { timeout: 15_000 }).toBe(1)
+    expect(Date.now() - started).toBeGreaterThanOrEqual(2400)
+    expect((await app.window()).foreground).toBe(true)
+    await app.invoke("test_open_game_launch_splash", { gameId, failed: true })
+    await expect.poll(() => page.evaluate(() => window.api.gameLaunchSplash.getState().then((state) => state.open))).toBe(false)
+    await expect.poll(() => page.context().pages().length).toBe(1)
+  } finally { await app.close(); removeDataDir(dataDir) }
+})
 
 test("o player controla o único áudio e a prévia da proteção consome teclado e controle", async () => {
   const { app, page, dataDir } = await launchAniki()
@@ -108,6 +214,7 @@ test("as preferências exportam, importam e recusam arquivo inválido sem grava�
     expect(await page.evaluate(() => window.api.fullscreenProfiles.export())).toBe(true)
     const document = JSON.parse(readFileSync(join(files, "preferencias.json"), "utf8"))
     expect(document.format).toBe("playtrove-fullscreen-preferences")
+    expect(document.version).toBe(2)
     expect(Object.keys(document).sort()).toEqual(["config", "format", "version"])
     await page.evaluate(() => window.api.fullscreen.setConfig({ musicVolume: 70, anikiAvatarIndex: null }))
     await mockOpenDialog(app, join(files, "preferencias.json"))

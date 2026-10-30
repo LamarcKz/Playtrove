@@ -6,6 +6,27 @@
 export const ptBR = {
   /** O idioma das datas e dos números (Intl). */
   locale: "pt-BR",
+  gameLaunchSplash: {
+    enabled: "Tela de abertura do jogo", minimum: "Tempo mínimo", maximum: "Espera máxima pelo jogo", source: "Imagem de fundo", logo: "Mostrar logo do jogo", position: "Posição da logo", dimming: "Escurecimento do fundo",
+    minimumEdit: "Tempo mínimo (milissegundos)", maximumEdit: "Espera máxima (milissegundos)", invalidDuration: (min: number, max: number) => `Use um número inteiro entre ${min} e ${max} milissegundos.`,
+    seconds: (value: number) => `${value.toLocaleString("pt-BR")} s`,
+    sources: { automatic: "Fundo do jogo, depois imagem global", global: "Imagem global" },
+    positions: { leftTop: "Esquerda, em cima", leftCenter: "Esquerda, ao centro", leftBottom: "Esquerda, embaixo", centerTop: "Centro, em cima", center: "Centro", centerBottom: "Centro, embaixo", rightTop: "Direita, em cima", rightCenter: "Direita, ao centro", rightBottom: "Direita, embaixo" },
+  },
+  anikiCustomMedia: {
+    avatarTitle: "Avatar personalizado", logoTitle: "Logo personalizada", globalSplashTitle: "Imagem global de abertura",
+    pickAvatar: "Escolher imagem do avatar…", removeAvatar: "Remover avatar personalizado",
+    pickLogo: "Escolher logo personalizada…", removeLogo: "Remover logo personalizada",
+    pickGlobalSplash: "Escolher imagem de abertura…", removeGlobalSplash: "Remover imagem de abertura",
+    removeConfirm: "Remover imagem personalizada?", removeDescription: "A cópia interna será removida. O arquivo original será preservado.",
+    emptyAvatar: "Nenhum avatar local escolhido.", emptyLogo: "Nenhuma logo personalizada escolhida.", emptyGlobalSplash: "Nenhuma imagem global de abertura escolhida.",
+  },
+  anikiNews: {
+    title: "Notícias", refresh: "Atualizar", cancel: "Cancelar", back: "Voltar", loading: "Carregando notícias…", empty: "Nenhuma notícia disponível.",
+    disabled: "A leitura de notícias está desativada.", cached: "Mostrando notícias salvas enquanto a atualização está indisponível.", openOriginal: "Abrir artigo original",
+    settings: "Configurar fontes", enabled: "Ativar notícias", sourceA: "Fonte A", sourceB: "Fonte B", feedTitle: "Nome da fonte", feedUrl: "Endereço do feed", save: "Salvar fontes", restoreDefaults: "Restaurar fontes padrão",
+    errors: { fetch: "Não foi possível atualizar as notícias. Tente novamente em instantes.", invalidFeed: "Este endereço não retornou um feed RSS ou Atom válido.", empty: "O feed não contém notícias recentes.", storage: "Não foi possível ler ou salvar o cache das notícias.", config: "Confira o nome e o endereço HTTP ou HTTPS das fontes.", cancelled: "Atualização cancelada.", busy: "Uma atualização desta fonte já está em andamento." },
+  },
   anikiPresentation: {
     startup: "Vídeo de abertura", shutdown: "Vídeo ao sair do app", enabled: "Proteção de tela", idle: "Iniciar após", interval: "Trocar imagem a cada", source: "Jogos da proteção de tela",
     ambient: "Música da proteção de tela", logo: "Logo do jogo", info: "Informações do jogo", animate: "Movimento do fundo", fade: "Transição suave", preview: "Prévia da proteção de tela",
@@ -276,8 +297,15 @@ export const ptBR = {
     anikiRemove: "Remover o pacote do Aniki",
     anikiCredit: "O tema Aniki ReMake é de Mike Aniki (licença MIT) e vem da página dele no GitHub, como no Playnite.",
     settingsHint: "Escolha uma opção para ver o que ela faz. L1/R1 trocam de categoria.",
-    settingsCategories: { general: "Geral", interface: "Interface", library: "Biblioteca", details: "Detalhes", media: "Mídia", screenSaver: "Proteção de tela" },
+    settingsCategories: { general: "Geral", interface: "Interface", library: "Biblioteca", details: "Detalhes", media: "Mídia", screenSaver: "Proteção de tela", gameLaunchSplash: "Abertura do jogo" },
     settingsDescriptions: {
+      gameLaunchSplashEnabled: "Exibe uma janela de abertura sobre o jogo enquanto ele carrega, sem tomar o foco do Windows.",
+      gameLaunchSplashMinimumDurationMs: "Mantém a imagem por pelo menos este tempo após o primeiro quadro. Aceita de 500 a 600000 milissegundos.",
+      gameLaunchSplashMaximumWaitMs: "Depois do tempo mínimo, aguarda a janela do processo iniciado ficar pronta. Aceita de 1000 a 120000 milissegundos.",
+      gameLaunchSplashSelectionMode: "Usa o fundo do jogo e depois a imagem global, ou somente a global. Sem imagem disponível, o fundo fica preto.",
+      gameLaunchSplashShowLogo: "Mostra a logo disponível na biblioteca durante a abertura do jogo.",
+      gameLaunchSplashLogoPosition: "Escolhe uma das nove posições da logo na tela de abertura.",
+      gameLaunchSplashBackgroundDimming: "Escurece a imagem de fundo entre 0% e 80% para destacar a logo.",
       startupIntroVideoEnabled: "Exibe o vídeo de abertura do pacote por sete segundos. Se o vídeo estiver ausente, continua para a tela inicial.",
       shutdownVideoEnabled: "Exibe o vídeo do pacote por cinco segundos ao sair do aplicativo em tela cheia.",
       screenSaverEnabled: "Mostra fundos dos jogos após um período sem interação. Qualquer interação fecha a proteção sem executar a ação por baixo.",
@@ -946,6 +974,10 @@ export const ptBR = {
 
   /** Os erros que o processo principal manda para a tela. */
   errors: {
+    anikiCustomMedia: {
+      invalid: "Escolha uma imagem PNG, JPEG ou WebP válida, dentro do limite de tamanho e dimensões.", read: "Não foi possível ler a imagem escolhida.", save: "Não foi possível salvar a imagem. A escolha anterior foi preservada.", remove: "Não foi possível remover a imagem personalizada.",
+      avatarTitle: "Escolher avatar", logoTitle: "Escolher logo", globalSplashTitle: "Escolher imagem de abertura", fileType: "Imagens",
+    },
     gameSessionEnded: "Esta sessão de jogo já terminou.",
     gameSessionControlUnavailable: "Não foi possível preparar o controle deste processo. Você pode voltar ao jogo pelo Windows.",
     gameSessionWindowUnavailable: "A janela original do jogo ainda não está disponível. Tente novamente em instantes.",

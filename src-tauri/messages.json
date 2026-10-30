@@ -12,6 +12,16 @@
       "platinum": "Platinado"
     },
     "errors": {
+      "anikiCustomMedia": {
+        "invalid": "Escolha uma imagem PNG, JPEG ou WebP válida, dentro do limite de tamanho e dimensões.",
+        "read": "Não foi possível ler a imagem escolhida.",
+        "save": "Não foi possível salvar a imagem. A escolha anterior foi preservada.",
+        "remove": "Não foi possível remover a imagem personalizada.",
+        "avatarTitle": "Escolher avatar",
+        "logoTitle": "Escolher logo",
+        "globalSplashTitle": "Escolher imagem de abertura",
+        "fileType": "Imagens"
+      },
       "gameSessionEnded": "Esta sessão de jogo já terminou.",
       "gameSessionControlUnavailable": "Não foi possível preparar o controle deste processo. Você pode voltar ao jogo pelo Windows.",
       "gameSessionWindowUnavailable": "A janela original do jogo ainda não está disponível. Tente novamente em instantes.",
@@ -182,6 +192,16 @@
       "platinum": "Platinum"
     },
     "errors": {
+      "anikiCustomMedia": {
+        "invalid": "Choose a valid PNG, JPEG or WebP image within the size and dimension limits.",
+        "read": "The selected image could not be read.",
+        "save": "The image could not be saved. The previous choice was preserved.",
+        "remove": "The custom image could not be removed.",
+        "avatarTitle": "Choose avatar",
+        "logoTitle": "Choose logo",
+        "globalSplashTitle": "Choose launch image",
+        "fileType": "Images"
+      },
       "gameSessionEnded": "This game session has ended.",
       "gameSessionControlUnavailable": "Controls for this process could not be prepared. You can return to the game through Windows.",
       "gameSessionWindowUnavailable": "The original game window is not available yet. Try again shortly.",

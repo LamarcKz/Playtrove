@@ -139,6 +139,92 @@ pub(crate) fn is_foreground(process: &dyn GameProcessControl) -> bool {
     SystemWindows.owner(WindowId(window.0 as usize)) == process.process_id()
 }
 
+/// Consulta apenas janelas do processo original vivo. Testes nunca enumeram janelas do computador.
+pub(crate) fn ready_window(process: &dyn GameProcessControl) -> Option<crate::launch_splash_state::ReadyIdentity> {
+    if cfg!(test) || !process.is_running() {
+        return None;
+    }
+    let mut windows = readiness_windows(process.process_id());
+    let splashes: Vec<_> =
+        windows.iter().filter(|(_, facts)| facts.visible && !facts.minimized && facts.splash_like).map(|(id, _)| *id).collect();
+    for (id, facts) in &mut windows {
+        facts.splash_sibling = splashes.iter().any(|splash| splash != id);
+    }
+    let (window, _) = windows
+        .into_iter()
+        .filter(|(_, facts)| facts.is_ready())
+        .max_by(|(left_id, left), (right_id, right)| left.coverage.total_cmp(&right.coverage).then(left_id.0.cmp(&right_id.0)))?;
+    validate_window(process, &SystemWindows, window).ok()?;
+    Some(crate::launch_splash_state::ReadyIdentity { process_id: process.process_id(), window_id: window.0 })
+}
+
+fn readiness_windows(process_id: u32) -> Vec<(WindowId, crate::launch_splash_state::ReadyWindowFacts)> {
+    use crate::launch_splash_state::ReadyWindowFacts;
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow};
+    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetWindowRect, GetWindowTextW, IsHungAppWindow};
+
+    struct Search {
+        process_id: u32,
+        windows: Vec<(WindowId, ReadyWindowFacts)>,
+    }
+    unsafe extern "system" fn visit(window: HWND, data: LPARAM) -> BOOL {
+        // SAFETY: EnumWindows chama sincronamente; os buffers e Search vivem durante a chamada.
+        let search = unsafe { &mut *(data.0 as *mut Search) };
+        let mut owner = 0;
+        unsafe { GetWindowThreadProcessId(window, Some(&mut owner)) };
+        if owner != search.process_id {
+            return true.into();
+        }
+        let mut rect = RECT::default();
+        let mut monitor = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+        let mut title = [0u16; 512];
+        let mut class = [0u16; 256];
+        // SAFETY: consultas somente sobre o HWND enumerado; falhas não produzem candidato pronto.
+        unsafe {
+            if GetWindowRect(window, &mut rect).is_err()
+                || !GetMonitorInfoW(MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST), &mut monitor).as_bool()
+            {
+                return true.into();
+            }
+            let title_length = GetWindowTextW(window, &mut title).max(0) as usize;
+            let class_length = GetClassNameW(window, &mut class).max(0) as usize;
+            let title = String::from_utf16_lossy(&title[..title_length]).to_lowercase();
+            let class = String::from_utf16_lossy(&class[..class_length]).to_lowercase();
+            let width = (rect.right.min(monitor.rcMonitor.right) - rect.left.max(monitor.rcMonitor.left)).max(0);
+            let height = (rect.bottom.min(monitor.rcMonitor.bottom) - rect.top.max(monitor.rcMonitor.top)).max(0);
+            let area = f64::from(monitor.rcMonitor.right - monitor.rcMonitor.left)
+                * f64::from(monitor.rcMonitor.bottom - monitor.rcMonitor.top);
+            let coverage = if area > 0.0 { f64::from(width) * f64::from(height) / area } else { 0.0 };
+            search.windows.push((
+                WindowId(window.0 as usize),
+                ReadyWindowFacts {
+                    visible: IsWindowVisible(window).as_bool(),
+                    minimized: IsIconic(window).as_bool(),
+                    hung: IsHungAppWindow(window).as_bool(),
+                    width: rect.right - rect.left,
+                    height: rect.bottom - rect.top,
+                    coverage,
+                    foreground: GetForegroundWindow() == window,
+                    has_title: !title.trim().is_empty(),
+                    splash_like: title.contains("splash") || class.contains("splash"),
+                    splash_sibling: false,
+                    ignored_title: ["microsoft blend", "visual studio", "playnite", "discord", "explorer"]
+                        .iter()
+                        .any(|ignored| title.contains(ignored)),
+                },
+            ));
+        }
+        true.into()
+    }
+    let mut search = Search { process_id, windows: Vec::new() };
+    // SAFETY: Search permanece vivo e mutavelmente emprestado exclusivamente pelo enumerador.
+    if unsafe { EnumWindows(Some(visit), LPARAM((&mut search as *mut Search) as isize)) }.is_err() {
+        return Vec::new();
+    }
+    search.windows
+}
+
 impl WindowSystem for SystemWindows {
     fn main_window(&self, process_id: u32) -> Option<WindowId> {
         struct Search {

@@ -140,6 +140,8 @@ pub struct TestHooks {
     /// até o teste liberar, para conferir a tela enquanto a imagem carrega.
     held_images: Mutex<HashMap<String, HeldImage>>,
     image_released: Condvar,
+    /// Foco simulado nos testes do app para garantir determinismo quando outras janelas do SO estiverem ativas.
+    simulated_focus: Mutex<Option<bool>>,
 }
 
 #[derive(Default)]
@@ -166,6 +168,14 @@ impl TestHooks {
         while held.get(path).is_some_and(|image| !image.released) {
             held = self.image_released.wait(held).unwrap_or_else(PoisonError::into_inner);
         }
+    }
+
+    pub fn simulated_focus(&self) -> Option<bool> {
+        *self.simulated_focus.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn set_simulated_focus(&self, focused: bool) {
+        *self.simulated_focus.lock().unwrap_or_else(PoisonError::into_inner) = Some(focused);
     }
 }
 
@@ -242,7 +252,10 @@ pub fn test_focus_window(window: WebviewWindow) -> crate::errors::AppResult<Opti
     }
     window.unminimize()?;
     window.show()?;
-    window.set_focus()?;
+    if let Some(hooks) = window.try_state::<TestHooks>() {
+        hooks.set_simulated_focus(true);
+    }
+    let _ = window.set_focus();
     crate::window::focus_content(&window)?;
     let _ = crate::window::reconcile_state(&window)?;
     Ok(test_window(window))
@@ -337,4 +350,21 @@ pub fn test_game_overlay_input(
         .inject_test_input(connected, buttons)
         .map(Some)
         .map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))
+}
+
+/// Prova da rota própria do splash com processo/readiness sintéticos; nunca executa ou foca jogos.
+#[tauri::command(async)]
+pub fn test_open_game_launch_splash(
+    state: State<'_, crate::state::AppState>,
+    splash: State<'_, crate::game_launch_splash::GameLaunchSplash>,
+    game_id: Value,
+    failed: Option<bool>,
+) -> crate::errors::AppResult<Option<crate::game_launch_splash::SplashState>> {
+    if !active() {
+        return Ok(None);
+    }
+    let game_id = crate::validation::to_id(&game_id, state.language())?;
+    let opened =
+        if failed.unwrap_or(false) { splash.open_test_game_with_failure(game_id, true) } else { splash.open_test_game(game_id) };
+    opened.map(Some).map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))
 }

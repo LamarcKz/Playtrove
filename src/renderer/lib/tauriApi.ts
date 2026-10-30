@@ -22,6 +22,30 @@ function subscribe<T>(event: string, callback: (payload: T) => void): () => void
  */
 export function createTauriApi(): AppApi {
   return {
+    gameLaunchSplash: {
+      getState: () => invoke("game_launch_splash_get_state"),
+      rendered: (generation) => invoke("game_launch_splash_rendered", { generation }),
+      onStateChange: (callback) => subscribe(EVENTS.gameLaunchSplashState, callback),
+    },
+    anikiCustomMedia: {
+      getAvatar: () => invoke("aniki_custom_media_get_avatar"),
+      pickAvatar: () => invoke("aniki_custom_media_pick_avatar"),
+      removeAvatar: () => invoke("aniki_custom_media_remove_avatar"),
+      getGlobalSplash: () => invoke("aniki_custom_media_get_global_splash"),
+      pickGlobalSplash: () => invoke("aniki_custom_media_pick_global_splash"),
+      removeGlobalSplash: () => invoke("aniki_custom_media_remove_global_splash"),
+      pickLogo: (gameId) => invoke("aniki_custom_media_pick_logo", { gameId }),
+      removeLogo: (gameId) => invoke("aniki_custom_media_remove_logo", { gameId }),
+      onAvatarChange: (callback) => subscribe(EVENTS.anikiAvatarChange, callback),
+    },
+    anikiNews: {
+      getConfig: () => invoke("aniki_news_get_config"),
+      setConfig: (config) => invoke("aniki_news_set_config", { config }),
+      read: (source) => invoke("aniki_news_read", { source }),
+      refresh: (source, requestId, force) => invoke("aniki_news_refresh", { source, requestId, force: force ?? false }),
+      cancel: (requestId) => invoke("aniki_news_cancel", { requestId }),
+      openArticle: (source, articleId) => invoke("aniki_news_open_article", { source, articleId }),
+    },
     gameOverlay: {
       getState: () => invoke("game_overlay_get_state"),
       open: (gameId) => invoke("game_overlay_open", { gameId }),

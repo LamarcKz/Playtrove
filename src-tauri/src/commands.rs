@@ -127,7 +127,14 @@ pub fn app_set_language(app: AppHandle, state: State<'_, AppState>, language: Va
 
 #[tauri::command]
 pub fn window_minimize(window: WebviewWindow) -> AppResult<()> {
-    Ok(window.minimize()?)
+    if crate::test_mode::test_mode().data_dir.is_some()
+        && let Some(hooks) = window.try_state::<crate::test_hooks::TestHooks>()
+    {
+        hooks.set_simulated_focus(false);
+    }
+    window.minimize()?;
+    let _ = crate::window::reconcile_state(&window);
+    Ok(())
 }
 
 /// Maximiza a janela ou, se ela já estiver maximizada, restaura o tamanho anterior.
@@ -667,10 +674,27 @@ pub fn statuses_set_rules(app: AppHandle, state: State<'_, AppState>, rules: Val
 /// Abre o jogo no emulador e avisa a interface quando ele abre e quando fecha. Quando o emulador fecha,
 /// registra o tempo jogado e relê o tempo que ele mesmo registrou (ele grava ao fechar), as conquistas e os
 /// troféus.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
     let language = state.language();
     let game_id = to_id(&game_id, language)?;
+    let (prepared, config) = {
+        let db = state.db();
+        (launcher.prepare(&db, language, game_id)?, fullscreen::get_config(&db))
+    };
+    // Criar uma janela pede a thread da interface: nenhum guard do banco ou das sessões pode
+    // atravessar esse callback. Falhas na apresentação nunca impedem abrir o jogo validado.
+    let decoration = if config.theme == "aniki"
+        && config.game_launch_splash_enabled
+        && app.state::<crate::theme_pack::AnikiPack>().installed()
+        && app.get_webview_window("main").is_some_and(|window| window.is_fullscreen().unwrap_or(false))
+    {
+        crate::game_launch_splash::media_for_game(&state, &app.state::<crate::images::ImagesDir>(), game_id)
+            .ok()
+            .map(|media| (crate::game_launch_splash::SplashOptions::from(&config), media))
+    } else {
+        None
+    };
     let handle = app.clone();
     let on_exit = Box::new(move |session: crate::launcher::PlayedSession| {
         let state = handle.state::<AppState>();
@@ -684,7 +708,37 @@ pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_
         handle.state::<PlaytimeSync>().run_after(AFTER_GAME_DELAY);
         handle.state::<AchievementsService>().after_game_closed();
     });
-    launcher.launch(&state.db(), language, game_id, &SystemStarter, on_exit)?;
+    let splash = app.state::<crate::game_launch_splash::GameLaunchSplash>();
+    let mut splash_token = None;
+    let launched = launcher.launch_prepared_with_control(
+        prepared,
+        &SystemStarter,
+        || {
+            if let Some((options, media)) = decoration {
+                splash_token = splash.begin(game_id, options, media).ok();
+            }
+        },
+        on_exit,
+    );
+    match launched {
+        Ok(control) => {
+            if let Some(token) = splash_token {
+                if let Some(control) = control {
+                    if splash.started(token, control).is_err() {
+                        let _ = splash.failed(token);
+                    }
+                } else {
+                    let _ = splash.failed(token);
+                }
+            }
+        }
+        Err(error) => {
+            if let Some(token) = splash_token {
+                let _ = splash.failed(token);
+            }
+            return Err(error);
+        }
+    }
     notify_running(&app);
     notify_library_changed(&app);
     Ok(())
@@ -727,6 +781,26 @@ fn overlay_error(error: crate::game_overlay::OverlayError, language: Language) -
         OverlayError::Window | OverlayError::ServiceStopped => "errors.gameSessionOperationFailed",
     };
     AppError::text(language, key, &[])
+}
+
+#[tauri::command]
+pub fn game_launch_splash_get_state(
+    splash: State<'_, crate::game_launch_splash::GameLaunchSplash>,
+) -> crate::game_launch_splash::SplashState {
+    splash.get_state()
+}
+
+#[tauri::command]
+pub fn game_launch_splash_rendered(
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    splash: State<'_, crate::game_launch_splash::GameLaunchSplash>,
+    generation: u64,
+) -> AppResult<()> {
+    if window.label() != crate::game_launch_splash::WINDOW_LABEL {
+        return Err(AppError::text(state.language(), "errors.invalidValue", &[]));
+    }
+    splash.rendered(generation).map_err(|_| AppError::text(state.language(), "errors.gameSessionOperationFailed", &[]))
 }
 
 #[tauri::command]

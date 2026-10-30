@@ -10,6 +10,9 @@ import type { GameMediaItem } from "./gameMedia"
 import type { GameEvaluation } from "./evaluation"
 import type { RunningSession } from "./gameSession"
 import type { GameOverlayApi } from "./gameOverlay"
+import type { GameLaunchSplashApi } from "./gameLaunchSplash"
+import type { AnikiCustomMediaApi } from "./anikiCustomMedia"
+import type { AnikiNewsApi } from "./anikiNews"
 import type { HubGameActivity } from "./anikiHub"
 import type { FullscreenProfilesApi } from "./fullscreenProfiles"
 import type { AnikiPackStatus, FullscreenConfig, PowerAction } from "./fullscreen"
@@ -43,6 +46,8 @@ export const EVENTS = {
   controllersInput: "controllers:input",
   gameOverlayState: "game-overlay:state",
   gameOverlayInput: "game-overlay:input",
+  gameLaunchSplashState: "game-launch-splash:state",
+  anikiAvatarChange: "aniki:avatar-changed",
   /** Algo mudou na biblioteca: a interface pede os dados de novo. */
   libraryChanged: "library:changed",
   /** Os jogos abertos agora (um abriu ou fechou). */
@@ -79,6 +84,9 @@ export interface WindowState {
 
 /** As funções que a interface chama em `window.api` (cada uma é um comando do Rust, pela ponte lib/tauriApi.ts). */
 export interface AppApi {
+  gameLaunchSplash: GameLaunchSplashApi
+  anikiCustomMedia: AnikiCustomMediaApi
+  anikiNews: AnikiNewsApi
   gameOverlay: GameOverlayApi
   fullscreenProfiles: FullscreenProfilesApi
   app: {

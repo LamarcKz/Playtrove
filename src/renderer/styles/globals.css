@@ -357,6 +357,13 @@
 .aniki-hub-card img.aniki-hub-memory-badge { inset: auto; top: 20px; right: 20px; width: 72px; height: 72px; object-fit: contain; }
 .fullscreen-shell .fs-modal-audio, .fullscreen-shell .fs-modal-maintenance, .fullscreen-shell .fs-modal-music { width: 740px; }
 .fs-modal-audio .aniki-quick-options, .fs-modal-maintenance .aniki-quick-options, .fs-modal-music .aniki-quick-options { position: static; width: auto; height: auto; padding: 0; border: 0; background: none; box-shadow: none; animation: none; }
+.fullscreen-shell .fs-modal-customAvatar, .fullscreen-shell .fs-modal-customLogo, .fullscreen-shell .fs-modal-customSplash { width: 740px; }
+.fs-modal-customAvatar .aniki-quick-options, .fs-modal-customLogo .aniki-quick-options, .fs-modal-customSplash .aniki-quick-options { position: static; width: auto; height: auto; padding: 0; border: 0; background: none; box-shadow: none; animation: none; }
+.fullscreen-shell .fs-modal-news { width: 1640px; height: 920px; display: flex; flex-direction: column; overflow: hidden; padding: 32px; }
+.fs-modal-news > .fs-back { flex-shrink: 0; }
+.fs-modal-news > .aniki-news, .fs-modal-news > .aniki-news-preferences { flex: 1; height: auto; min-height: 0; padding: 20px 12px 0; }
+.aniki-news-header nav { min-width: 0; }
+.aniki-news-header nav button { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fullscreen-shell .aniki-tool { position: relative; width: 52px; display: grid; place-items: center; }
 .fullscreen-shell .aniki-tool[aria-pressed="true"] { background: var(--aniki-focus-fill); }
 .aniki-notice-count { position: absolute; top: 0; right: 0; font-size: 14px; background: var(--aniki-accent); color: var(--aniki-control-dark); min-width: 20px; border-radius: 50%; }

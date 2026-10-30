@@ -716,12 +716,7 @@ mod native {
             let language = self.app.state::<AppState>().language();
             let query = format!("index.html?gameOverlay=1&lang={}", language.id());
             // WebViews do mesmo perfil precisam das mesmas opções, inclusive a porta da prova GUI.
-            let mut browser_args =
-                "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
-                    .to_string();
-            if let Some(port) = crate::test_mode::test_mode().remote_debugging_port {
-                browser_args.push_str(&format!(" --remote-debugging-port={port} --enable-logging --v=0"));
-            }
+            let browser_args = crate::window::browser_args();
             let window = WebviewWindowBuilder::new(&self.app, WINDOW_LABEL, WebviewUrl::App(query.into()))
                 .title(if cfg!(debug_assertions) { "Playtrove Dev" } else { "Playtrove" })
                 .decorations(false)

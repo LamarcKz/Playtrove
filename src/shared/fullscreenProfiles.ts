@@ -1,7 +1,7 @@
 import type { FullscreenConfig } from "./fullscreen"
 
 export const FULLSCREEN_PROFILE_FORMAT = "playtrove-fullscreen-preferences" as const
-export const FULLSCREEN_PROFILE_VERSION = 1 as const
+export const FULLSCREEN_PROFILE_VERSION = 2 as const
 
 /** Formato próprio do Playtrove, sem outros dados ou configurações da biblioteca. */
 export interface FullscreenProfileDocument {

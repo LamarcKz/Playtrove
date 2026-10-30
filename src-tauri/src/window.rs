@@ -49,6 +49,15 @@ const WEBVIEW_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreen
 /// direto na tela cheia e usa só o controle nunca clica, e o WebView2 bloquearia o áudio).
 const AUTOPLAY_ARGS: &str = "--autoplay-policy=no-user-gesture-required";
 
+/// As janelas compartilham o perfil WebView2 e precisam das mesmas opções de inicialização.
+pub(crate) fn browser_args() -> String {
+    let mut arguments = format!("{WEBVIEW_ARGS} {AUTOPLAY_ARGS}");
+    if let Some(port) = test_mode().remote_debugging_port {
+        arguments.push_str(&format!(" --remote-debugging-port={port} --enable-logging --v=0"));
+    }
+    arguments
+}
+
 /// O que a interface sabe da janela.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,11 +140,7 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
     // Nos testes do app, a janela aceita o Playwright por esta porta, e o WebView2 guarda o registro dele
     // na pasta de dados (para o erro, se ela não abrir). Pela variável WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS
     // não dá: o Windows do robô dos testes ignora.
-    let mut browser_args = format!("{WEBVIEW_ARGS} {AUTOPLAY_ARGS}");
-    if let Some(port) = test_mode().remote_debugging_port {
-        browser_args.push_str(&format!(" --remote-debugging-port={port} --enable-logging --v=0"));
-    }
-    builder = builder.additional_browser_args(&browser_args);
+    builder = builder.additional_browser_args(&browser_args());
     let window = builder.build()?;
     send_state_changes(&window);
     if start_fullscreen {
@@ -175,6 +180,15 @@ fn is_app_url(url: &Url) -> bool {
 /// No Windows, o foco pode estar no HWND filho do WebView2 enquanto o getter do Tao consulta o pai.
 /// A janela de primeiro plano identifica o app ativo sem confundir essa transferência interna.
 pub fn has_input_focus(window: &WebviewWindow) -> tauri::Result<bool> {
+    if window.is_minimized().unwrap_or(false) {
+        return Ok(false);
+    }
+    if crate::test_mode::test_mode().data_dir.is_some()
+        && let Some(hooks) = window.try_state::<crate::test_hooks::TestHooks>()
+        && let Some(focused) = hooks.simulated_focus()
+    {
+        return Ok(focused);
+    }
     let hwnd = window.hwnd()?;
     // SAFETY: consulta somente o identificador da janela ativa, sem alterar foco ou acessar seu conteúdo.
     Ok(unsafe { windows::Win32::UI::WindowsAndMessaging::GetForegroundWindow() == hwnd })

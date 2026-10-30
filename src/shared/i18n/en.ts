@@ -6,6 +6,27 @@ import type { Messages } from "./ptBR"
  */
 export const en: Messages = {
   locale: "en-US",
+  gameLaunchSplash: {
+    enabled: "Game launch splash", minimum: "Minimum duration", maximum: "Maximum game wait", source: "Background image", logo: "Show game logo", position: "Logo position", dimming: "Background dimming",
+    minimumEdit: "Minimum duration (milliseconds)", maximumEdit: "Maximum wait (milliseconds)", invalidDuration: (min: number, max: number) => `Enter a whole number between ${min} and ${max} milliseconds.`,
+    seconds: (value: number) => `${value.toLocaleString("en-US")} s`,
+    sources: { automatic: "Game background, then global image", global: "Global image" },
+    positions: { leftTop: "Top left", leftCenter: "Center left", leftBottom: "Bottom left", centerTop: "Top center", center: "Center", centerBottom: "Bottom center", rightTop: "Top right", rightCenter: "Center right", rightBottom: "Bottom right" },
+  },
+  anikiCustomMedia: {
+    avatarTitle: "Custom avatar", logoTitle: "Custom logo", globalSplashTitle: "Global launch image",
+    pickAvatar: "Choose avatar image…", removeAvatar: "Remove custom avatar",
+    pickLogo: "Choose custom logo…", removeLogo: "Remove custom logo",
+    pickGlobalSplash: "Choose launch image…", removeGlobalSplash: "Remove launch image",
+    removeConfirm: "Remove custom image?", removeDescription: "The internal copy will be removed. The original file will be preserved.",
+    emptyAvatar: "No local avatar selected.", emptyLogo: "No custom logo selected.", emptyGlobalSplash: "No global launch image selected.",
+  },
+  anikiNews: {
+    title: "News", refresh: "Refresh", cancel: "Cancel", back: "Back", loading: "Loading news…", empty: "No news available.",
+    disabled: "News reading is disabled.", cached: "Showing saved news while updates are unavailable.", openOriginal: "Open original article",
+    settings: "Configure sources", enabled: "Enable news", sourceA: "Source A", sourceB: "Source B", feedTitle: "Source name", feedUrl: "Feed address", save: "Save sources", restoreDefaults: "Restore default sources",
+    errors: { fetch: "News could not be updated. Try again shortly.", invalidFeed: "This address did not return a valid RSS or Atom feed.", empty: "The feed contains no recent news.", storage: "The news cache could not be read or saved.", config: "Check the source names and HTTP or HTTPS addresses.", cancelled: "Update cancelled.", busy: "This source is already being updated." },
+  },
   anikiPresentation: {
     startup: "Startup video", shutdown: "App exit video", enabled: "Screen saver", idle: "Start after", interval: "Change image every", source: "Screen saver games",
     ambient: "Screen saver music", logo: "Game logo", info: "Game information", animate: "Background movement", fade: "Smooth transition", preview: "Preview screen saver",
@@ -276,8 +297,15 @@ export const en: Messages = {
     anikiRemove: "Remove the Aniki package",
     anikiCredit: "The Aniki ReMake theme is by Mike Aniki (MIT license) and comes from his GitHub page, just like in Playnite.",
     settingsHint: "Pick an option to see what it does. L1/R1 switch categories.",
-    settingsCategories: { general: "General", interface: "Interface", library: "Library", details: "Details", media: "Media", screenSaver: "Screen saver" },
+    settingsCategories: { general: "General", interface: "Interface", library: "Library", details: "Details", media: "Media", screenSaver: "Screen saver", gameLaunchSplash: "Game launch" },
     settingsDescriptions: {
+      gameLaunchSplashEnabled: "Shows a splash window over the game while it loads, without taking Windows focus.",
+      gameLaunchSplashMinimumDurationMs: "Keeps the image visible for at least this duration after its first frame. Accepts 500 to 600000 milliseconds.",
+      gameLaunchSplashMaximumWaitMs: "After the minimum duration, waits for the launched process window to become ready. Accepts 1000 to 120000 milliseconds.",
+      gameLaunchSplashSelectionMode: "Uses the game background and then the global image, or only the global image. If no image is available, the background stays black.",
+      gameLaunchSplashShowLogo: "Shows the logo available in the library while the game launches.",
+      gameLaunchSplashLogoPosition: "Chooses one of nine logo positions on the launch screen.",
+      gameLaunchSplashBackgroundDimming: "Dims the background image from 0% to 80% to make the logo stand out.",
       startupIntroVideoEnabled: "Shows the package startup video for seven seconds. If the video is missing, continues to the start screen.",
       shutdownVideoEnabled: "Shows the package video for five seconds when exiting the fullscreen application.",
       screenSaverEnabled: "Shows game backgrounds after a period without interaction. Any interaction closes it and consumes that first action.",
@@ -914,6 +942,10 @@ export const en: Messages = {
   },
 
   errors: {
+    anikiCustomMedia: {
+      invalid: "Choose a valid PNG, JPEG or WebP image within the size and dimension limits.", read: "The selected image could not be read.", save: "The image could not be saved. The previous choice was preserved.", remove: "The custom image could not be removed.",
+      avatarTitle: "Choose avatar", logoTitle: "Choose logo", globalSplashTitle: "Choose launch image", fileType: "Images",
+    },
     gameSessionEnded: "This game session has ended.",
     gameSessionControlUnavailable: "Controls for this process could not be prepared. You can return to the game through Windows.",
     gameSessionWindowUnavailable: "The original game window is not available yet. Try again shortly.",
