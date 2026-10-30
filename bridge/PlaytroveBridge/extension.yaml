@@ -1,0 +1,9 @@
+Id: PlaytroveBridge_7b0d4c1e-2f58-4a3b-9d61-8c5e0a2f7b93
+Name: Playtrove
+Author: Playtrove
+Version: 0.1.0
+Module: PlaytroveBridge.dll
+Type: GameLibrary
+Links:
+  - Name: GitHub
+    Url: https://github.com/LamarcKz/Playtrove

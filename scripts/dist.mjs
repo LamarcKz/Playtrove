@@ -12,7 +12,7 @@
 // TAURI_SIGNING_PRIVATE_KEY ou, sem ela, o arquivo .tauri/playtrove.key na pasta do usuário.
 import { spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { releaseBuildEnv } from "./release-build-env.mjs"
@@ -57,10 +57,12 @@ rmSync(portableFolder, { recursive: true, force: true })
 mkdirSync(portableFolder)
 copyFileSync(join("src-tauri", "target", "release", "Playtrove.exe"), join(portableFolder, "Playtrove.exe"))
 copyFileSync(join("build", "portable.txt"), join(portableFolder, "portable.txt"))
+// O plugin do Playnite (tema Aniki) vai ao lado do .exe, como os recursos do instalador.
+cpSync(join("out", "bridge", "PlaytroveBridge"), join(portableFolder, "bridge", "PlaytroveBridge"), { recursive: true })
 const portable = join(output, portableName)
 rmSync(portable, { force: true })
 const tar = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe")
-run(tar, ["-a", "-cf", portable, "-C", portableFolder, "Playtrove.exe", "portable.txt"])
+run(tar, ["-a", "-cf", portable, "-C", portableFolder, "Playtrove.exe", "portable.txt", "bridge"])
 rmSync(portableFolder, { recursive: true, force: true })
 
 // 3. O latest.json, que o app em Tauri lê na última release.

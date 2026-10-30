@@ -343,7 +343,7 @@ impl AnikiPack {
     }
 
     /// O primeiro uso do Playnite fica feito (o assistente que vale é o do Aniki), no idioma do Playtrove,
-    /// com a busca de metadados ao importar e o Aniki como tema da tela cheia. O resto do que o Playnite
+    /// com a busca de metadados ao importar, as bibliotecas atualizadas a cada abertura e o Aniki como tema da tela cheia. O resto do que o Playnite
     /// já gravou no arquivo fica como está.
     pub fn write_playnite_config(&self, language: Language) -> std::io::Result<()> {
         let data = self.data_dir();
@@ -360,6 +360,8 @@ impl AnikiPack {
                 "Language": language,
                 "DatabasePath": library.to_string_lossy(),
                 "DownloadMetadataOnImport": true,
+                // "A cada abertura": é assim que os jogos novos do Playtrove chegam ao Playnite.
+                "CheckForLibraryUpdates": 1,
             }),
         )?;
         merge_json(&data.join("fullscreenConfig.json"), serde_json::json!({ "Theme": THEME_ID }))
@@ -695,6 +697,8 @@ mod tests {
         assert_eq!(config["Language"], "en_US");
         assert_eq!(config["FirstTimeWizardComplete"], true);
         assert_eq!(config["DownloadMetadataOnImport"], true);
+        // Os jogos do Playtrove só entram se o Playnite atualizar as bibliotecas a cada abertura.
+        assert_eq!(config["CheckForLibraryUpdates"], 1);
         assert_eq!(config["GridItemWidth"], 240);
         assert_eq!(config["DatabasePath"], pack.data_dir().join("library").to_string_lossy().as_ref());
         assert_eq!(read("fullscreenConfig.json")["Theme"], THEME_ID);

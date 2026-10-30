@@ -7,8 +7,8 @@
   "build": {
     "devUrl": "http://localhost:1420",
     "frontendDist": "../out/web",
-    "beforeDevCommand": "npm run web:dev",
-    "beforeBuildCommand": "npm run web:build"
+    "beforeDevCommand": "npm run bridge:build && npm run web:dev",
+    "beforeBuildCommand": "npm run bridge:build && npm run web:build"
   },
   "app": {
     "windows": [],
@@ -26,6 +26,7 @@
     "category": "Game",
     "shortDescription": "Your game library for Windows: emulators, achievements and playtime in one place.",
     "icon": ["../build/icon.ico"],
+    "resources": { "../out/bridge/PlaytroveBridge/": "bridge/PlaytroveBridge/" },
     "windows": {
       "nsis": {
         "installMode": "currentUser",
