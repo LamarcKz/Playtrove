@@ -98,7 +98,7 @@ impl Launcher {
         game_id: i64,
         starter: &dyn Starter,
         on_exit: Box<dyn FnOnce(PlayedSession) + Send>,
-    ) -> AppResult<u32> {
+    ) -> AppResult<()> {
         let error = |key: &str, values: &[&str]| AppError::text(language, &format!("errors.{key}"), values);
         if self.sessions.lock().unwrap_or_else(PoisonError::into_inner).contains_key(&game_id) {
             return Err(error("alreadyRunning", &[]));
@@ -121,10 +121,9 @@ impl Launcher {
         let mut process =
             starter.start(&command, &args, cwd).map_err(|failure| error("launchFailed", &[preset.name, &failure.to_string()]))?;
         self.sessions.lock().unwrap_or_else(PoisonError::into_inner).insert(game_id, (self.clock)());
-        let process_id = process.id();
         // Emulador que abre maximizado (ex.: o RetroArch): a janela dele é maximizada quando aparecer.
         if preset.maximize {
-            maximize_window(process_id);
+            maximize_window(process.id());
         }
 
         let sessions = Arc::clone(&self.sessions);
@@ -138,7 +137,7 @@ impl Launcher {
                 on_exit(PlayedSession { game_id, seconds: seconds_between(started, ended_at), ended_at });
             }
         });
-        Ok(process_id)
+        Ok(())
     }
 
     /// Ao fechar o app com jogos abertos: as sessões até agora (os emuladores continuam abertos).
@@ -235,10 +234,7 @@ mod tests {
         let starter = FakeStarter::default();
         let (ended, sessions) = channel();
 
-        // Devolve o processo do emulador (o tema Aniki avisa o Playnite que o jogo abriu).
-        let process_id =
-            launcher.launch(&db, PT, game_id, &starter, Box::new(move |session| ended.send(session).unwrap())).unwrap();
-        assert_eq!(process_id, 4242);
+        launcher.launch(&db, PT, game_id, &starter, Box::new(move |session| ended.send(session).unwrap())).unwrap();
         let folder = Path::new(&exe).parent().unwrap().to_string_lossy().into_owned();
         assert_eq!(
             *starter.calls.lock().unwrap(),

@@ -1,9 +1,8 @@
 import { expect, test, type Page } from "@playwright/test"
-import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { writeFileSync } from "node:fs"
 import { join } from "node:path"
 import type { ControllerButton } from "../../src/shared/controllers"
 import { type AppProcess, type TestApp, createFiles, launchApp, mockOpenDialog, removeDataDir } from "./helpers"
-import { startFakeAnikiPack } from "./fakeAnikiPack"
 
 /** Configura uma biblioteca fictícia; o teste substitui a ponte de Jogar e nunca executa o arquivo. */
 async function configuredGame({ app, page }: TestApp) {
@@ -530,90 +529,5 @@ test("sons da navegação tocam ao passar o mouse, ao mover o foco e ao confirma
   } finally {
     await app.close()
     removeDataDir(dataDir)
-  }
-})
-
-test("o tema Aniki é baixado com confirmação, abre o Playnite no lugar da tela cheia e remover volta ao tema Playtrove", async () => {
-  const pack = await startFakeAnikiPack()
-  const { app, page, dataDir } = await launchApp({ env: pack.env })
-  try {
-    await page.getByRole("button", { name: "Configurações", exact: true }).click()
-    const themes = page.getByRole("radiogroup", { name: "Tema da tela cheia" })
-    await expect(themes.getByRole("radio", { name: "Playtrove" })).toBeChecked()
-    await themes.getByRole("radio", { name: "Aniki ReMake" }).click()
-    const confirm = page.getByRole("group", { name: "Aniki ReMake" })
-    await expect(confirm).toContainText("612 MB")
-    await confirm.getByRole("button", { name: "Cancelar", exact: true }).click()
-    expect(pack.downloads()).toBe(0)
-    await themes.getByRole("radio", { name: "Aniki ReMake" }).click()
-    await confirm.getByRole("button", { name: "Baixar", exact: true }).click()
-    await expect(themes.getByRole("radio", { name: "Aniki ReMake" })).toBeChecked()
-    expect(pack.downloads()).toBe(1)
-    expect(await page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ theme: "aniki" })
-    // As mídias do pacote chegam à tela pelo protocolo do tema; o XAML fica de fora.
-    const load = (path: string) => page.evaluate((src) => new Promise<boolean>((resolve) => {
-      const image = new Image()
-      image.onload = () => resolve(true)
-      image.onerror = () => resolve(false)
-      image.src = src
-    }), `http://playtrove-theme.localhost/aniki/${path}`)
-    expect(await load("Images/Back.png")).toBe(true)
-    expect(await load("Views/Main.xaml")).toBe(false)
-    // Com o Aniki, a tela cheia é o Playnite com ele: a biblioteca vai para o plugin, a ponte sobe e a
-    // janela do Playtrove some (nos testes, o Playnite não abre de verdade).
-    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
-    await expect.poll(async () => (await app.opened()).filter((item) => item === "aniki:enter").length).toBe(1)
-    await expect.poll(async () => (await app.window())?.visible).toBe(false)
-    expect((await app.window())?.fullscreen).toBe(false)
-    const playnite = join(dataDir, "themes", "aniki")
-    const plugin = join(playnite, "data", "ExtensionsData", "7b0d4c1e-2f58-4a3b-9d61-8c5e0a2f7b93")
-    expect(existsSync(join(playnite, "playnite", "Playnite.FullscreenApp.exe"))).toBe(true)
-    expect(existsSync(join(playnite, "data", "Extensions", "PlaytroveBridge", "PlaytroveBridge.dll"))).toBe(true)
-    const library = JSON.parse(readFileSync(join(plugin, "library.json"), "utf8")) as { games: { title: string, cover?: string }[] }
-    expect(library.games.length).toBeGreaterThan(0)
-    expect(library.games.every((game) => game.cover === undefined)).toBe(true)
-    const config = JSON.parse(readFileSync(join(playnite, "data", "config.json"), "utf8")) as Record<string, unknown>
-    expect(config).toMatchObject({ Language: "pt_BR", FirstTimeWizardComplete: true, CheckForLibraryUpdates: 1 })
-    expect(existsSync(join(plugin, "bridge.json"))).toBe(true)
-    // "Voltar ao modo janela" no Playnite: a janela volta, no modo janela, e a ponte fecha.
-    await app.invoke("test_aniki_exit", { kind: "window" })
-    await expect.poll(async () => (await app.window())?.visible).toBe(true)
-    await expect(page.getByRole("button", { name: "Tela cheia", exact: true })).toBeVisible()
-    expect(existsSync(join(plugin, "bridge.json"))).toBe(false)
-    // O F11 também entra no Aniki.
-    await app.focus()
-    await page.keyboard.press("F11")
-    await expect.poll(async () => (await app.opened()).filter((item) => item === "aniki:enter").length).toBe(2)
-    await app.invoke("test_aniki_exit", { kind: "window" })
-    await expect.poll(async () => (await app.window())?.visible).toBe(true)
-    await page.getByRole("button", { name: "Remover o Aniki e o Playnite", exact: true }).click()
-    await expect(themes.getByRole("radio", { name: "Playtrove" })).toBeChecked()
-    expect(await page.evaluate(() => window.api.fullscreen.getConfig())).toMatchObject({ theme: "playtrove" })
-    // Outro endereço para o mesmo arquivo: a imagem carregada antes fica no cache do WebView.
-    expect(await load("Images/Back.png?depois-de-remover")).toBe(false)
-  } finally {
-    await app.close()
-    removeDataDir(dataDir)
-    await pack.close()
-  }
-})
-
-test("um pacote do Aniki diferente do oficial é descartado e o tema continua o Playtrove", async () => {
-  const pack = await startFakeAnikiPack({ wrongHash: true })
-  const { app, page, dataDir } = await launchApp({ env: pack.env })
-  try {
-    await page.getByRole("button", { name: "Configurações", exact: true }).click()
-    const themes = page.getByRole("radiogroup", { name: "Tema da tela cheia" })
-    await themes.getByRole("radio", { name: "Aniki ReMake" }).click()
-    await page.getByRole("group", { name: "Aniki ReMake" }).getByRole("button", { name: "Baixar", exact: true }).click()
-    await expect(page.getByRole("alert").filter({ hasText: "não é o oficial" })).toBeVisible()
-    await expect(themes.getByRole("radio", { name: "Playtrove" })).toBeChecked()
-    expect(await page.evaluate(() => window.api.themes.anikiStatus())).toMatchObject({ installed: false, installing: false })
-    const refused = await page.evaluate(() => window.api.fullscreen.setConfig({ theme: "aniki" }).then(() => "", (reason: unknown) => String(reason)))
-    expect(refused).toContain("Baixe o tema Aniki ReMake")
-  } finally {
-    await app.close()
-    removeDataDir(dataDir)
-    await pack.close()
   }
 })

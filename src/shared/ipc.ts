@@ -6,7 +6,7 @@
 import type { AchievementsConfig, AchievementsOverview, GameAchievements, UnlockedAchievement } from "./achievements"
 import type { ConnectedController, ControllerInputSnapshot } from "./controllers"
 import type { GameEvaluation } from "./evaluation"
-import type { AnikiPackStatus, FullscreenConfig, PowerAction } from "./fullscreen"
+import type { FullscreenConfig, PowerAction } from "./fullscreen"
 import type { Language } from "./i18n"
 import type {
   DailyPlaytime,
@@ -31,8 +31,6 @@ export const EVENTS = {
   /** A janela mudou de maximização, tela cheia ou foco nativo. */
   windowState: "window:state",
   fullscreenConfig: "fullscreen:config",
-  /** O download e a instalação do pacote do Aniki andaram. */
-  anikiProgress: "themes:aniki-progress",
   controllersInput: "controllers:input",
   /** Algo mudou na biblioteca: a interface pede os dados de novo. */
   libraryChanged: "library:changed",
@@ -100,18 +98,6 @@ export interface AppApi {
   /** O Windows: bloquear, suspender, reiniciar e desligar (a tela pede confirmação antes). */
   system: {
     power: (action: PowerAction) => Promise<void>
-  }
-  /** O tema Aniki ReMake: o pacote oficial vem da release do autor, como no Playnite. */
-  themes: {
-    anikiStatus: () => Promise<AnikiPackStatus>
-    /** Baixa, confere e instala; no fim, a tela cheia passa a usar o Aniki. */
-    installAniki: () => Promise<AnikiPackStatus>
-    cancelAniki: () => Promise<void>
-    /** Apaga o pacote; se ele era o tema escolhido, volta o tema Playtrove. */
-    removeAniki: () => Promise<AnikiPackStatus>
-    onAnikiProgress: (callback: (status: AnikiPackStatus) => void) => () => void
-    /** Abre o Playnite com o Aniki no lugar da tela cheia; a janela do Playtrove some até ele fechar. */
-    enterAniki: () => Promise<void>
   }
   library: {
     /** Jogos, status e regras, de uma vez. */

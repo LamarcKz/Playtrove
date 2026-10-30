@@ -2,8 +2,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod achievements;
-mod aniki_bridge;
-mod aniki_session;
 mod commands;
 mod controller_input;
 mod controllers;
@@ -39,7 +37,6 @@ mod test_hooks;
 mod test_mode;
 #[cfg(test)]
 mod test_support;
-mod theme_pack;
 mod updates;
 mod validation;
 mod videos;
@@ -84,8 +81,6 @@ fn main() {
                 sample_games::seed_sample_games(&db)?;
             }
             app.manage(images::ImagesDir(folder.join("images")));
-            app.manage(theme_pack::AnikiPack::new(folder.join("themes")));
-            app.manage(aniki_session::AnikiSession::default());
             app.manage(music_previews::MusicPreviewCache::new(folder.join("music-previews"))?);
             app.manage(test_hooks::TestHooks::default());
             app.manage(secrets::Secrets::new(&folder));
@@ -124,11 +119,6 @@ fn main() {
             commands::fullscreen_get_config,
             commands::fullscreen_set_config,
             commands::system_power,
-            commands::themes_aniki_status,
-            commands::themes_aniki_install,
-            commands::themes_aniki_cancel,
-            commands::aniki_enter,
-            commands::themes_aniki_remove,
             commands::library_get,
             commands::games_set_status,
             commands::games_set_favorite,
@@ -185,7 +175,6 @@ fn main() {
             commands::updates_set_auto_check,
             test_hooks::test_mock_open_dialog,
             test_hooks::test_opened,
-            test_hooks::test_aniki_exit,
             test_hooks::test_window,
             test_hooks::test_focus_window,
             test_hooks::test_controller_input,

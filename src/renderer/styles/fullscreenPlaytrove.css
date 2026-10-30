@@ -1,6 +1,6 @@
 /*
  * Tema Playtrove da tela cheia (o padrão): a apresentação própria do app, com arte ampla, capas inteiras e
- * foco legível a distância. Tudo fica dentro de .playtrove-fullscreen, para não se misturar com o tema Aniki.
+ * foco legível a distância. Tudo fica dentro de .playtrove-fullscreen.
  */
 .playtrove-fullscreen {
   --fs-background: oklch(0.12 0.015 252);

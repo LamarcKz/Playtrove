@@ -99,11 +99,7 @@ fn restored_size(app: &AppHandle) -> (f64, f64) {
 /// Numa pasta só, uma janela não abre enquanto outra estiver aberta com outras opções.
 pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: PathBuf) -> tauri::Result<WebviewWindow> {
     app.manage(WindowStateTracker::default());
-    let config = crate::fullscreen::get_config(&app.state::<AppState>().db());
-    // Com o tema Aniki, abrir em tela cheia é abrir o Playnite com ele.
-    let start_aniki =
-        config.start_on_launch && config.theme == "aniki" && app.state::<crate::theme_pack::AnikiPack>().installed();
-    let start_fullscreen = config.start_on_launch && !start_aniki;
+    let start_fullscreen = crate::fullscreen::get_config(&app.state::<AppState>().db()).start_on_launch;
     let mut query = format!("lang={}", language.id());
     if let Some(mark) = dev_mark() {
         query.push_str(&format!("&dev={mark}"));
@@ -135,14 +131,6 @@ pub fn create_main_window(app: &AppHandle, language: Language, webview_folder: P
         let _ = focus_content(&window);
     } else {
         reconcile_state(&window)?;
-    }
-    if start_aniki {
-        let handle = app.clone();
-        std::thread::spawn(move || {
-            if let Err(error) = crate::aniki_session::enter(&handle) {
-                eprintln!("não foi possível abrir o tema Aniki: {error}");
-            }
-        });
     }
     Ok(window)
 }

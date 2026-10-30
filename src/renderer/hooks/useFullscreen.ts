@@ -27,12 +27,6 @@ export function useFullscreenConfig() {
   const save = useCallback((patch: Partial<FullscreenConfig>) => queue.current!.save(patch), [])
   return { ...state, save }
 }
-/** O tema escolhido é o Aniki, e ele está instalado. */
-async function usesAniki() {
-  const [config, status] = await Promise.all([window.api.fullscreen.getConfig(), window.api.themes.anikiStatus()])
-  return config.theme === "aniki" && status.installed
-}
-
 /** A apresentação só acompanha uma transição nativa confirmada. */
 export function useFullscreenMode() {
   const [enabled, setEnabled] = useState(false)
@@ -52,12 +46,6 @@ export function useFullscreenMode() {
     if (next) desktopFocus.current = document.activeElement as HTMLElement
     setPending(true)
     try {
-      // Com o tema Aniki, a tela cheia é o Playnite com ele: a janela do Playtrove fica no modo janela.
-      if (next && await usesAniki()) {
-        await window.api.themes.enterAniki()
-        if (mounted.current) setError(null)
-        return
-      }
       const state = await window.api.windowControls.setFullscreen(next)
       if (mounted.current) { setEnabled(state.isFullscreen); setError(null) }
     } catch (reason) { if (mounted.current) setError(String(reason)) }

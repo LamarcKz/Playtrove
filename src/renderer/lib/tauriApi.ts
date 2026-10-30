@@ -45,14 +45,6 @@ export function createTauriApi(): AppApi {
     system: {
       power: (action) => invoke("system_power", { action }),
     },
-    themes: {
-      anikiStatus: () => invoke("themes_aniki_status"),
-      installAniki: () => invoke("themes_aniki_install"),
-      cancelAniki: () => invoke("themes_aniki_cancel"),
-      removeAniki: () => invoke("themes_aniki_remove"),
-      onAnikiProgress: (callback) => subscribe(EVENTS.anikiProgress, callback),
-      enterAniki: () => invoke("aniki_enter"),
-    },
     library: {
       get: () => invoke("library_get"),
       onChange: (callback) => subscribe(EVENTS.libraryChanged, () => callback()),

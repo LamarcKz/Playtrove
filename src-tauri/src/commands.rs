@@ -40,7 +40,6 @@ use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
 use crate::test_hooks::{self, TestHooks, open_in_browser, show_in_explorer};
 use crate::test_mode::test_mode;
-use crate::theme_pack::{self, AnikiPack, AnikiPackStatus, InstallError};
 use crate::updates::{UpdateService, UpdateStatus};
 use crate::validation::{
     to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_ra_account,
@@ -165,16 +164,7 @@ pub fn fullscreen_get_config(state: State<'_, AppState>) -> FullscreenConfig {
 }
 
 #[tauri::command]
-pub fn fullscreen_set_config(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    pack: State<'_, AnikiPack>,
-    patch: Value,
-) -> AppResult<FullscreenConfig> {
-    // O tema Aniki só vale com o pacote oficial instalado (a instalação já troca o tema sozinha).
-    if patch.get("theme").and_then(Value::as_str) == Some("aniki") && !pack.installed() {
-        return Err(AppError::text(state.language(), "errors.anikiMissing", &[]));
-    }
+pub fn fullscreen_set_config(app: AppHandle, state: State<'_, AppState>, patch: Value) -> AppResult<FullscreenConfig> {
     let config = fullscreen::set_config(&state.db(), &patch, state.language())?;
     let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
     Ok(config)
@@ -194,57 +184,6 @@ pub fn system_power(state: State<'_, AppState>, hooks: State<'_, crate::test_hoo
         return Ok(());
     }
     crate::power::run(action).map_err(|_| AppError::text(language, "errors.powerFailed", &[]))
-}
-
-#[tauri::command]
-pub fn themes_aniki_status(pack: State<'_, AnikiPack>) -> AnikiPackStatus {
-    pack.status()
-}
-
-/// Baixa o pacote oficial do Aniki da release do autor e, quando termina, troca o tema da tela cheia.
-#[tauri::command(async)]
-pub fn themes_aniki_install(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    pack: State<'_, AnikiPack>,
-) -> AppResult<AnikiPackStatus> {
-    let report = |status: AnikiPackStatus| {
-        let _ = app.emit(theme_pack::PROGRESS_EVENT, status);
-    };
-    match pack.install(&theme_pack::download, &report) {
-        Ok(()) => {
-            let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "aniki"}), state.language())?;
-            let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
-        }
-        // Cancelar não é erro, e um segundo pedido acompanha o download que já está em andamento.
-        Err(InstallError::Cancelled | InstallError::Busy) => {}
-        Err(error) => return Err(AppError::text(state.language(), error.message_key(), &[])),
-    }
-    Ok(pack.status())
-}
-
-/// Abre o Playnite com o Aniki no lugar da tela cheia do Playtrove (o tema Aniki instalado e escolhido).
-#[tauri::command(async)]
-pub fn aniki_enter(app: AppHandle) -> AppResult<()> {
-    crate::aniki_session::enter(&app)
-}
-
-#[tauri::command]
-pub fn themes_aniki_cancel(pack: State<'_, AnikiPack>) {
-    pack.cancel();
-}
-
-/// Apaga o pacote do Aniki; se ele era o tema escolhido, a tela cheia volta ao tema Playtrove.
-#[tauri::command(async)]
-pub fn themes_aniki_remove(app: AppHandle, state: State<'_, AppState>, pack: State<'_, AnikiPack>) -> AppResult<AnikiPackStatus> {
-    pack.remove().map_err(|error| AppError::text(state.language(), error.message_key(), &[]))?;
-    if fullscreen::get_config(&state.db()).theme == "aniki" {
-        let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "playtrove"}), state.language())?;
-        let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
-    }
-    let status = pack.status();
-    let _ = app.emit(theme_pack::PROGRESS_EVENT, &status);
-    Ok(status)
 }
 
 // ---------------------------------------------------------------- biblioteca e jogos
@@ -593,15 +532,9 @@ pub fn statuses_set_rules(app: AppHandle, state: State<'_, AppState>, rules: Val
 /// registra o tempo jogado e relê o tempo que ele mesmo registrou (ele grava ao fechar), as conquistas e os
 /// troféus.
 #[tauri::command(async)]
-pub fn games_play(app: AppHandle, state: State<'_, AppState>, game_id: Value) -> AppResult<()> {
-    play_game(&app, to_id(&game_id, state.language())?).map(|_| ())
-}
-
-/// Abre o jogo: o Jogar do desktop, da tela cheia e do tema Aniki (pelo Playnite). Devolve o processo do
-/// emulador.
-pub fn play_game(app: &AppHandle, game_id: i64) -> AppResult<u32> {
-    let state = app.state::<AppState>();
+pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
     let language = state.language();
+    let game_id = to_id(&game_id, language)?;
     let handle = app.clone();
     let on_exit = Box::new(move |session: crate::launcher::PlayedSession| {
         let state = handle.state::<AppState>();
@@ -615,10 +548,10 @@ pub fn play_game(app: &AppHandle, game_id: i64) -> AppResult<u32> {
         handle.state::<PlaytimeSync>().run_after(AFTER_GAME_DELAY);
         handle.state::<AchievementsService>().after_game_closed();
     });
-    let process_id = app.state::<Launcher>().launch(&state.db(), language, game_id, &SystemStarter, on_exit)?;
-    notify_running(app);
-    notify_library_changed(app);
-    Ok(process_id)
+    launcher.launch(&state.db(), language, game_id, &SystemStarter, on_exit)?;
+    notify_running(&app);
+    notify_library_changed(&app);
+    Ok(())
 }
 
 /// Ids dos jogos abertos agora.

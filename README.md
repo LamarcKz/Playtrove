@@ -54,7 +54,7 @@ The desktop look follows [Playnite](https://playnite.link/): a dark frame with t
 - **Play**: opens the game in its emulator, with the emulator's own settings (RetroArch opens maximized in a window, unless it is set to fullscreen), and keeps track of playtime and when you last played. Time recorded by the emulators themselves counts too, so games you started straight from the emulator show up the same way.
 - **Metadata and images**: covers come from [libretro-thumbnails](https://thumbnails.libretro.com/) (the same ones RetroArch uses, no key needed) and, when one is missing, from [SteamGridDB](https://www.steamgriddb.com/), which also provides the background art; description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
 - **Details view**: the main library view. Your games are listed on the left, with icons. On the right: the background art, the cover above the title, the **Play** and **More** buttons, the details and the description.
-- **Fullscreen**: two themes, as in Playnite. The default Playtrove theme follows Playnite's own fullscreen mode: one to three rows of covers, game details, collections, search, the same filters as the desktop library plus sorting, a main menu with power options (lock, sleep, restart and shut down, each with a confirmation), session notifications, a help screen, navigation sounds made by the app and an option to swap ✕ and ○, alongside reviews and achievements. The Aniki ReMake theme runs in Playnite itself, exactly as Mike Aniki made it: installing it downloads portable Playnite, the theme, Aniki Helper and Playnite's IGDB metadata from their official pages (each checked against its SHA-256), and the Aniki setup installs its recommended add-ons the first time you open it. Fullscreen and F11 then open Playnite with your Playtrove games; Play goes through Playtrove, so playtime keeps being tracked, and favorites, status and ratings changed there come back to the app. Returning to windowed mode in Playnite brings Playtrove back. Navigate with a DualSense over USB or Bluetooth, a keyboard or a mouse; physical controller validation is still pending. **Settings → General** and the fullscreen settings offer optional fullscreen startup and separate music playback/volume controls; trailers play silently in game details and, optionally, behind the library. Media and controller navigation pause while the window is inactive or a game is running. Emulator and ROM-folder setup remains in the desktop interface.
+- **Fullscreen**: inspired by Playnite's own fullscreen mode: one to three rows of covers, game details, collections, search, the same filters as the desktop library plus sorting, a main menu with power options (lock, sleep, restart and shut down, each with a confirmation), session notifications, a help screen, navigation sounds made by the app and an option to swap ✕ and ○, alongside reviews and achievements. Navigate with a DualSense over USB or Bluetooth, a keyboard or a mouse; physical controller validation is still pending. **Settings → General** and the fullscreen settings offer optional fullscreen startup and separate music playback/volume controls; trailers play silently in game details and, optionally, behind the library. Media and controller navigation pause while the window is inactive or a game is running. Emulator and ROM-folder setup remains in the desktop interface.
 - **News**: the fullscreen Quick access opens an RSS/Atom reader with two configurable feeds (Game Informer news and reviews by default). Items are cached on your computer, so the list opens offline, and each feed's title, address and on/off switch are edited in the reader. Articles open as text with their images, and **Open original** takes you to the publisher's page.
 - **Your own images**: in the fullscreen settings, swap the profile avatar and the global launch image for a local file; in a game's options, do the same for its logo. Playtrove keeps its own copy, so the original file is never touched, and removing the custom image goes back to the automatic one.
 - **Launch splash**: when you start a game, a small window follows the emulator loading without taking focus, with the game's background art (or a global image, or black), the logo where you choose and a dimming level. It stays at least 2.4 s, waits up to 90 s and leaves if the launch fails; every option is in the fullscreen settings.
@@ -182,7 +182,7 @@ Pull requests are welcome; please run `npm test` before sending one. The code co
 
 ## Build from source
 
-You'll need [Node.js](https://nodejs.org/) 22.12 or newer, [Git](https://git-scm.com/), [Rust](https://www.rust-lang.org/tools/install) (stable), which on Windows also asks for the Visual Studio Build Tools with the C++ workload, and the [.NET SDK](https://dotnet.microsoft.com/download) 10 or newer, for the Playnite plugin of the Aniki theme. The first `npm run dev` compiles the Rust side, which takes a few minutes; after that, only what changed.
+You'll need [Node.js](https://nodejs.org/) 22.12 or newer, [Git](https://git-scm.com/) and [Rust](https://www.rust-lang.org/tools/install) (stable), which on Windows also asks for the Visual Studio Build Tools with the C++ workload. The first `npm run dev` compiles the Rust side, which takes a few minutes; after that, only what changed.
 
 ```bash
 git clone https://github.com/LamarcKz/Playtrove.git
@@ -199,14 +199,13 @@ npm run dev
 | `npm run dev:nova-copia` | Throws that copy away (with the dev app closed); the next `npm run dev` copies your library again |
 | `npm run build` | Checks the types and builds the interface into `out/web` |
 | `npm run typecheck` | Only checks the TypeScript types |
-| `npm test` | Runs all the automated tests: the interface logic, the Playnite plugin, the Rust side and the ones that open the app and click around like a person |
+| `npm test` | Runs all the automated tests: the interface logic, the Rust side and the ones that open the app and click around like a person |
 | `npm run dist` | Builds the installer, the portable version and the update files into `dist/` (signing the updates needs the maintainers' private key) |
 
 Want to understand the code? The guide to every folder and file, and where to build each new feature, is in [ESTRUTURA.md](ESTRUTURA.md) (in Portuguese).
 
 ## Roadmap
 
-- Update notices for Playnite, the Aniki theme and its add-ons, with one-click updates
 - Import games from Steam, GOG and PC game folders
 - More emulators
 - Edit a game's details and pick another cover
@@ -220,13 +219,11 @@ Want to understand the code? The guide to every folder and file, and where to bu
 - [React](https://react.dev/) and [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/) and [Lucide](https://lucide.dev/) icons
 - [SQLite](https://sqlite.org/) with [rusqlite](https://github.com/rusqlite/rusqlite)
-- The Playnite plugin in C# with the [Playnite SDK](https://api.playnite.link/)
-- Tests with [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), Rust's own (`cargo test`) and [xUnit](https://xunit.net/)
+- Tests with [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/) and Rust's own (`cargo test`)
 
 ## Credits
 
 - The look is inspired by [Playnite](https://playnite.link/), an independent project with no connection to this one.
-- The Aniki ReMake fullscreen theme and its [Aniki Helper](https://github.com/Mike-Aniki/AnikiHelper) are by Mike Aniki, and [Playnite](https://playnite.link/) is by Josef Nemec (all MIT license; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). Playtrove downloads them from their official pages and does not ship them.
 - The icons come from [Lucide](https://lucide.dev/) (ISC license).
 - Game metadata comes from [IGDB](https://www.igdb.com/) (by Twitch); covers from [libretro-thumbnails](https://thumbnails.libretro.com/), the [RetroArch](https://www.retroarch.com/) community's collection; and background art (and any missing covers) from [SteamGridDB](https://www.steamgriddb.com/), made by its community.
 - Trailer and theme music downloads use [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [Deno](https://github.com/denoland/deno), downloaded from their official releases and verified before use.

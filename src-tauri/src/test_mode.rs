@@ -21,9 +21,6 @@ pub struct TestMode {
     pub fake_update: Option<String>,
     /// A porta em que a janela aceita o Playwright (a depuração do WebView2), nos testes do app.
     pub remote_debugging_port: Option<u16>,
-    /// Os pacotes do Aniki de mentira (o Playnite, o tema, o Helper e o IGDB, cada um com endereço e
-    /// SHA-256), num JSON `[{"url", "sha256"}]`, no lugar das páginas oficiais.
-    pub aniki_packages: Option<Vec<crate::theme_pack::PackageSource>>,
 }
 
 static TEST_MODE: LazyLock<TestMode> = LazyLock::new(|| TestMode {
@@ -35,20 +32,7 @@ static TEST_MODE: LazyLock<TestMode> = LazyLock::new(|| TestMode {
     hide_dev_mark: test_variable("HIDE_DEV_MARK").as_deref() == Some("1"),
     fake_update: test_variable("FAKE_UPDATE"),
     remote_debugging_port: test_variable("REMOTE_DEBUGGING_PORT").and_then(|port| port.parse().ok()),
-    aniki_packages: test_variable("ANIKI_PACKAGES").and_then(|json| aniki_packages(&json)),
 });
-
-fn aniki_packages(json: &str) -> Option<Vec<crate::theme_pack::PackageSource>> {
-    let list: Vec<serde_json::Value> = serde_json::from_str(json).ok()?;
-    list.iter()
-        .map(|item| {
-            Some(crate::theme_pack::PackageSource {
-                url: item["url"].as_str()?.to_string(),
-                sha256: item["sha256"].as_str()?.to_string(),
-            })
-        })
-        .collect()
-}
 
 pub fn test_mode() -> &'static TestMode {
     &TEST_MODE

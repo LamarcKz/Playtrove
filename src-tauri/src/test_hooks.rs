@@ -179,17 +179,6 @@ impl TestHooks {
     }
 }
 
-/// O Playnite do tema Aniki fechou, nos testes ("window": voltar ao modo janela; "quit": sair).
-#[tauri::command]
-pub fn test_aniki_exit(app: AppHandle, kind: Value) {
-    if !active() {
-        return;
-    }
-    let kind =
-        if kind.as_str() == Some("quit") { crate::aniki_session::ExitKind::Quit } else { crate::aniki_session::ExitKind::Window };
-    crate::aniki_session::finish(&app, kind);
-}
-
 /// Abre o endereço no navegador padrão (nos testes, só anota).
 pub fn open_in_browser(app: &AppHandle, url: &str) {
     if active() {
@@ -231,7 +220,6 @@ pub struct TestWindow {
     maximized: bool,
     fullscreen: bool,
     foreground: bool,
-    visible: bool,
     size: [f64; 2],
     work_area: [f64; 2],
 }
@@ -251,7 +239,6 @@ pub fn test_window(window: WebviewWindow) -> Option<TestWindow> {
         maximized: window.is_maximized().ok()?,
         fullscreen: window.is_fullscreen().ok()?,
         foreground: crate::window::has_input_focus(&window).ok()?,
-        visible: window.is_visible().ok()?,
         size: [size.width.round(), size.height.round()],
         work_area: [area.width.round(), area.height.round()],
     })

@@ -54,7 +54,7 @@ O visual desktop segue a linha do [Playnite](https://playnite.link/): uma moldur
 - **Jogar**: abre o jogo no emulador, com as configurações dele (o RetroArch abre maximizado em janela, a não ser que esteja em tela cheia), e conta sozinho o tempo jogado e a última vez jogado. O tempo que os próprios emuladores registram também entra na biblioteca, então o que foi jogado abrindo o emulador direto aparece do mesmo jeito.
 - **Metadados e imagens**: a capa vem do [libretro-thumbnails](https://thumbnails.libretro.com/) (a mesma do RetroArch, sem precisar de chave) e, quando falta, do [SteamGridDB](https://www.steamgriddb.com/), que também dá a arte de fundo; a descrição, os gêneros, a desenvolvedora, a publicadora e a data de lançamento vêm do [IGDB](https://www.igdb.com/). As duas chaves são gratuitas, e o app explica como criar cada uma.
 - **Modo Detalhes**: a visão principal da biblioteca. À esquerda fica a lista de jogos, com os ícones. À direita aparecem a arte de fundo, a capa acima do título, os botões **Jogar** e **Mais**, os detalhes e a descrição.
-- **Tela cheia**: dois temas, como no Playnite. O tema Playtrove, o padrão, segue a tela cheia do próprio Playnite: uma a três linhas de capas, os detalhes do jogo, coleções, busca, os mesmos filtros da biblioteca do modo janela com ordenação, um menu principal com as opções de energia (bloquear, suspender, reiniciar e desligar, cada uma com confirmação), avisos da sessão, uma tela de ajuda, sons de navegação feitos pelo próprio app e a opção de trocar ✕ e ○, além das análises e conquistas. O tema Aniki ReMake roda no próprio Playnite, exatamente como Mike Aniki fez: instalar baixa das páginas oficiais o Playnite portátil, o tema, o Aniki Helper e os metadados do IGDB do Playnite (cada um conferido pelo SHA-256), e o assistente do Aniki instala os complementos recomendados na primeira vez que você abre. Daí, Tela cheia e F11 abrem o Playnite com os seus jogos do Playtrove; o Jogar passa pelo Playtrove, então o tempo jogado continua contado, e o favorito, o status e a nota mudados lá voltam para o app. Voltar ao modo janela no Playnite traz o Playtrove de volta. A navegação aceita o DualSense por USB ou Bluetooth, o teclado e o mouse; a conferência com o controle físico ainda está pendente. Em **Configurações → Geral** e nas configurações da tela cheia, há o início opcional em tela cheia e controles próprios de reprodução e volume da música; os trailers tocam sem som nos detalhes do jogo e, se você quiser, atrás da biblioteca. Mídia e navegação pelo controle pausam com a janela inativa ou com um jogo aberto. A configuração de emuladores e pastas de ROMs continua no modo janela.
+- **Tela cheia**: inspirada na tela cheia do próprio Playnite: uma a três linhas de capas, os detalhes do jogo, coleções, busca, os mesmos filtros da biblioteca do modo janela com ordenação, um menu principal com as opções de energia (bloquear, suspender, reiniciar e desligar, cada uma com confirmação), avisos da sessão, uma tela de ajuda, sons de navegação feitos pelo próprio app e a opção de trocar ✕ e ○, além das análises e conquistas. A navegação aceita o DualSense por USB ou Bluetooth, o teclado e o mouse; a conferência com o controle físico ainda está pendente. Em **Configurações → Geral** e nas configurações da tela cheia, há o início opcional em tela cheia e controles próprios de reprodução e volume da música; os trailers tocam sem som nos detalhes do jogo e, se você quiser, atrás da biblioteca. Mídia e navegação pelo controle pausam com a janela inativa ou com um jogo aberto. A configuração de emuladores e pastas de ROMs continua no modo janela.
 - **Notícias**: o Acesso rápido da tela cheia abre um leitor RSS/Atom com duas fontes configuráveis (por padrão, notícias e análises do Game Informer). Os itens ficam guardados no computador, então a lista abre sem internet, e o título, o endereço e o liga/desliga de cada fonte são editados no próprio leitor. Os artigos abrem em texto com as imagens, e **Abrir original** leva à página da publicação.
 - **Suas próprias imagens**: nas configurações da tela cheia, troque o avatar do perfil e a imagem global da tela de abertura por um arquivo local; nas opções de um jogo, faça o mesmo com a logo. O Playtrove guarda uma cópia própria, então o arquivo original nunca é tocado, e remover a imagem personalizada volta à automática.
 - **Tela de abertura**: ao iniciar um jogo, uma janela pequena acompanha o carregamento do emulador sem tomar o foco, com a arte de fundo do jogo (ou uma imagem global, ou preto), a logo onde você escolher e o nível de escurecimento. Ela fica pelo menos 2,4 s, espera até 90 s e sai se a abertura falhar; todas as opções ficam nas configurações da tela cheia.
@@ -182,7 +182,7 @@ Pull requests são bem-vindos; rode o `npm test` antes de mandar.
 
 ## Como compilar
 
-Você vai precisar do [Node.js](https://nodejs.org/) 22.12 ou mais novo, do [Git](https://git-scm.com/), do [Rust](https://www.rust-lang.org/tools/install) (estável), que no Windows também pede o Visual Studio Build Tools com a parte de C++, e do [.NET SDK](https://dotnet.microsoft.com/download) 10 ou mais novo, para o plugin do Playnite do tema Aniki. O primeiro `npm run dev` compila a parte em Rust, o que leva alguns minutos; depois, só o que mudou.
+Você vai precisar do [Node.js](https://nodejs.org/) 22.12 ou mais novo, do [Git](https://git-scm.com/) e do [Rust](https://www.rust-lang.org/tools/install) (estável), que no Windows também pede o Visual Studio Build Tools com a parte de C++. O primeiro `npm run dev` compila a parte em Rust, o que leva alguns minutos; depois, só o que mudou.
 
 ```bash
 git clone https://github.com/LamarcKz/Playtrove.git
@@ -199,14 +199,13 @@ O `git clone` traz a branch `main`, com a última versão estável. O desenvolvi
 | `npm run dev:nova-copia` | Joga essa cópia fora (com o app do dev fechado); o próximo `npm run dev` copia a biblioteca de novo |
 | `npm run build` | Confere os tipos e gera a interface compilada em `out/web` |
 | `npm run typecheck` | Só confere os tipos do TypeScript |
-| `npm test` | Roda todos os testes automáticos: os da lógica da interface, os do plugin do Playnite, os da parte em Rust e os que abrem o app e clicam como uma pessoa |
+| `npm test` | Roda todos os testes automáticos: os da lógica da interface, os da parte em Rust e os que abrem o app e clicam como uma pessoa |
 | `npm run dist` | Gera o instalador, a versão portátil e os arquivos da atualização em `dist/` (assinar as atualizações pede a chave privada de quem mantém o projeto) |
 
 Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde implementar cada funcionalidade, está em [ESTRUTURA.md](ESTRUTURA.md).
 
 ## Roadmap
 
-- Avisos de versão nova do Playnite, do tema Aniki e dos complementos, com atualização num clique
 - Importação de jogos da Steam, da GOG e de pastas de jogos do computador
 - Mais emuladores
 - Editar as informações de um jogo e escolher outra capa
@@ -220,13 +219,11 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 - [React](https://react.dev/) e [TypeScript](https://www.typescriptlang.org/)
 - [Tailwind CSS](https://tailwindcss.com/), [shadcn/ui](https://ui.shadcn.com/) e ícones [Lucide](https://lucide.dev/)
 - [SQLite](https://sqlite.org/) com [rusqlite](https://github.com/rusqlite/rusqlite)
-- O plugin do Playnite em C#, com o [Playnite SDK](https://api.playnite.link/)
-- Testes com [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/), os do próprio Rust (`cargo test`) e [xUnit](https://xunit.net/)
+- Testes com [Vitest](https://vitest.dev/), [Playwright](https://playwright.dev/) e os do próprio Rust (`cargo test`)
 
 ## Créditos
 
 - O visual é inspirado no [Playnite](https://playnite.link/), um projeto independente, sem ligação com este.
-- O tema de tela cheia Aniki ReMake e o [Aniki Helper](https://github.com/Mike-Aniki/AnikiHelper) são de Mike Aniki, e o [Playnite](https://playnite.link/), de Josef Nemec (todos com licença MIT; ver [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)). O Playtrove baixa tudo das páginas oficiais e não distribui nada deles.
 - Os ícones vêm do [Lucide](https://lucide.dev/) (licença ISC).
 - Os metadados dos jogos vêm do [IGDB](https://www.igdb.com/) (da Twitch); as capas, do [libretro-thumbnails](https://thumbnails.libretro.com/), o acervo da comunidade do [RetroArch](https://www.retroarch.com/); e as artes de fundo (e as capas que faltarem), do [SteamGridDB](https://www.steamgriddb.com/), feitas pela comunidade.
 - O download de trailers e músicas tema usa [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [Deno](https://github.com/denoland/deno), baixados das releases oficiais e verificados antes do uso.

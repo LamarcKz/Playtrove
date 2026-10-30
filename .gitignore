@@ -4,10 +4,6 @@ dist
 *.log
 *.tsbuildinfo
 
-# O que o .NET compila do plugin do Playnite (bridge/)
-bin/
-obj/
-
 # Resultados dos testes do app (Playwright)
 test-results/
 playwright-report/
