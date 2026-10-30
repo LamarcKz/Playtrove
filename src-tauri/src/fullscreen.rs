@@ -167,8 +167,8 @@ mod tests {
             json!({"musicVolume": "20"}),
             json!({"musicVolume": null}),
             json!({"startOnLaunch": true, "musicVolume": 300}),
-            // As preferências do tema Aniki não existem mais.
-            json!({"theme": "aniki"}),
+            // Preferências que a tela cheia não tem mais.
+            json!({"theme": "playtrove"}),
             json!({"libraryLayout": "horizontal"}),
             json!({"coverRows": 0}),
             json!({"coverRows": 4}),
