@@ -30,7 +30,7 @@ describe("entrada fullscreen", () => {
     expect(input.update(snapshot(6, ["cross"], 2), 750)).toEqual(["cross"])
   })
 })
-// Como no Aniki: Options, Create e triângulo agem ao soltar; segurados por 500 ms, disparam a segunda ação uma vez.
+// Options, Create e triângulo agem ao soltar; segurados por 500 ms, disparam a segunda ação uma vez.
 describe("toque e segurar", () => {
   it("toque age ao soltar e segurar dispara uma vez, sem toque depois", () => {
     const input = new FullscreenInput()

@@ -40,7 +40,6 @@ use crate::stats::{ACTIVITY_DAYS, DailyPlaytime, get_daily_playtime};
 use crate::system_sources::SystemSources;
 use crate::test_hooks::{self, TestHooks, open_in_browser, show_in_explorer};
 use crate::test_mode::test_mode;
-use crate::theme_pack::{self, AnikiPack, AnikiPackStatus, InstallError};
 use crate::updates::{UpdateService, UpdateStatus};
 use crate::validation::{
     to_bool, to_emulator_id, to_evaluation, to_id, to_id_list, to_igdb_credentials, to_optional_id, to_order, to_ra_account,
@@ -149,11 +148,6 @@ pub fn window_close(window: WebviewWindow) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn window_finish_close(window: WebviewWindow) -> AppResult<()> {
-    Ok(crate::window::finish_close(&window)?)
-}
-
-#[tauri::command]
 pub fn window_get_state(window: WebviewWindow) -> AppResult<WindowState> {
     Ok(crate::window::reconcile_state(&window)?)
 }
@@ -170,21 +164,9 @@ pub fn fullscreen_get_config(state: State<'_, AppState>) -> FullscreenConfig {
 }
 
 #[tauri::command]
-pub fn fullscreen_set_config(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    pack: State<'_, AnikiPack>,
-    patch: Value,
-) -> AppResult<FullscreenConfig> {
-    // O tema Aniki só vale com o pacote oficial instalado (a instalação já troca o tema sozinha).
-    if patch.get("theme").and_then(Value::as_str) == Some("aniki") && !pack.installed() {
-        return Err(AppError::text(state.language(), "errors.anikiMissing", &[]));
-    }
+pub fn fullscreen_set_config(app: AppHandle, state: State<'_, AppState>, patch: Value) -> AppResult<FullscreenConfig> {
     let config = fullscreen::set_config(&state.db(), &patch, state.language())?;
     let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
-    if let Some(overlay) = app.try_state::<crate::game_overlay::GameOverlay>() {
-        overlay.refresh();
-    }
     Ok(config)
 }
 
@@ -202,124 +184,6 @@ pub fn system_power(state: State<'_, AppState>, hooks: State<'_, crate::test_hoo
         return Ok(());
     }
     crate::power::run(action).map_err(|_| AppError::text(language, "errors.powerFailed", &[]))
-}
-
-#[tauri::command(async)]
-pub fn audio_output_get(state: State<'_, AppState>) -> AppResult<crate::audio_output::AudioOutputState> {
-    crate::audio_output::get().map_err(|error| error.into_app(state.language()))
-}
-
-#[tauri::command(async)]
-pub fn audio_output_set_device(state: State<'_, AppState>, id: Value) -> AppResult<crate::audio_output::AudioOutputState> {
-    let id = to_text(&id, state.language())?;
-    crate::audio_output::set_device(&id).map_err(|error| error.into_app(state.language()))
-}
-
-#[tauri::command(async)]
-pub fn audio_output_set_volume(state: State<'_, AppState>, volume: Value) -> AppResult<crate::audio_output::AudioOutputState> {
-    let volume = volume.as_f64().ok_or_else(|| crate::audio_output::AudioError::InvalidVolume.into_app(state.language()))?;
-    crate::audio_output::set_volume(volume).map_err(|error| error.into_app(state.language()))
-}
-
-#[tauri::command(async)]
-pub fn audio_output_set_muted(state: State<'_, AppState>, muted: Value) -> AppResult<crate::audio_output::AudioOutputState> {
-    let muted = to_bool(&muted, state.language())?;
-    crate::audio_output::set_muted(muted).map_err(|error| error.into_app(state.language()))
-}
-
-#[tauri::command(async)]
-pub fn game_media_list(
-    state: State<'_, AppState>,
-    images: State<'_, ImagesDir>,
-    game_id: Value,
-) -> AppResult<Vec<crate::game_media::GameMediaItem>> {
-    let game_id = to_id(&game_id, state.language())?;
-    crate::game_media::list(state.database(), state.language(), &images.0, game_id)
-}
-
-#[tauri::command(async)]
-pub fn game_media_import(
-    app: AppHandle,
-    window: WebviewWindow,
-    state: State<'_, AppState>,
-    images: State<'_, ImagesDir>,
-    game_id: Value,
-) -> AppResult<Vec<crate::game_media::GameMediaItem>> {
-    let language = state.language();
-    let game_id = to_id(&game_id, language)?;
-    crate::game_media::validate_game(&state.db(), language, game_id)?;
-    let picked = if cfg!(test) || test_hooks::active() {
-        app.state::<TestHooks>().take_open_dialog().into_iter().collect()
-    } else {
-        app.dialog()
-            .file()
-            .set_parent(&window)
-            .set_title(text(language, "errors.gameMedia.importTitle", &[]))
-            .add_filter(text(language, "errors.gameMedia.imageFiles", &[]), &["png", "jpg", "jpeg", "webp"])
-            .blocking_pick_files()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|file| file.into_path())
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| AppError::text(language, "errors.gameMedia.read", &[]))?
-    };
-    crate::game_media::import_files(state.database(), language, &images.0, game_id, &picked)
-}
-
-#[tauri::command(async)]
-pub fn game_media_remove(
-    state: State<'_, AppState>,
-    images: State<'_, ImagesDir>,
-    game_id: Value,
-    media_id: Value,
-) -> AppResult<Vec<crate::game_media::GameMediaItem>> {
-    let language = state.language();
-    crate::game_media::remove(state.database(), language, &images.0, to_id(&game_id, language)?, &to_text(&media_id, language)?)
-}
-
-#[tauri::command]
-pub fn themes_aniki_status(pack: State<'_, AnikiPack>) -> AnikiPackStatus {
-    pack.status()
-}
-
-/// Baixa o pacote oficial do Aniki da release do autor e, quando termina, troca o tema da tela cheia.
-#[tauri::command(async)]
-pub fn themes_aniki_install(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    pack: State<'_, AnikiPack>,
-) -> AppResult<AnikiPackStatus> {
-    let report = |status: AnikiPackStatus| {
-        let _ = app.emit(theme_pack::PROGRESS_EVENT, status);
-    };
-    match pack.install(&theme_pack::download, &report) {
-        Ok(()) => {
-            let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "aniki"}), state.language())?;
-            let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
-        }
-        // Cancelar não é erro, e um segundo pedido acompanha o download que já está em andamento.
-        Err(InstallError::Cancelled | InstallError::Busy) => {}
-        Err(error) => return Err(AppError::text(state.language(), error.message_key(), &[])),
-    }
-    Ok(pack.status())
-}
-
-#[tauri::command]
-pub fn themes_aniki_cancel(pack: State<'_, AnikiPack>) {
-    pack.cancel();
-}
-
-/// Apaga o pacote do Aniki; se ele era o tema escolhido, a tela cheia volta ao tema Playtrove.
-#[tauri::command(async)]
-pub fn themes_aniki_remove(app: AppHandle, state: State<'_, AppState>, pack: State<'_, AnikiPack>) -> AppResult<AnikiPackStatus> {
-    pack.remove().map_err(|error| AppError::text(state.language(), error.message_key(), &[]))?;
-    if fullscreen::get_config(&state.db()).theme == "aniki" {
-        let config = fullscreen::set_config(&state.db(), &serde_json::json!({"theme": "playtrove"}), state.language())?;
-        let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
-    }
-    let status = pack.status();
-    let _ = app.emit(theme_pack::PROGRESS_EVENT, &status);
-    Ok(status)
 }
 
 // ---------------------------------------------------------------- biblioteca e jogos
@@ -355,13 +219,6 @@ pub fn games_set_evaluation(app: AppHandle, state: State<'_, AppState>, game_id:
     library::save_game_evaluation(&state.db(), language, game_id, to_evaluation(&evaluation, language)?, Utc::now())?;
     notify_library_changed(&app);
     Ok(())
-}
-
-/// A cor de destaque tirada da arte do jogo, para a cor dinâmica da tela cheia ("#rrggbb" ou null).
-#[tauri::command(async)]
-pub fn games_accent_color(state: State<'_, AppState>, images: State<'_, ImagesDir>, game_id: Value) -> AppResult<Option<String>> {
-    let game_id = to_id(&game_id, state.language())?;
-    Ok(crate::dynamic_color::game_accent(&state.db(), &images.0, game_id)?)
 }
 
 /// Escolhe um MP4/WebM local e guarda uma cópia nos dados do app.
@@ -678,23 +535,6 @@ pub fn statuses_set_rules(app: AppHandle, state: State<'_, AppState>, rules: Val
 pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
     let language = state.language();
     let game_id = to_id(&game_id, language)?;
-    let (prepared, config) = {
-        let db = state.db();
-        (launcher.prepare(&db, language, game_id)?, fullscreen::get_config(&db))
-    };
-    // Criar uma janela pede a thread da interface: nenhum guard do banco ou das sessões pode
-    // atravessar esse callback. Falhas na apresentação nunca impedem abrir o jogo validado.
-    let decoration = if config.theme == "aniki"
-        && config.game_launch_splash_enabled
-        && app.state::<crate::theme_pack::AnikiPack>().installed()
-        && app.get_webview_window("main").is_some_and(|window| window.is_fullscreen().unwrap_or(false))
-    {
-        crate::game_launch_splash::media_for_game(&state, &app.state::<crate::images::ImagesDir>(), game_id)
-            .ok()
-            .map(|media| (crate::game_launch_splash::SplashOptions::from(&config), media))
-    } else {
-        None
-    };
     let handle = app.clone();
     let on_exit = Box::new(move |session: crate::launcher::PlayedSession| {
         let state = handle.state::<AppState>();
@@ -708,37 +548,7 @@ pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_
         handle.state::<PlaytimeSync>().run_after(AFTER_GAME_DELAY);
         handle.state::<AchievementsService>().after_game_closed();
     });
-    let splash = app.state::<crate::game_launch_splash::GameLaunchSplash>();
-    let mut splash_token = None;
-    let launched = launcher.launch_prepared_with_control(
-        prepared,
-        &SystemStarter,
-        || {
-            if let Some((options, media)) = decoration {
-                splash_token = splash.begin(game_id, options, media).ok();
-            }
-        },
-        on_exit,
-    );
-    match launched {
-        Ok(control) => {
-            if let Some(token) = splash_token {
-                if let Some(control) = control {
-                    if splash.started(token, control).is_err() {
-                        let _ = splash.failed(token);
-                    }
-                } else {
-                    let _ = splash.failed(token);
-                }
-            }
-        }
-        Err(error) => {
-            if let Some(token) = splash_token {
-                let _ = splash.failed(token);
-            }
-            return Err(error);
-        }
-    }
+    launcher.launch(&state.db(), language, game_id, &SystemStarter, on_exit)?;
     notify_running(&app);
     notify_library_changed(&app);
     Ok(())
@@ -748,117 +558,6 @@ pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_
 #[tauri::command]
 pub fn games_get_running(launcher: State<'_, Launcher>) -> Vec<i64> {
     launcher.running()
-}
-
-#[tauri::command(async)]
-pub fn stats_hub_game_activity(state: State<'_, AppState>) -> AppResult<Vec<crate::hub_data::HubGameActivity>> {
-    Ok(crate::hub_data::get_game_activity(&state.db(), chrono::Local::now())?)
-}
-
-#[tauri::command]
-pub fn games_get_running_sessions(launcher: State<'_, Launcher>) -> Vec<crate::launcher::RunningSession> {
-    launcher.running_sessions()
-}
-
-fn session_error(error: crate::game_window::SessionControlError, language: Language) -> AppError {
-    use crate::game_window::SessionControlError;
-    let key = match error {
-        SessionControlError::NotRunning => "errors.gameSessionEnded",
-        SessionControlError::ControlUnavailable => "errors.gameSessionControlUnavailable",
-        SessionControlError::WindowUnavailable => "errors.gameSessionWindowUnavailable",
-        SessionControlError::OperationFailed => "errors.gameSessionOperationFailed",
-    };
-    AppError::text(language, key, &[])
-}
-
-fn overlay_error(error: crate::game_overlay::OverlayError, language: Language) -> AppError {
-    use crate::game_overlay::OverlayError;
-    let key = match error {
-        OverlayError::Session(error) => return session_error(error, language),
-        OverlayError::Disabled => "errors.gameOverlayDisabled",
-        OverlayError::NoActiveGame => "errors.gameSessionEnded",
-        OverlayError::InputHeld => "errors.gameOverlayInputHeld",
-        OverlayError::Window | OverlayError::ServiceStopped => "errors.gameSessionOperationFailed",
-    };
-    AppError::text(language, key, &[])
-}
-
-#[tauri::command]
-pub fn game_launch_splash_get_state(
-    splash: State<'_, crate::game_launch_splash::GameLaunchSplash>,
-) -> crate::game_launch_splash::SplashState {
-    splash.get_state()
-}
-
-#[tauri::command]
-pub fn game_launch_splash_rendered(
-    window: WebviewWindow,
-    state: State<'_, AppState>,
-    splash: State<'_, crate::game_launch_splash::GameLaunchSplash>,
-    generation: u64,
-) -> AppResult<()> {
-    if window.label() != crate::game_launch_splash::WINDOW_LABEL {
-        return Err(AppError::text(state.language(), "errors.invalidValue", &[]));
-    }
-    splash.rendered(generation).map_err(|_| AppError::text(state.language(), "errors.gameSessionOperationFailed", &[]))
-}
-
-#[tauri::command]
-pub fn game_overlay_get_state(overlay: State<'_, crate::game_overlay::GameOverlay>) -> crate::game_overlay::OverlayState {
-    overlay.get_state()
-}
-
-#[tauri::command]
-pub fn game_overlay_get_input(
-    overlay: State<'_, crate::game_overlay::GameOverlay>,
-) -> crate::controller_input::ControllerInputSnapshot {
-    overlay.get_input_snapshot()
-}
-
-#[tauri::command(async)]
-pub fn game_overlay_open(
-    state: State<'_, AppState>,
-    overlay: State<'_, crate::game_overlay::GameOverlay>,
-    game_id: Value,
-) -> AppResult<crate::game_overlay::OverlayState> {
-    let language = state.language();
-    overlay.open(to_id(&game_id, language)?).map_err(|error| overlay_error(error, language))
-}
-
-#[tauri::command(async)]
-pub fn game_overlay_return_to_game(
-    state: State<'_, AppState>,
-    overlay: State<'_, crate::game_overlay::GameOverlay>,
-) -> AppResult<crate::game_overlay::OverlayState> {
-    overlay.close().map_err(|error| overlay_error(error, state.language()))
-}
-
-#[tauri::command(async)]
-pub fn game_overlay_return_to_app(
-    state: State<'_, AppState>,
-    overlay: State<'_, crate::game_overlay::GameOverlay>,
-) -> AppResult<crate::game_overlay::OverlayState> {
-    overlay.return_to_app().map_err(|error| overlay_error(error, state.language()))
-}
-
-#[tauri::command(async)]
-pub fn game_overlay_request_close_game(
-    state: State<'_, AppState>,
-    overlay: State<'_, crate::game_overlay::GameOverlay>,
-) -> AppResult<crate::game_overlay::OverlayState> {
-    overlay.request_close_game().map_err(|error| overlay_error(error, state.language()))
-}
-
-#[tauri::command(async)]
-pub fn games_resume(state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
-    let language = state.language();
-    launcher.resume_game(to_id(&game_id, language)?).map_err(|error| session_error(error, language))
-}
-
-#[tauri::command(async)]
-pub fn games_request_close(state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
-    let language = state.language();
-    launcher.request_close(to_id(&game_id, language)?).map_err(|error| session_error(error, language))
 }
 
 /// Abre o Explorador de Arquivos com a ROM do jogo selecionada.

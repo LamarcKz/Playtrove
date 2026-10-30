@@ -315,7 +315,7 @@ fn video_response(root: &Path, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
     file_response(&path, mime, &request)
 }
 
-/// Responde com um arquivo já conferido, em intervalos de até 2 MiB (também usado pelas mídias do tema Aniki).
+/// Responde com um arquivo já conferido, em intervalos de até 2 MiB.
 pub(crate) fn file_response(path: &Path, mime: &str, request: &Request<Vec<u8>>) -> Response<Vec<u8>> {
     let mut file = match File::open(path) {
         Ok(file) => file,
