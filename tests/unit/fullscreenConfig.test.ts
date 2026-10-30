@@ -1,10 +1,8 @@
 import { describe, expect, it } from "vitest"
-import { DEFAULT_ANIKI_PRESENTATION } from "../../src/shared/anikiPresentation"
-import { DEFAULT_GAME_LAUNCH_SPLASH } from "../../src/shared/gameLaunchSplash"
 import type { FullscreenConfig } from "../../src/shared/fullscreen"
 import { FullscreenConfigQueue } from "../../src/renderer/lib/fullscreenConfig"
 
-const initial: FullscreenConfig = { ...DEFAULT_ANIKI_PRESENTATION, ...DEFAULT_GAME_LAUNCH_SPLASH, theme: "playtrove", startOnLaunch: false, musicPlayback: true, musicVolume: 20, startDestination: "hub", profileName: "", profileAvatar: "gamepad", anikiAvatarIndex: null, controllerIconStyle: "playstation", inGameOverlayEnabled: false, inGameOverlayHotkey: "CtrlShiftF12", libraryLayout: "horizontal", detailsLayout: "signature", colorPreset: "default", dynamicColors: false, effects: "balanced", interface: "standard", loginScreen: false, trailers: "details", setupDone: false, coverRows: 1, showClock: true, uiSounds: true, uiSoundsVolume: 40, swapConfirm: false, playtroveTrailers: "all" }
+const initial: FullscreenConfig = { theme: "playtrove", startOnLaunch: false, musicPlayback: true, musicVolume: 20, coverRows: 1, showClock: true, uiSounds: true, uiSoundsVolume: 40, swapConfirm: false, playtroveTrailers: "all" }
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason: unknown) => void

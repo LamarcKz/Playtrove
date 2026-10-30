@@ -10,16 +10,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
-use percent_encoding::percent_decode_str;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use tauri::http::{Method, Request, Response, StatusCode};
-use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};
 
 use crate::i18n::Language;
 use crate::test_mode::test_mode;
 
-pub const THEME_PROTOCOL: &str = "playtrove-theme";
 pub const PROGRESS_EVENT: &str = "themes:aniki-progress";
 pub const ANIKI_VERSION: &str = "3.6.0";
 pub const THEME_ID: &str = "Aniki_ReMake_bb8728bd-ac83-4324-88b1-ee5c586527d1";
@@ -181,21 +177,6 @@ impl AnikiPack {
 
     pub fn installed(&self) -> bool {
         std::fs::read_to_string(self.playnite_dir().join(MARKER)).is_ok_and(|marker| marker == self.marker())
-    }
-
-    fn theme_dir(&self) -> Option<PathBuf> {
-        self.installed().then(|| self.playnite_dir().join(PACKAGES[1].3)).and_then(|directory| directory.canonicalize().ok())
-    }
-
-    /// Uma mídia do tema instalado; nomes com `..` ou fora da pasta do tema não são entregues.
-    fn asset_file(&self, relative: &str) -> Option<PathBuf> {
-        mime(relative)?;
-        if relative.split('/').any(|part| part.is_empty() || part == "." || part == ".." || part.contains('\\')) {
-            return None;
-        }
-        let directory = self.theme_dir()?;
-        let file = directory.join(relative).canonicalize().ok()?;
-        (file.starts_with(&directory) && file.is_file()).then_some(file)
     }
 
     pub fn status(&self) -> AnikiPackStatus {
@@ -382,20 +363,6 @@ fn merge_json(path: &Path, values: serde_json::Value) -> std::io::Result<()> {
     std::fs::write(path, serde_json::to_vec_pretty(&current)?)
 }
 
-fn mime(path: &str) -> Option<&'static str> {
-    let extension = path.rsplit_once('.')?.1.to_ascii_lowercase();
-    Some(match extension.as_str() {
-        "png" => "image/png",
-        "jpg" | "jpeg" => "image/jpeg",
-        "wav" => "audio/wav",
-        "mp3" => "audio/mpeg",
-        "mp4" => "video/mp4",
-        "ttf" => "font/ttf",
-        "otf" => "font/otf",
-        _ => return None,
-    })
-}
-
 /// O que todos os pacotes juntos já extraíram.
 #[derive(Default)]
 struct Budget {
@@ -493,24 +460,6 @@ fn extract_seven_zip(archive: &Path, target: &Path, cancel: &AtomicBool, budget:
     result.map_err(|_| InstallError::Integrity)
 }
 
-pub fn handle_request<R: Runtime>(context: UriSchemeContext<'_, R>, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
-    let app = context.app_handle().clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        responder.respond(asset_response(&app.state::<AnikiPack>(), request));
-    });
-}
-
-fn asset_response(pack: &AnikiPack, request: Request<Vec<u8>>) -> Response<Vec<u8>> {
-    let not_found = || Response::builder().status(StatusCode::NOT_FOUND).body(Vec::new()).unwrap();
-    if request.method() != Method::GET && request.method() != Method::HEAD {
-        return Response::builder().status(StatusCode::METHOD_NOT_ALLOWED).header("Allow", "GET, HEAD").body(Vec::new()).unwrap();
-    }
-    let Ok(path) = percent_decode_str(request.uri().path().trim_start_matches('/')).decode_utf8() else { return not_found() };
-    let Some(relative) = path.strip_prefix("aniki/") else { return not_found() };
-    let (Some(file), Some(mime)) = (pack.asset_file(relative), mime(relative)) else { return not_found() };
-    crate::videos::file_response(&file, mime, &request)
-}
-
 /// O download de verdade, pelas páginas oficiais (o GitHub redireciona para o armazenamento dele).
 pub fn download(url: &str) -> Fetched {
     let config = ureq::Agent::config_builder()
@@ -590,10 +539,6 @@ mod tests {
             Ok((Box::new(Cursor::new(content)), Some(length)))
         };
         (pack, root, fetch)
-    }
-
-    fn request(path: &str) -> Request<Vec<u8>> {
-        Request::builder().uri(format!("http://playtrove-theme.localhost/{path}")).body(Vec::new()).unwrap()
     }
 
     #[test]
@@ -704,25 +649,6 @@ mod tests {
         assert_eq!(read("fullscreenConfig.json")["Theme"], THEME_ID);
         pack.write_playnite_config(Language::PtBr).unwrap();
         assert_eq!(read("config.json")["Language"], "pt_BR");
-    }
-
-    #[test]
-    fn serve_as_midias_do_tema_instalado_e_nada_fora_dele() {
-        let (pack, _root, fetch) = fake("aniki-midias", packages(), None);
-        pack.install(&fetch, &|_| {}).unwrap();
-        let response = asset_response(&pack, request("aniki/Images/Back.png"));
-        assert_eq!((response.status(), response.body().as_slice()), (StatusCode::OK, b"png".as_slice()));
-        for invalid in [
-            "aniki/../x.png",
-            "aniki/Images/../../x.png",
-            "aniki/Images//Back.png",
-            "aniki/Images%5CBack.png",
-            "aniki/Views/Main.xaml",
-            "aniki/Images/Nada.png",
-            "outro/Images/Back.png",
-        ] {
-            assert_eq!(asset_response(&pack, request(invalid)).status(), StatusCode::NOT_FOUND, "{invalid}");
-        }
     }
 
     #[test]

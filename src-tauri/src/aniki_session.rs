@@ -14,7 +14,6 @@ use tauri::{AppHandle, Manager};
 
 use crate::aniki_bridge::{self, BridgeActions, BridgeServer, GameUpdate};
 use crate::errors::{AppError, AppResult};
-use crate::launcher::Launcher;
 use crate::state::AppState;
 use crate::test_hooks::{self, TestHooks};
 use crate::theme_pack::AnikiPack;
@@ -51,10 +50,7 @@ struct AppActions {
 
 impl BridgeActions for AppActions {
     fn play(&self, game_id: i64) -> Result<u32, String> {
-        crate::commands::play_game(&self.app, game_id).map_err(|error| error.to_string())?;
-        // Uma sessão que já terminou (um instante só) não tem mais processo: o plugin trata como fechado.
-        let sessions = self.app.state::<Launcher>().running_sessions();
-        Ok(sessions.into_iter().find(|session| session.game_id == game_id).map_or(0, |session| session.process_id))
+        crate::commands::play_game(&self.app, game_id).map_err(|error| error.to_string())
     }
 
     fn update(&self, update: GameUpdate) -> Result<(), String> {

@@ -396,7 +396,7 @@ pub fn save_game_metadata(db: &Connection, game_id: i64, metadata: &GameMetadata
            sgdb_id = COALESCE(?7, sgdb_id),
            cover_image = COALESCE(?8, cover_image),
            background_image = COALESCE(?9, background_image),
-           logo_image = CASE WHEN logo_image GLOB 'logo-local-*' THEN logo_image ELSE COALESCE(?12, logo_image) END,
+           logo_image = COALESCE(?12, logo_image),
            metadata_updated_at = ?10
          WHERE id = ?11",
         rusqlite::params![
@@ -646,24 +646,6 @@ fn validate_status_name(db: &Connection, language: Language, name: &str, ignore_
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn metadados_automaticos_nao_sobrescrevem_logo_personalizada() {
-        let db = crate::test_support::memory_database();
-        db.execute("INSERT INTO games (id, title, status_id, added_at, logo_image) VALUES (12, 'Jogo', 1, '2026-01-01', 'logo-local-123-1.png')", []).unwrap();
-        let mut metadata = GameMetadata { description: Some("Descrição automática".into()), ..Default::default() };
-        metadata.images.insert(ImageKind::Logo, "logo.webp".into());
-        save_game_metadata(&db, 12, &metadata, "2026-01-02").unwrap();
-        let (logo, description): (String, String) = db
-            .query_row("SELECT logo_image, description FROM games WHERE id=12", [], |row| Ok((row.get(0)?, row.get(1)?)))
-            .unwrap();
-        assert_eq!(logo, "logo-local-123-1.png");
-        assert_eq!(description, "Descrição automática");
-        db.execute("UPDATE games SET logo_image='logo.png' WHERE id=12", []).unwrap();
-        save_game_metadata(&db, 12, &metadata, "2026-01-03").unwrap();
-        let logo: String = db.query_row("SELECT logo_image FROM games WHERE id=12", [], |row| row.get(0)).unwrap();
-        assert_eq!(logo, "logo.webp");
-    }
     use crate::migrations::run_migrations;
 
     fn library_database() -> Connection {

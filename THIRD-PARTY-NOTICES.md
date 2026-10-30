@@ -1,18 +1,25 @@
 # Third-party notices
 
-Playtrove's fullscreen mode is a port of the Aniki ReMake theme and of its companion plugin, Aniki Helper, both by Mike Aniki. The layouts, measurements, colors and behavior were rewritten for Playtrove (React/TypeScript and Rust); images, sounds and avatars that contain third-party artwork were not copied.
+## The Aniki ReMake fullscreen theme
 
-Playtrove does not ship the Aniki ReMake package itself. When a user picks the Aniki ReMake fullscreen theme, the app downloads the official package from the author's GitHub release (checked against a fixed SHA-256) and keeps only its media files in the user's app data, the same way Playnite installs themes.
+Playtrove does not ship Playnite, the Aniki ReMake theme or its add-ons. When a user installs the Aniki ReMake theme, the app downloads these packages from their official pages, checks each one against a fixed SHA-256 and keeps them in the user's app data:
 
-- Aniki ReMake: https://github.com/Mike-Aniki/Aniki-ReMake
-- Aniki Helper: https://github.com/Mike-Aniki/AnikiHelper
+- Playnite (portable), by Josef Nemec: https://github.com/JosefNemec/Playnite
+- Aniki ReMake, by Mike Aniki: https://github.com/Mike-Aniki/Aniki-ReMake
+- Aniki Helper, by Mike Aniki: https://github.com/Mike-Aniki/AnikiHelper
+- IGDB metadata provider, by the Playnite team: https://github.com/JosefNemec/Playnite
 
-Both are distributed under the following license:
+The other add-ons the theme recommends are installed by the Aniki setup itself, from Playnite's add-on database, the same way it works in Playnite.
+
+The Playtrove library plugin for Playnite (`bridge/`) is built against Playnite.SDK, which Playnite itself provides at run time.
+
+Playnite, Playnite.SDK, Aniki ReMake and Aniki Helper are distributed under the MIT License:
 
 ```
 MIT License
 
-Copyright (c) 2025 Mike Aniki
+Copyright (c) 2020 Josef Nemec (Playnite, Playnite.SDK)
+Copyright (c) 2025 Mike Aniki (Aniki ReMake, Aniki Helper)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -32,5 +39,3 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
-
-The Exo 2 font (bundled through `@fontsource-variable/exo-2`) is licensed under the SIL Open Font License 1.1.
