@@ -4,8 +4,9 @@
  * o Rust manda, com os mesmos nomes dos dois lados.
  */
 import type { AchievementsConfig, AchievementsOverview, GameAchievements, UnlockedAchievement } from "./achievements"
-import type { ConnectedController } from "./controllers"
+import type { ConnectedController, ControllerInputSnapshot } from "./controllers"
 import type { GameEvaluation } from "./evaluation"
+import type { FullscreenConfig, PowerAction } from "./fullscreen"
 import type { Language } from "./i18n"
 import type {
   DailyPlaytime,
@@ -14,6 +15,9 @@ import type {
   LibrarySnapshot,
   MetadataConfig,
   MetadataProgress,
+  MusicConfig,
+  MusicReview,
+  MusicPreview,
   RetroArchCore,
   RomFolder,
   ScanResult,
@@ -24,14 +28,18 @@ import type {
 
 /** Os avisos do Rust para a interface (o `emit` do Rust e o `listen` da ponte). */
 export const EVENTS = {
-  /** A janela maximizou ou restaurou. */
+  /** A janela mudou de maximização, tela cheia ou foco nativo. */
   windowState: "window:state",
+  fullscreenConfig: "fullscreen:config",
+  controllersInput: "controllers:input",
   /** Algo mudou na biblioteca: a interface pede os dados de novo. */
   libraryChanged: "library:changed",
   /** Os jogos abertos agora (um abriu ou fechou). */
   gamesRunning: "games:running",
   /** O andamento dos downloads de metadados. */
   metadataProgress: "metadata:progress",
+  /** As preferências de música tema foram salvas. */
+  musicConfig: "music:config",
   /** Começou ou terminou a atualização das conquistas. */
   achievementsStatus: "achievements:status",
   /** Conquistas novas desbloqueadas (para o aviso). */
@@ -53,6 +61,9 @@ export type ExternalLink = (typeof EXTERNAL_LINKS)[number]
 /** O que o aviso "window:state" informa sobre a janela. */
 export interface WindowState {
   isMaximized: boolean
+  isFullscreen: boolean
+  /** A própria janela é a janela ativa do sistema. */
+  isFocused: boolean
 }
 
 /** As funções que a interface chama em `window.api` (cada uma é um comando do Rust, pela ponte lib/tauriApi.ts). */
@@ -73,10 +84,20 @@ export interface AppApi {
     /** Maximiza a janela ou, se ela já estiver maximizada, restaura o tamanho anterior. */
     toggleMaximize: () => void
     close: () => void
-    /** Pergunta se a janela está maximizada agora. */
+    /** Consulta o estado nativo da janela. */
     getState: () => Promise<WindowState>
-    /** Chama `callback` sempre que a janela maximizar ou restaurar. Devolve uma função para parar de ouvir. */
+    setFullscreen: (enabled: boolean) => Promise<WindowState>
+    /** Acompanha mudanças do estado nativo. Devolve uma função para parar de ouvir. */
     onStateChange: (callback: (state: WindowState) => void) => () => void
+  }
+  fullscreen: {
+    getConfig: () => Promise<FullscreenConfig>
+    setConfig: (patch: Partial<FullscreenConfig>) => Promise<FullscreenConfig>
+    onConfigChange: (callback: (config: FullscreenConfig) => void) => () => void
+  }
+  /** O Windows: bloquear, suspender, reiniciar e desligar (a tela pede confirmação antes). */
+  system: {
+    power: (action: PowerAction) => Promise<void>
   }
   library: {
     /** Jogos, status e regras, de uma vez. */
@@ -99,10 +120,30 @@ export interface AppApi {
     setEvaluation: (gameId: number, evaluation: GameEvaluation) => Promise<void>
     /** Escolhe um MP4/WebM e guarda uma cópia como fundo do jogo. Cancelar conserva o vídeo atual. */
     pickBackgroundVideo: (gameId: number) => Promise<void>
+    /** A cor de destaque tirada da arte do jogo ("#rrggbb"), ou null sem imagem. */
+    accentColor: (gameId: number) => Promise<string | null>
     /** Remove somente a cópia do vídeo guardada pelo app. */
     removeBackgroundVideo: (gameId: number) => Promise<void>
     /** Volta a buscar o trailer automaticamente, preservando o arquivo original de vídeos manuais. */
     useAutomaticBackgroundVideo: (gameId: number) => Promise<void>
+    /** Importa uma faixa local com prioridade sobre a busca automática. */
+    pickThemeMusic: (gameId: number) => Promise<void>
+    /** Remove a cópia interna e desativa a busca automática deste jogo. */
+    removeThemeMusic: (gameId: number) => Promise<void>
+    useAutomaticThemeMusic: (gameId: number) => Promise<void>
+  }
+  music: {
+    getReviews: () => Promise<MusicReview[]>
+    search: (gameId: number, query?: string) => Promise<MusicReview>
+    preview: (gameId: number, generation: string, videoId: string, operationId?: string) => Promise<MusicPreview>
+    choose: (gameId: number, generation: string, videoId: string, operationId?: string) => Promise<void>
+    /** Revoga operações anteriores e devolve a autorização para a próxima. */
+    cancelPreview: () => Promise<string>
+    getConfig: () => Promise<MusicConfig>
+    setConfig: (config: MusicConfig) => Promise<MusicConfig>
+    onConfigChange: (callback: (config: MusicConfig) => void) => () => void
+    /** Enfileira a busca das músicas automáticas ainda não consultadas. */
+    download: () => Promise<number>
   }
   metadata: {
     getConfig: () => Promise<MetadataConfig>
@@ -167,6 +208,9 @@ export interface AppApi {
   /** Os controles conectados (DualSense), que o Rust lê, e o aviso de quando mudam. */
   controllers: {
     list: () => Promise<ConnectedController[]>
+    getInput: () => Promise<ControllerInputSnapshot>
+    setInputEnabled: (enabled: boolean) => Promise<void>
+    onInputChange: (callback: (input: ControllerInputSnapshot) => void) => () => void
     /** Chama `callback` com a lista nova. Devolve uma função para parar de ouvir. */
     onChange: (callback: (controllers: ConnectedController[]) => void) => () => void
   }

@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import type { AddressInfo } from "node:net"
 import { makePng, type Rgb } from "../fakePng"
+import type { MusicCandidate } from "../../src/shared/types"
 
 /**
  * Um IGDB, um SteamGridDB, um libretro-thumbnails e um RetroAchievements de mentira, rodando neste
@@ -182,6 +183,10 @@ export interface FakeMetadataServer {
   unlockAchievement: (id: number) => void
   /** Trailer sintético opcional; null simula um vídeo indisponível. */
   setTrailer: (gameTitle: string, videoId: string, bytes: Buffer | null) => void
+  setTheme: (gameTitle: string, bytes: Buffer | null) => void
+  setThemeSearch: (gameTitle: string, result: { candidates: MusicCandidate[]; automaticVideoId: string | null }, query?: string) => void
+  setThemeAudio: (videoId: string, bytes: Buffer | null) => void
+  holdThemeAudio: (videoId: string) => () => void
   close: () => Promise<void>
 }
 
@@ -189,9 +194,14 @@ export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
   const requests: string[] = []
   const ra = createRaState()
   const trailers = new Map<string, { id: string; bytes: Buffer | null }>()
+  const themes = new Map<string, Buffer | null>()
+  const themeSearches = new Map<string, { candidates: MusicCandidate[]; automaticVideoId: string | null }>()
+  const themeAudio = new Map<string, Buffer | null>()
+  const heldThemeAudio = new Map<string, Promise<void>>()
+  let nextTheme = 1
   const server = createServer((request, response) => {
     requests.push(`${request.method} ${request.url}`)
-    void handle(request, response, base, ra, trailers).catch(() => send(response, 500, { erro: "falhou" }))
+    void handle(request, response, base, ra, trailers, themes, themeSearches, themeAudio, heldThemeAudio).catch(() => send(response, 500, { erro: "falhou" }))
   })
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve))
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
@@ -200,6 +210,25 @@ export async function startFakeMetadataServer(): Promise<FakeMetadataServer> {
     requests,
     unlockAchievement: (id) => void ra.unlock(id),
     setTrailer: (gameTitle, videoId, bytes) => { trailers.set(gameTitle.toLowerCase(), { id: videoId, bytes }) },
+    setTheme: (gameTitle, bytes) => {
+      const key = gameTitle.toLowerCase()
+      const videoId = "Theme" + String(nextTheme++).padStart(6, "0")
+      themes.set(key, bytes)
+      themeAudio.set(videoId, bytes)
+      themeSearches.set(key, {
+        candidates: bytes ? [{ videoId, title: gameTitle + " — trilha de teste", channel: "Canal de teste", duration: 1, viewCount: null }] : [],
+        automaticVideoId: bytes ? videoId : null,
+      })
+    },
+    setThemeSearch: (gameTitle, result, query) => {
+      themeSearches.set(gameTitle.toLowerCase() + (query === undefined ? "" : "\u0000" + query.toLowerCase()), result)
+    },
+    setThemeAudio: (videoId, bytes) => { themeAudio.set(videoId, bytes) },
+    holdThemeAudio: (videoId) => {
+      let release!: () => void
+      heldThemeAudio.set(videoId, new Promise<void>((resolve) => { release = resolve }))
+      return () => { heldThemeAudio.delete(videoId); release() }
+    },
     close: () => new Promise((resolve) => server.close(() => resolve())),
   }
 }
@@ -209,11 +238,43 @@ async function handle(
   response: ServerResponse,
   base: string,
   ra: RaState,
-  trailers: Map<string, { id: string; bytes: Buffer | null }>
+  trailers: Map<string, { id: string; bytes: Buffer | null }>,
+  themes: Map<string, Buffer | null>,
+  themeSearches: Map<string, { candidates: MusicCandidate[]; automaticVideoId: string | null }>,
+  themeAudio: Map<string, Buffer | null>,
+  heldThemeAudio: Map<string, Promise<void>>,
 ): Promise<void> {
   const url = new URL(request.url ?? "/", base)
   const path = url.pathname
   const body = await readBody(request)
+
+  if (path === "/theme-search") {
+    const title = (url.searchParams.get("title") ?? "").toLowerCase()
+    const query = url.searchParams.get("query")
+    const result = (query === null ? undefined : themeSearches.get(title + "\u0000" + query.toLowerCase()))
+      ?? themeSearches.get(title)
+      ?? { candidates: [], automaticVideoId: null }
+    return send(response, 200, result)
+  }
+
+  const themeAudioPath = /^\/theme-audio\/([A-Za-z0-9_-]{11})\.m4a$/.exec(path)
+  if (themeAudioPath) {
+    await heldThemeAudio.get(themeAudioPath[1])
+    const bytes = themeAudio.get(themeAudioPath[1])
+    if (!bytes) return send(response, 404, { erro: "música indisponível" })
+    response.writeHead(200, { "content-type": "audio/mp4", "content-length": bytes.length })
+    response.end(bytes)
+    return
+  }
+
+  const themePath = /^\/themes\/(.+)\.m4a$/.exec(path)
+  if (themePath) {
+    const bytes = themes.get(decodeURIComponent(themePath[1]).toLowerCase())
+    if (!bytes) return send(response, 404, { erro: "música indisponível" })
+    response.writeHead(200, { "content-type": "audio/mp4", "content-length": bytes.length })
+    response.end(bytes)
+    return
+  }
 
   const trailerPath = /^\/trailers\/([A-Za-z0-9_-]{11})\.mp4$/.exec(path)
   if (trailerPath) {
@@ -262,9 +323,9 @@ async function handle(
       const found = STEAMGRIDDB_GAMES.filter((game) => game.name.toLowerCase() === term || term === "mario")
       return send(response, 200, { success: true, data: found.map(({ id, name }) => ({ id, name })) })
     }
-    const images = /^\/sgdb\/(grids|heroes|icons)\/game\/(\d+)$/.exec(path)
+    const images = /^\/sgdb\/(grids|heroes|icons|logos)\/game\/(\d+)$/.exec(path)
     if (images) {
-      const kind = { grids: "cover", heroes: "background", icons: "icon" }[images[1]]
+      const kind = { grids: "cover", heroes: "background", icons: "icon", logos: "logo" }[images[1]]
       const game = STEAMGRIDDB_GAMES.find((item) => item.id === Number(images[2]))
       return send(response, 200, { success: true, data: game ? [{ url: `${base}/cdn/${game.id}-${kind}.png` }] : [] })
     }
@@ -279,12 +340,13 @@ async function handle(
   }
 
   // As imagens: geradas na hora, em degradê (capa em retrato, fundo largo, ícone quadrado).
-  const cdn = /^\/cdn\/(\d+)-(cover|background|icon)\.png$/.exec(path)
+  const cdn = /^\/cdn\/(\d+)-(cover|background|icon|logo)\.png$/.exec(path)
   if (cdn) {
     const game = STEAMGRIDDB_GAMES.find((item) => item.id === Number(cdn[1]))
-    const kind = cdn[2] as "cover" | "background" | "icon"
     if (!game) return send(response, 404, { erro: "não encontrado" })
-    const size = { cover: [120, 180], background: [384, 124], icon: [64, 64] }[kind]
+    // A logo é uma faixa larga com as cores do fundo (o SteamGridDB devolve PNG transparente).
+    const kind = cdn[2] === "logo" ? "background" : cdn[2] as "cover" | "background" | "icon"
+    const size = cdn[2] === "logo" ? [300, 90] : { cover: [120, 180], background: [384, 124], icon: [64, 64] }[kind]
     return sendPng(response, makePng(size[0], size[1], game[kind][0], game[kind][1]))
   }
   if (path.startsWith("/igdb-images/")) {

@@ -373,6 +373,11 @@ mod tests {
         assert_eq!((overview.games[0].by_grade.platina.unlocked, overview.games[0].by_grade.platina.total), (0, 1));
         let recent: Vec<i64> = overview.recent.iter().map(|item| item.achievement.id).collect();
         assert_eq!(recent, [1, 5, 4]);
+        // Todas as desbloqueadas entram na contagem por raridade; as mais raras vêm primeiro.
+        let rarity = &overview.by_rarity;
+        assert_eq!(rarity.common + rarity.rare + rarity.very_rare + rarity.ultra_rare, overview.unlocked);
+        let percents: Vec<f64> = overview.rarest.iter().filter_map(|item| item.achievement.percent).collect();
+        assert!(percents.windows(2).all(|pair| pair[0] <= pair[1]));
         assert_eq!(overview.by_day.len(), 30);
         assert_eq!(overview.by_day.iter().map(|day| day.count).sum::<i64>(), 1);
         let months = &overview.by_month;

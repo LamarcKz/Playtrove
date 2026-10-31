@@ -1,5 +1,5 @@
 import { useEffect, useState, type ComponentProps, type ReactNode } from "react"
-import { Copy, Minus, Square, X } from "lucide-react"
+import { Copy, Minus, Square, X, Maximize2 } from "lucide-react"
 import { AppLogo } from "@/components/AppLogo"
 import { ControllerIndicator } from "@/components/ControllerIndicator"
 import { MetadataStatus } from "@/components/MetadataStatus"
@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 interface TopBarProps {
   /** Conteúdo do meio da barra, que muda conforme a página (ex.: busca e filtros na Biblioteca). */
   children?: ReactNode
+  onEnterFullscreen?: () => void
+  fullscreenPending?: boolean
 }
 
 /**
@@ -19,7 +21,7 @@ interface TopBarProps {
  * está no logo e no meio da barra).
  * Tem a mesma cor do menu lateral, sem linha entre os dois.
  */
-export function TopBar({ children }: TopBarProps) {
+export function TopBar({ children, onEnterFullscreen, fullscreenPending }: TopBarProps) {
   const { t } = useI18n()
   const { minimize, toggleMaximize, close } = window.api.windowControls
   const isMaximized = useIsMaximized()
@@ -48,6 +50,20 @@ export function TopBar({ children }: TopBarProps) {
 
       {/* Controle conectado (DualSense): conexão e bateria. Some quando não há controle. */}
       <ControllerIndicator />
+
+      {/* Como o item "Mudar para o modo tela cheia" do Playnite: com texto, e não só um ícone. */}
+      {onEnterFullscreen && (
+        <button
+          type="button"
+          title={t.fullscreen.enterHint}
+          disabled={fullscreenPending}
+          onClick={onEnterFullscreen}
+          className="mx-1 flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors outline-none hover:bg-foreground/10 hover:text-foreground focus-visible:bg-foreground/10 disabled:opacity-50 [&_svg]:size-4"
+        >
+          <Maximize2 />
+          {t.fullscreen.enter}
+        </button>
+      )}
 
       <div className="flex h-full">
         <WindowButton label={t.topBar.minimize} onClick={() => minimize()}>

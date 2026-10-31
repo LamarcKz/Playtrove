@@ -6,10 +6,12 @@ import { AchievementsSettings } from "@/components/AchievementsSettings"
 import { AppLogo } from "@/components/AppLogo"
 import { ContentPage } from "@/components/ContentPage"
 import { MetadataSettings } from "@/components/MetadataSettings"
+import { MusicSettings } from "@/components/MusicSettings"
 import { StatusSettings } from "@/components/StatusSettings"
 import { UpdateSettings } from "@/components/UpdateSettings"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { FullscreenPreferences } from "@/fullscreen/FullscreenPreferences"
 import { useI18n } from "@/hooks/useI18n"
 
 interface SettingsPageProps {
@@ -31,7 +33,12 @@ export function SettingsPage({ games, rules }: SettingsPageProps) {
       <div className="grid items-start gap-6 @[70rem]/content:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-6">
           <SettingsSection title={t.settings.general}>
-            <LanguageSetting />
+            <div className="flex flex-col gap-4">
+              <LanguageSetting />
+              <MusicSettings />
+              <h3 className="text-sm font-medium">{t.fullscreen.preferences}</h3>
+              <FullscreenPreferences />
+            </div>
           </SettingsSection>
 
           <SettingsSection title={t.settings.statuses}>

@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.9.0" src="https://img.shields.io/badge/version-0.9.0-0072d0">
+  <img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-0072d0">
   <img alt="In development" src="https://img.shields.io/badge/status-in%20development-orange">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -43,7 +43,7 @@
 
 PC gamers end up with their games scattered everywhere: some on Steam, some on GOG, a few in emulators and others installed in random folders, each with its own launcher. **Playtrove** brings them together in one place, with cover art, details and playtime, ready to launch with one click.
 
-The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame with the tools at the top, an icon menu on the left and your library in the middle. Your library is stored on your own computer, in a local database, with no account and no internet required.
+The desktop look follows [Playnite](https://playnite.link/): a dark frame with the tools at the top, an icon menu on the left and your library in the middle. A fullscreen presentation adds a horizontal cover library and Signature game details. Your library is stored on your own computer, in a local database, with no account and no internet required.
 
 > [!NOTE]
 > Playtrove is still being built. For now, games come in through emulators (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin and Azahar); Steam, GOG and other stores are on the [roadmap](#roadmap).
@@ -52,11 +52,13 @@ The look follows [Playnite](https://playnite.link/)'s Desktop mode: a dark frame
 
 - **Emulators**: Playtrove finds PCSX2, DuckStation, RetroArch (with its installed cores), RPCS3, PPSSPP (PSP), Dolphin (GameCube and Wii) and Azahar (3DS) on its own. Point it to your ROM folders: the emulator, core and console are suggested from the folder name, and games are added with clean names, without "(USA)" and the like.
 - **Play**: opens the game in its emulator, with the emulator's own settings (RetroArch opens maximized in a window, unless it is set to fullscreen), and keeps track of playtime and when you last played. Time recorded by the emulators themselves counts too, so games you started straight from the emulator show up the same way.
-- **Metadata and images**: covers come from [libretro-thumbnails](https://thumbnails.libretro.com/) (the same ones RetroArch uses, no key needed) and, when one is missing, from [SteamGridDB](https://www.steamgriddb.com/), which also provides the background art; description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
+- **Metadata and images**: as in Playnite, covers come first from [SteamGridDB](https://www.steamgriddb.com/) (upright covers that fit the frame), which also provides the background art, then from IGDB and, as a last resort, from [libretro-thumbnails](https://thumbnails.libretro.com/) (the box scans RetroArch uses, no key needed); description, genres, developer, publisher and release date come from [IGDB](https://www.igdb.com/). Both keys are free, and the app explains how to get each one.
 - **Details view**: the main library view. Your games are listed on the left, with icons. On the right: the background art, the cover above the title, the **Play** and **More** buttons, the details and the description.
-- **Grid view**: whole covers centered in matching 2:3 areas, with a neutral background around different image shapes. The grid adapts to the window, with the status on a strip below each cover area and a details panel when you click a game.
-- **Full cover art**: Grid, Details and the side panel preserve each image's original proportions, with no cropping, stretching or blurred filler.
+- **Fullscreen**: four themes. The default Playtrove theme is inspired by Playnite's own fullscreen mode, and three more take their style from game consoles, each with its own home screen, game details, colors and navigation sounds: Horizon (a row of games on top and the art filling the screen), Mosaic (big square covers and round shortcuts, in dark gray and red) and Panel (art in the background and big tiles: continue playing, collections, achievements and statistics). Switch themes from **Settings → General** or the fullscreen main menu. All of them have game details, collections, search, the same filters as the desktop library plus sorting, a main menu with power options (lock, sleep, restart and shut down, each with a confirmation), session notifications, a help screen, navigation sounds made by the app and an option to swap ✕ and ○, alongside reviews and achievements; the Playtrove theme shows one to three rows of covers. Navigate with a DualSense over USB or Bluetooth, a keyboard or a mouse; physical controller validation is still pending. **Settings → General** and the fullscreen settings offer optional fullscreen startup and separate music playback/volume controls; trailers play silently in game details and, optionally, behind the library. Media and controller navigation pause while the window is inactive or a game is running. Emulator and ROM-folder setup remains in the desktop interface.
+- **Grid view**: every cover in the same upright 3:4 frame, filling it, so the grid lines up. The grid adapts to the window, with the status on a strip below each cover and a details panel when you click a game.
+- **Matching covers**: Grid, Details, the side panel and fullscreen all use the same 3:4 frame, with the art filling it (covers of other shapes lose a little of their edges, with no stretching or blurred filler).
 - **Background trailers and videos**: with IGDB configured, Playtrove downloads a YouTube trailer alongside each game's metadata, up to 720p and 100 MiB, and prepares the required tools on first use. It plays silently on a loop in Details view, with the background image as a fallback; reduced motion starts playback paused. From **More**, choose a local MP4 or WebM to override the trailer, remove it and disable automatic videos, or choose **Use automatic trailer** to restore them. Your original local file stays untouched.
+- **Game theme music**: saved tracks play offline on a loop in desktop Details, Grid, List and Kanban. Tracks fade when the selection changes and pause while the window is inactive, a game is running or you leave the Library. Desktop playback and volume controls are in **Settings → General**, separate from fullscreen audio preferences; **Metadata** brings soundtrack searches and downloads together. Search accepts title variations and named soundtrack tracks; a strong recommendation can be downloaded automatically. After the other metadata finishes, **Review music** lets you listen to candidates and choose, or refine the search by game or track name. Audio loads only when you click to listen, and confirmed choices keep manual priority. Recommendations are estimates and searches can return no match; retries are explicit. **More** also lets you find another track or import a local MP3, M4A or WAV up to 32 MiB. Removing a track deletes only the internal copy and disables automatic music for that game; original files stay untouched. If autoplay is blocked, click or press a key in the Library to enable audio.
 - **Ratings**: from the **More** menu, rate a game (half to five stars) and mark its difficulty in peppers (halves too); in the same menu, write your review. The rating and difficulty appear next to **Play**, and the review above the description.
 - **List view**: one row per game, with the name, status, platform, library, playtime, rating, difficulty and achievements.
 - **Kanban view**: a board with one column per status (Plan to play, Playing, Beaten, Platinum...), all visible at once. Drag a game to another column to change its status.
@@ -81,52 +83,88 @@ Screenshots use a demonstration library.
 <table>
   <tr>
     <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-library.png" alt="Fullscreen library in the Playtrove theme, with a horizontal cover rail">
+      <p align="center"><sub>Fullscreen library (Playtrove theme)</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-details.png" alt="Fullscreen game details in the Playtrove theme">
+      <p align="center"><sub>Fullscreen game details</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-horizonte.png" alt="Horizon fullscreen theme, with a row of games on top, the art filling the screen and cards for trophies, playtime and rating">
+      <p align="center"><sub>Horizon theme</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-mosaico.png" alt="Mosaic fullscreen theme, with big covers and round shortcuts in dark gray and red">
+      <p align="center"><sub>Mosaic theme</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-painel.png" alt="Panel fullscreen theme, with the art in the background and tiles for continue playing, collections, achievements and statistics">
+      <p align="center"><sub>Panel theme</sub></p>
+    </td>
+    <td width="50%">
       <img src="docs/screenshots/en/library-kanban.png" alt="The library in Kanban view, with one column per status">
       <p align="center"><sub>Kanban view</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/library-list.png" alt="The library in List view, with the Name, Status, Playtime, Rating, Difficulty and Achievements columns">
       <p align="center"><sub>List view</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/achievements.png" alt="The Achievements tab, with the summary, charts by day and by month, and each game's trophies by type">
       <p align="center"><sub>Achievements and trophies</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/rating.png" alt="The rating window, with the rating in stars and the difficulty in peppers">
       <p align="center"><sub>Rating a game</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/library-grid.png" alt="The library in Grid view">
       <p align="center"><sub>Grid view</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/filters.png" alt="The filter panel with the Status dropdown open">
       <p align="center"><sub>Filter panel</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/library-grid-panel.png" alt="Grid view with a game's details panel open">
       <p align="center"><sub>Details panel in Grid view</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/statistics.png" alt="The Statistics tab, with the summary, the most played games and the activity by day">
       <p align="center"><sub>Statistics</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/metadata.png" alt="Metadata settings, with the steps to get the keys">
       <p align="center"><sub>Metadata and images</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/settings-statuses.png" alt="Settings: the list of statuses, with their order, the games in each one and the automatic rules">
       <p align="center"><sub>Settings → Statuses</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/en/music.png" alt="Theme music settings: playback and volume">
+      <p align="center"><sub>Theme music settings</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/en/music-review.png" alt="Soundtrack candidates with listening, selection and search controls">
+      <p align="center"><sub>Listen and choose a soundtrack</sub></p>
     </td>
   </tr>
 </table>
@@ -147,7 +185,7 @@ Each version's changes are on the same page. Version numbers follow [Semantic Ve
 
 ## Privacy
 
-Playtrove doesn't collect anything about you. Your library, ratings and reviews stay in a database on your computer, and your API keys are encrypted by Windows. The app goes online to download game metadata and images (IGDB, SteamGridDB and libretro-thumbnails), trailers (YouTube) and their tools (official GitHub releases), to read your achievements (RetroAchievements, if you add your account) and to check GitHub for new versions (you can turn that off in Settings → About).
+Playtrove doesn't collect anything about you. Your library, ratings and reviews stay in a database on your computer, and your API keys are encrypted by Windows. The app goes online to download game metadata and images (IGDB, SteamGridDB and libretro-thumbnails), trailers and theme music (YouTube) and their tools (official GitHub releases), to read your achievements (RetroAchievements, if you add your account) and to check GitHub for new versions (you can turn that off in Settings → About).
 
 ## Bugs and ideas
 
@@ -201,7 +239,7 @@ Want to understand the code? The guide to every folder and file, and where to bu
 - The look is inspired by [Playnite](https://playnite.link/), an independent project with no connection to this one.
 - The icons come from [Lucide](https://lucide.dev/) (ISC license).
 - Game metadata comes from [IGDB](https://www.igdb.com/) (by Twitch); covers from [libretro-thumbnails](https://thumbnails.libretro.com/), the [RetroArch](https://www.retroarch.com/) community's collection; and background art (and any missing covers) from [SteamGridDB](https://www.steamgriddb.com/), made by its community.
-- Trailer downloads use [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [Deno](https://github.com/denoland/deno), downloaded from their official releases and verified before use.
+- Trailer and theme music downloads use [yt-dlp](https://github.com/yt-dlp/yt-dlp) and [Deno](https://github.com/denoland/deno), downloaded from their official releases and verified before use.
 - Achievements come from [RetroAchievements](https://retroachievements.org/), a community project with no connection to this one.
 - Game, console and service names belong to their owners. PlayStation and DualSense are trademarks of Sony Interactive Entertainment; Playtrove isn't affiliated with Sony or with any of the services above.
 

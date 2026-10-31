@@ -12,7 +12,7 @@ use crate::i18n::{Language, text};
 use crate::migrations::{LANGUAGES_VERSION, run_migrations, upgrade_to_languages};
 
 /// As tabelas do banco, na ordem em que o conserto copia (os status antes dos jogos).
-const TABLES: [&str; 11] = [
+const TABLES: [&str; 13] = [
     "statuses",
     "games",
     "emulators",
@@ -24,6 +24,8 @@ const TABLES: [&str; 11] = [
     "achievements",
     "trophy_sets",
     "trophies",
+    "music_searches",
+    "music_sources",
 ];
 
 /// Os arquivos que o SQLite pode deixar ao lado do banco (o nome do banco + o sufixo).
@@ -191,6 +193,8 @@ fn fix_references(fresh: &Connection) -> rusqlite::Result<()> {
     )?;
     // Sessões de jogos que não existem mais saem.
     fresh.execute("DELETE FROM play_sessions WHERE game_id NOT IN (SELECT id FROM games)", [])?;
+    fresh.execute("DELETE FROM music_searches WHERE game_id NOT IN (SELECT id FROM games)", [])?;
+    fresh.execute("DELETE FROM music_sources WHERE game_id NOT IN (SELECT id FROM games)", [])?;
     Ok(())
 }
 
@@ -310,7 +314,7 @@ mod tests {
         let mode: String = db.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
         assert_eq!(mode, "delete");
         let version: i64 = db.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
-        assert_eq!(version, 10);
+        assert_eq!(version, 13);
     }
 
     #[test]
@@ -357,6 +361,51 @@ mod tests {
         assert_eq!(repair.unwrap().lost, ["emulators"]);
         let first: String = db.query_row("SELECT name FROM statuses ORDER BY position LIMIT 1", [], |row| row.get(0)).unwrap();
         assert_eq!(first, "Quero jogar");
+    }
+
+    #[test]
+    fn reparo_preserva_opcoes_e_origens_de_musica_que_continuam_legiveis() {
+        let path = library_file("reparo-musicas");
+        let db = Connection::open(&path).unwrap();
+        db.execute_batch(
+            "UPDATE games SET theme_music='theme-music-1.m4a', theme_music_mode='manual' WHERE id=1;
+            INSERT INTO music_searches(game_id,generation,revision,version,query,state,candidates)
+                VALUES(1,'consulta-teste',0,1,'Jogo','needsChoice','[]');
+            INSERT INTO music_sources(game_id,revision,origin,video_id,title,channel)
+                VALUES(1,0,'choice','Theme000001','Faixa de teste',NULL);",
+        )
+        .unwrap();
+        drop(db);
+        damage_tables(&path, &["emulators"]);
+        let (db, report) = open_database(&path).unwrap();
+        let report = report.unwrap();
+        assert!(report.recovered.contains(&("music_searches", 1)));
+        assert!(report.recovered.contains(&("music_sources", 1)));
+        assert_eq!(
+            db.query_row("SELECT generation FROM music_searches WHERE game_id=1", [], |row| row.get::<_, String>(0)).unwrap(),
+            "consulta-teste"
+        );
+        assert_eq!(
+            db.query_row("SELECT title FROM music_sources WHERE game_id=1", [], |row| row.get::<_, String>(0)).unwrap(),
+            "Faixa de teste"
+        );
+    }
+
+    #[test]
+    fn reparo_remove_opcoes_e_origens_sem_o_jogo_correspondente() {
+        let db = crate::test_support::memory_database();
+        db.pragma_update(None, "foreign_keys", false).unwrap();
+        db.execute_batch(
+            "INSERT INTO music_searches(game_id,generation,revision,version,query,state,candidates)
+                VALUES(999,'consulta-orfao',0,1,'Jogo','needsChoice','[]');
+            INSERT INTO music_sources(game_id,revision,origin,video_id,title,channel)
+                VALUES(999,0,'choice','Theme000001','Faixa de teste',NULL);",
+        )
+        .unwrap();
+        fix_references(&db).unwrap();
+        for table in ["music_searches", "music_sources"] {
+            assert_eq!(db.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| row.get::<_, i64>(0)).unwrap(), 0);
+        }
     }
 
     #[test]

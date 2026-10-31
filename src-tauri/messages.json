@@ -39,6 +39,14 @@
       "trailerDownloadFailed": "Não deu para baixar o trailer. A imagem de fundo continua disponível; tente baixar os metadados novamente mais tarde.",
       "backgroundVideoRead": "Não deu para ler o arquivo de vídeo escolhido.",
       "backgroundVideoSave": "Não deu para guardar o vídeo de fundo. Confira o espaço disponível e tente novamente.",
+      "invalidThemeMusic": "Escolha um arquivo de áudio MP3, M4A ou WAV válido.",
+      "themeMusicRead": "Não deu para ler o arquivo de música escolhido.",
+      "themeMusicSave": "Não deu para guardar a música tema. Confira o espaço disponível e tente novamente.",
+      "themeMusicDownloadFailed": "Não deu para baixar a música tema. Tente buscar novamente mais tarde.",
+      "musicDownload": "Não deu para buscar a música tema. Tente novamente mais tarde.",
+      "invalidMusicConfig": "As preferências de música são inválidas. O volume precisa estar entre 0 e 100.",
+      "invalidThemeMusicVolume": "O volume da música tema precisa ser um número entre 0 e 100.",
+      "powerFailed": "O Windows não aceitou o pedido de energia.",
       "noRom": "Esse jogo não tem ROM.",
       "romNotFound": "A ROM não foi encontrada: {0}",
       "alreadyRunning": "Esse jogo já está aberto.",
@@ -81,6 +89,8 @@
       "pickRomFolder": "Escolha a pasta com as ROMs",
       "pickBackgroundVideo": "Escolha o vídeo de fundo do jogo",
       "videoFiles": "Vídeos MP4 e WebM",
+      "pickThemeMusic": "Escolha a música tema do jogo",
+      "themeMusicFiles": "Áudio MP3, M4A e WAV",
       "startupError": "Erro ao iniciar o Playtrove",
       "repairedTitle": "Banco de dados consertado"
     },
@@ -101,7 +111,9 @@
         "ra_games": "jogos do RetroAchievements",
         "achievements": "conquistas",
         "trophy_sets": "conjuntos de troféus do RPCS3",
-        "trophies": "troféus do RPCS3"
+        "trophies": "troféus do RPCS3",
+        "music_searches": "buscas e opções de músicas",
+        "music_sources": "origens das músicas"
       },
       "effects": {
         "statuses": "os status voltaram ao padrão (os jogos com um status que sumiu foram para o de jogo novo)",
@@ -114,7 +126,9 @@
         "ra_games": "as conquistas vão ser buscadas de novo no RetroAchievements",
         "achievements": "as conquistas vão ser buscadas de novo no RetroAchievements",
         "trophy_sets": "os troféus vão ser lidos de novo do RPCS3",
-        "trophies": "os troféus vão ser lidos de novo do RPCS3"
+        "trophies": "os troféus vão ser lidos de novo do RPCS3",
+        "music_searches": "as consultas de músicas precisam ser repetidas; os arquivos de música permanecem",
+        "music_sources": "as informações de origem das músicas foram perdidas; os arquivos de música permanecem"
       }
     }
   },
@@ -158,6 +172,14 @@
       "trailerDownloadFailed": "Couldn't download the trailer. The background image remains available; try downloading metadata again later.",
       "backgroundVideoRead": "Couldn't read the selected video file.",
       "backgroundVideoSave": "Couldn't store the background video. Check the available disk space and try again.",
+      "invalidThemeMusic": "Choose a valid MP3, M4A or WAV audio file.",
+      "themeMusicRead": "Couldn't read the selected music file.",
+      "themeMusicSave": "Couldn't store the theme music. Check the available disk space and try again.",
+      "themeMusicDownloadFailed": "Couldn't download the theme music. Try searching again later.",
+      "musicDownload": "Couldn't find the theme music. Try again later.",
+      "invalidMusicConfig": "The music preferences are invalid. Volume must be between 0 and 100.",
+      "invalidThemeMusicVolume": "Theme music volume must be a number between 0 and 100.",
+      "powerFailed": "Windows didn't accept the power request.",
       "noRom": "This game has no ROM.",
       "romNotFound": "The ROM wasn't found: {0}",
       "alreadyRunning": "This game is already running.",
@@ -200,6 +222,8 @@
       "pickRomFolder": "Choose the folder with the ROMs",
       "pickBackgroundVideo": "Choose the game's background video",
       "videoFiles": "MP4 and WebM videos",
+      "pickThemeMusic": "Choose the game's theme music",
+      "themeMusicFiles": "MP3, M4A and WAV audio",
       "startupError": "Error starting Playtrove",
       "repairedTitle": "Database repaired"
     },
@@ -220,7 +244,9 @@
         "ra_games": "RetroAchievements games",
         "achievements": "achievements",
         "trophy_sets": "RPCS3 trophy sets",
-        "trophies": "RPCS3 trophies"
+        "trophies": "RPCS3 trophies",
+        "music_searches": "music searches and choices",
+        "music_sources": "music sources"
       },
       "effects": {
         "statuses": "the statuses went back to the default ones (games whose status disappeared went to the new-game status)",
@@ -233,7 +259,9 @@
         "ra_games": "the achievements will be fetched from RetroAchievements again",
         "achievements": "the achievements will be fetched from RetroAchievements again",
         "trophy_sets": "the trophies will be read from RPCS3 again",
-        "trophies": "the trophies will be read from RPCS3 again"
+        "trophies": "the trophies will be read from RPCS3 again",
+        "music_searches": "music searches need to be repeated; saved music files remain",
+        "music_sources": "music source information was lost; saved music files remain"
       }
     }
   }

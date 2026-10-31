@@ -3,6 +3,7 @@
 
 mod achievements;
 mod commands;
+mod controller_input;
 mod controllers;
 mod data_folder;
 mod database;
@@ -12,6 +13,7 @@ mod emulator_playtime;
 mod emulator_window;
 mod emulators;
 mod errors;
+mod fullscreen;
 mod i18n;
 mod images;
 mod launcher;
@@ -19,7 +21,11 @@ mod library;
 mod links;
 mod metadata;
 mod migrations;
+mod music;
+mod music_previews;
+mod music_search;
 mod playtime_sync;
+mod power;
 mod rom_scanner;
 mod sample_games;
 mod secrets;
@@ -58,6 +64,8 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .register_asynchronous_uri_scheme_protocol(images::IMAGE_PROTOCOL, images::handle_request)
         .register_asynchronous_uri_scheme_protocol(videos::VIDEO_PROTOCOL, videos::handle_request)
+        .register_asynchronous_uri_scheme_protocol(music::MUSIC_PROTOCOL, music::handle_request)
+        .register_asynchronous_uri_scheme_protocol(music_previews::PREVIEW_PROTOCOL, music_previews::handle_request)
         .setup(|app| {
             // Antes da janela: onde ficam os dados, o banco (consertado, se estava danificado) e o
             // idioma (o escolhido ou o do Windows).
@@ -73,6 +81,7 @@ fn main() {
                 sample_games::seed_sample_games(&db)?;
             }
             app.manage(images::ImagesDir(folder.join("images")));
+            app.manage(music_previews::MusicPreviewCache::new(folder.join("music-previews"))?);
             app.manage(test_hooks::TestHooks::default());
             app.manage(secrets::Secrets::new(&folder));
             app.manage(AppState::new(db, language));
@@ -106,6 +115,10 @@ fn main() {
             commands::window_toggle_maximize,
             commands::window_close,
             commands::window_get_state,
+            commands::window_set_fullscreen,
+            commands::fullscreen_get_config,
+            commands::fullscreen_set_config,
+            commands::system_power,
             commands::library_get,
             commands::games_set_status,
             commands::games_set_favorite,
@@ -113,6 +126,17 @@ fn main() {
             commands::games_pick_background_video,
             commands::games_remove_background_video,
             commands::games_use_automatic_background_video,
+            commands::games_pick_theme_music,
+            commands::games_remove_theme_music,
+            commands::games_use_automatic_theme_music,
+            commands::music_get_config,
+            commands::music_set_config,
+            commands::music_download,
+            commands::music_get_reviews,
+            commands::music_search,
+            commands::music_preview,
+            commands::music_choose,
+            commands::music_cancel_preview,
             commands::games_play,
             commands::games_get_running,
             commands::games_show_rom,
@@ -143,6 +167,8 @@ fn main() {
             commands::achievements_game,
             commands::achievements_overview,
             commands::controllers_list,
+            commands::controllers_get_input,
+            commands::controllers_set_input_enabled,
             commands::updates_get_status,
             commands::updates_check,
             commands::updates_install,
@@ -150,6 +176,8 @@ fn main() {
             test_hooks::test_mock_open_dialog,
             test_hooks::test_opened,
             test_hooks::test_window,
+            test_hooks::test_focus_window,
+            test_hooks::test_controller_input,
             test_hooks::test_set_window_size,
             test_hooks::test_hold_images,
             test_hooks::test_image_requests,
@@ -161,6 +189,7 @@ fn main() {
     app.run(|app, event| {
         // Fechando o app com jogos abertos: registra o tempo jogado até agora (os emuladores continuam).
         if let RunEvent::Exit = event {
+            app.state::<music_previews::MusicPreviewCache>().cancel();
             commands::finish_open_games(app);
         }
     });

@@ -38,6 +38,8 @@ pub fn encode_uri_component(text: &str) -> String {
 pub enum ImageKind {
     Cover,
     Background,
+    /// A logo do jogo: o nome desenhado, com fundo transparente (a tela cheia mostra no lugar do título).
+    Logo,
 }
 
 impl ImageKind {
@@ -46,6 +48,7 @@ impl ImageKind {
         match self {
             ImageKind::Cover => "cover",
             ImageKind::Background => "background",
+            ImageKind::Logo => "logo",
         }
     }
 }

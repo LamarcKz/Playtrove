@@ -11,6 +11,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, LogicalSize, Manager, State, WebviewWindow};
 
+use crate::metadata::theme_downloader::{ThemeDownloader, ThemeSearchResult};
 use crate::metadata::trailer_downloader::TrailerDownloader;
 use crate::test_mode::test_mode;
 
@@ -45,6 +46,85 @@ impl TrailerDownloader for TestTrailerDownloader {
     }
 }
 
+/// Servidor local dos testes: nunca prepara nem executa ferramentas de áudio reais.
+pub struct TestThemeDownloader {
+    base: String,
+}
+
+impl TestThemeDownloader {
+    pub fn new(base: &str) -> Self {
+        Self { base: base.trim_end_matches('/').to_string() }
+    }
+}
+
+impl ThemeDownloader for TestThemeDownloader {
+    fn search(&self, title: &str, _platform: Option<&str>, query: Option<&str>) -> Result<ThemeSearchResult, String> {
+        use std::io::Read;
+        let agent: ureq::Agent = ureq::Agent::config_builder()
+            .http_status_as_error(false)
+            .timeout_global(Some(std::time::Duration::from_secs(20)))
+            .build()
+            .into();
+        let encoded = percent_encoding::utf8_percent_encode(title, percent_encoding::NON_ALPHANUMERIC);
+        let query = query
+            .map(|query| format!("&query={}", percent_encoding::utf8_percent_encode(query, percent_encoding::NON_ALPHANUMERIC)))
+            .unwrap_or_default();
+        let mut response = agent
+            .get(&format!("{}/theme-search?title={encoded}{query}", self.base))
+            .call()
+            .map_err(|_| "falha na busca de testes")?;
+        if response.status() != 200 {
+            return Err("falha na busca de testes".into());
+        }
+        let mut bytes = Vec::new();
+        response.body_mut().as_reader().take(1024 * 1024 + 1).read_to_end(&mut bytes).map_err(|_| "falha na busca de testes")?;
+        if bytes.len() > 1024 * 1024 {
+            return Err("busca de testes grande demais".into());
+        }
+        serde_json::from_slice(&bytes).map_err(|_| "busca de testes inválida".into())
+    }
+
+    fn download_video(
+        &self,
+        video_id: &str,
+        destination: &std::path::Path,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<(), String> {
+        use std::io::{Read, Write};
+        use std::sync::atomic::Ordering;
+        if video_id.len() != 11 || !video_id.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_') {
+            return Err("ID de áudio de testes inválido".into());
+        }
+        let agent: ureq::Agent =
+            ureq::Agent::config_builder().timeout_global(Some(std::time::Duration::from_secs(20))).build().into();
+        let mut response =
+            agent.get(&format!("{}/theme-audio/{video_id}.m4a", self.base)).call().map_err(|_| "falha no tema de testes")?;
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(destination)
+            .map_err(|_| "falha ao gravar tema de testes")?;
+        let mut reader = response.body_mut().as_reader();
+        let mut bytes = [0; 16384];
+        let mut received = 0usize;
+        loop {
+            if cancel.load(Ordering::SeqCst) {
+                return Err("tema de testes cancelado".into());
+            }
+            let read = reader.read(&mut bytes).map_err(|_| "falha ao receber tema de testes")?;
+            if read == 0 {
+                break;
+            }
+            received += read;
+            if received > 32 * 1024 * 1024 {
+                return Err("tema de testes grande demais".into());
+            }
+            file.write_all(&bytes[..read]).map_err(|_| "falha ao gravar tema de testes")?;
+        }
+        Ok(())
+    }
+}
+
 /// Os testes automáticos estão rodando (com a pasta de dados deles)?
 pub fn active() -> bool {
     test_mode().data_dir.is_some()
@@ -60,6 +140,8 @@ pub struct TestHooks {
     /// até o teste liberar, para conferir a tela enquanto a imagem carrega.
     held_images: Mutex<HashMap<String, HeldImage>>,
     image_released: Condvar,
+    /// Foco simulado nos testes do app para garantir determinismo quando outras janelas do SO estiverem ativas.
+    simulated_focus: Mutex<Option<bool>>,
 }
 
 #[derive(Default)]
@@ -86,6 +168,14 @@ impl TestHooks {
         while held.get(path).is_some_and(|image| !image.released) {
             held = self.image_released.wait(held).unwrap_or_else(PoisonError::into_inner);
         }
+    }
+
+    pub fn simulated_focus(&self) -> Option<bool> {
+        *self.simulated_focus.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn set_simulated_focus(&self, focused: bool) {
+        *self.simulated_focus.lock().unwrap_or_else(PoisonError::into_inner) = Some(focused);
     }
 }
 
@@ -128,6 +218,8 @@ pub fn test_opened(hooks: State<'_, TestHooks>) -> Vec<String> {
 pub struct TestWindow {
     title: String,
     maximized: bool,
+    fullscreen: bool,
+    foreground: bool,
     size: [f64; 2],
     work_area: [f64; 2],
 }
@@ -145,11 +237,29 @@ pub fn test_window(window: WebviewWindow) -> Option<TestWindow> {
     Some(TestWindow {
         title: window.title().ok()?,
         maximized: window.is_maximized().ok()?,
+        fullscreen: window.is_fullscreen().ok()?,
+        foreground: crate::window::has_input_focus(&window).ok()?,
         size: [size.width.round(), size.height.round()],
         work_area: [area.width.round(), area.height.round()],
     })
 }
 
+/// Ativa somente a própria janela dos testes. CDP pode focar o DOM sem ativar a janela no Windows.
+#[tauri::command]
+pub fn test_focus_window(window: WebviewWindow) -> crate::errors::AppResult<Option<TestWindow>> {
+    if !active() {
+        return Ok(None);
+    }
+    window.unminimize()?;
+    window.show()?;
+    if let Some(hooks) = window.try_state::<TestHooks>() {
+        hooks.set_simulated_focus(true);
+    }
+    let _ = window.set_focus();
+    crate::window::focus_content(&window)?;
+    let _ = crate::window::reconcile_state(&window)?;
+    Ok(test_window(window))
+}
 /// Tira a janela do maximizado e deixa a área da página com este tamanho (os testes usam 1280×800).
 #[tauri::command]
 pub fn test_set_window_size(window: WebviewWindow, width: Value, height: Value) {
@@ -186,4 +296,21 @@ pub fn test_release_image(hooks: State<'_, TestHooks>, path: Value) {
         image.released = true;
     }
     hooks.image_released.notify_all();
+}
+
+/// Injeta somente estados sintéticos na pasta de testes; nunca acessa um controle real.
+#[tauri::command]
+pub fn test_controller_input(
+    state: State<'_, crate::state::AppState>,
+    controllers: State<'_, crate::controllers::Controllers>,
+    connected: Value,
+    buttons: Value,
+) -> crate::errors::AppResult<Option<crate::controller_input::ControllerInputSnapshot>> {
+    if !active() {
+        return Ok(None);
+    }
+    let connected = crate::validation::to_bool(&connected, state.language())?;
+    let buttons = serde_json::from_value::<Vec<crate::controller_input::ControllerButton>>(buttons)
+        .map_err(|_| crate::errors::AppError::text(state.language(), "errors.invalidValue", &[]))?;
+    Ok(Some(controllers.inject_test_input(connected, buttons)))
 }

@@ -235,6 +235,24 @@ pub struct AchievementsOverview {
     pub by_day: Vec<DayCount>,
     /// Desbloqueadas por mês, nos últimos 12 meses.
     pub by_month: Vec<MonthCount>,
+    /// Todas as desbloqueadas, por raridade (as sem raridade, como os troféus do PS3, contam como comuns:
+    /// é a regra da pontuação de colecionador da tela cheia).
+    pub by_rarity: RarityCounts,
+    /// As desbloqueadas mais raras (com porcentagem), da mais rara para a menos rara.
+    pub rarest: Vec<UnlockedAchievement>,
+}
+
+/// Quantas desbloqueadas há de cada raridade.
+#[derive(Debug, Default, PartialEq, Serialize)]
+pub struct RarityCounts {
+    #[serde(rename = "comum")]
+    pub common: i64,
+    #[serde(rename = "rara")]
+    pub rare: i64,
+    #[serde(rename = "muito-rara")]
+    pub very_rare: i64,
+    #[serde(rename = "ultrarrara")]
+    pub ultra_rare: i64,
 }
 
 /// A conta do RetroAchievements e a situação da atualização (Configurações e aba Conquistas).

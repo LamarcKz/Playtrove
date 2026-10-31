@@ -52,12 +52,19 @@ export interface Game {
   /** Endereços das imagens do jogo (protocolo playtrove-img:), ou null se ele não tiver. O ícone da lista é um pedaço da capa. */
   coverUrl: string | null
   backgroundUrl: string | null
+  /** A logo do jogo (o nome desenhado, com fundo transparente), do SteamGridDB. */
+  logoUrl: string | null
   /** Vídeo local copiado para os dados do app, ou null. Usado apenas no fundo do modo Detalhes. */
   backgroundVideoUrl: string | null
   /** Automático, escolhido manualmente ou desativado para este jogo. */
   backgroundVideoMode: "auto" | "manual" | "disabled"
   /** Última busca concluída de trailer, inclusive quando não há vídeo disponível. */
   backgroundVideoCheckedAt: string | null
+  /** Música tema copiada para os dados do app, ou null quando não há faixa. */
+  themeMusicUrl: string | null
+  themeMusicMode: "auto" | "manual" | "disabled"
+  /** Última busca automática concluída, inclusive quando não encontrou uma faixa. */
+  themeMusicCheckedAt: string | null
   /** Quando os metadados foram baixados pela última vez (ISO), ou null se nunca. */
   metadataUpdatedAt: string | null
   /** Minha nota, de 1 a 10 em meias estrelas (9 = quatro e meia), ou null se ainda não avaliei. */
@@ -167,6 +174,36 @@ export interface MetadataConfig {
   steamGridDb: boolean
   /** Baixar sozinho os metadados dos jogos novos, quando uma pasta de ROMs é procurada. */
   autoDownload: boolean
+}
+
+/** Reprodução e busca de músicas tema na biblioteca. O volume vai de 0 a 100. */
+export interface MusicConfig {
+  enabled: boolean
+  volume: number
+  autoDownload: boolean
+}
+
+export interface MusicCandidate {
+  videoId: string
+  title: string
+  channel: string | null
+  duration: number | null
+  viewCount: number | null
+}
+
+export interface MusicReview {
+  gameId: number
+  gameTitle: string
+  generation: string
+  query: string
+  state: "needsChoice" | "notFound" | "failed"
+  candidates: MusicCandidate[]
+  error: string | null
+}
+
+export interface MusicPreview {
+  url: string
+  token: string
 }
 
 /**

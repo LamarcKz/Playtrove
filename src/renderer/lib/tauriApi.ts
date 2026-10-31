@@ -34,7 +34,16 @@ export function createTauriApi(): AppApi {
       toggleMaximize: () => void invoke("window_toggle_maximize"),
       close: () => void invoke("window_close"),
       getState: () => invoke("window_get_state"),
+      setFullscreen: (enabled) => invoke("window_set_fullscreen", { enabled }),
       onStateChange: (callback) => subscribe(EVENTS.windowState, callback),
+    },
+    fullscreen: {
+      getConfig: () => invoke("fullscreen_get_config"),
+      setConfig: (patch) => invoke("fullscreen_set_config", { patch }),
+      onConfigChange: (callback) => subscribe(EVENTS.fullscreenConfig, callback),
+    },
+    system: {
+      power: (action) => invoke("system_power", { action }),
     },
     library: {
       get: () => invoke("library_get"),
@@ -49,8 +58,23 @@ export function createTauriApi(): AppApi {
       showRom: (gameId) => invoke("games_show_rom", { gameId }),
       setEvaluation: (gameId, evaluation) => invoke("games_set_evaluation", { gameId, evaluation }),
       pickBackgroundVideo: (gameId) => invoke("games_pick_background_video", { gameId }),
+      accentColor: (gameId) => invoke("games_accent_color", { gameId }),
       removeBackgroundVideo: (gameId) => invoke("games_remove_background_video", { gameId }),
       useAutomaticBackgroundVideo: (gameId) => invoke("games_use_automatic_background_video", { gameId }),
+      pickThemeMusic: (gameId) => invoke("games_pick_theme_music", { gameId }),
+      removeThemeMusic: (gameId) => invoke("games_remove_theme_music", { gameId }),
+      useAutomaticThemeMusic: (gameId) => invoke("games_use_automatic_theme_music", { gameId }),
+    },
+    music: {
+      getReviews: () => invoke("music_get_reviews"),
+      search: (gameId, query) => invoke("music_search", { gameId, query: query ?? null }),
+      preview: (gameId, generation, videoId, operationId) => invoke("music_preview", { gameId, generation, videoId, operationId: operationId ?? null }),
+      choose: (gameId, generation, videoId, operationId) => invoke("music_choose", { gameId, generation, videoId, operationId: operationId ?? null }),
+      cancelPreview: () => invoke("music_cancel_preview"),
+      getConfig: () => invoke("music_get_config"),
+      setConfig: (config) => invoke("music_set_config", { config }),
+      onConfigChange: (callback) => subscribe(EVENTS.musicConfig, callback),
+      download: () => invoke("music_download"),
     },
     metadata: {
       getConfig: () => invoke("metadata_get_config"),
@@ -95,6 +119,9 @@ export function createTauriApi(): AppApi {
     },
     controllers: {
       list: () => invoke("controllers_list"),
+      getInput: () => invoke("controllers_get_input"),
+      setInputEnabled: (enabled) => invoke("controllers_set_input_enabled", { enabled }),
+      onInputChange: (callback) => subscribe(EVENTS.controllersInput, callback),
       onChange: (callback) => subscribe(EVENTS.controllersChanged, callback),
     },
     statuses: {

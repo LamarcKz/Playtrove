@@ -15,10 +15,12 @@ use crate::achievements::service::AchievementsService;
 use crate::achievements::trophy_icons::trophy_icon_url;
 use crate::achievements::types::{AchievementsConfig, AchievementsOverview, GameAchievements};
 use crate::achievements::{self};
+use crate::controller_input::ControllerInputSnapshot;
 use crate::controllers::{ConnectedController, Controllers};
 use crate::data_folder::is_portable;
 use crate::emulators::{self, EmulatorId, EmulatorInfo, RetroArchCore};
 use crate::errors::{AppError, AppResult};
+use crate::fullscreen::{self, FullscreenConfig};
 use crate::i18n::{Language, save_language, text};
 use crate::images::ImagesDir;
 use crate::launcher::{Launcher, SystemStarter};
@@ -27,6 +29,9 @@ use crate::links;
 use crate::metadata::credentials::{self, MetadataConfig};
 use crate::metadata::queue::MetadataProgress;
 use crate::metadata::service::MetadataService;
+use crate::music::{self, MusicConfig};
+use crate::music_previews::MusicPreviewCache;
+use crate::music_search::{self, MusicPreview, MusicReview};
 use crate::playtime_sync::{AFTER_GAME_DELAY, PlaytimeSync};
 use crate::rom_scanner::{self, RomFolder, ScanResult};
 use crate::secrets::Secrets;
@@ -62,6 +67,9 @@ pub fn finish_open_games(app: &AppHandle) {
 }
 
 fn notify_running(app: &AppHandle) {
+    if !app.state::<Launcher>().running().is_empty() {
+        app.state::<Controllers>().set_input_enabled(false);
+    }
     let _ = app.emit(GAMES_RUNNING_EVENT, app.state::<Launcher>().running());
 }
 
@@ -118,7 +126,14 @@ pub fn app_set_language(app: AppHandle, state: State<'_, AppState>, language: Va
 
 #[tauri::command]
 pub fn window_minimize(window: WebviewWindow) -> AppResult<()> {
-    Ok(window.minimize()?)
+    if crate::test_mode::test_mode().data_dir.is_some()
+        && let Some(hooks) = window.try_state::<crate::test_hooks::TestHooks>()
+    {
+        hooks.set_simulated_focus(false);
+    }
+    window.minimize()?;
+    let _ = crate::window::reconcile_state(&window);
+    Ok(())
 }
 
 /// Maximiza a janela ou, se ela já estiver maximizada, restaura o tamanho anterior.
@@ -134,7 +149,41 @@ pub fn window_close(window: WebviewWindow) -> AppResult<()> {
 
 #[tauri::command]
 pub fn window_get_state(window: WebviewWindow) -> AppResult<WindowState> {
-    Ok(WindowState { is_maximized: window.is_maximized()? })
+    Ok(crate::window::reconcile_state(&window)?)
+}
+
+/// A apresentação só muda depois da transição nativa bem-sucedida.
+#[tauri::command]
+pub fn window_set_fullscreen(window: WebviewWindow, state: State<'_, AppState>, enabled: Value) -> AppResult<WindowState> {
+    Ok(crate::window::set_fullscreen(&window, to_bool(&enabled, state.language())?)?)
+}
+
+#[tauri::command]
+pub fn fullscreen_get_config(state: State<'_, AppState>) -> FullscreenConfig {
+    fullscreen::get_config(&state.db())
+}
+
+#[tauri::command]
+pub fn fullscreen_set_config(app: AppHandle, state: State<'_, AppState>, patch: Value) -> AppResult<FullscreenConfig> {
+    let config = fullscreen::set_config(&state.db(), &patch, state.language())?;
+    let _ = app.emit(fullscreen::CONFIG_EVENT, &config);
+    Ok(config)
+}
+
+/// Bloqueia, suspende, reinicia ou desliga o Windows (o menu principal da tela cheia confirma antes).
+/// Nos testes do app, só anota a ação, como os endereços que iriam para o navegador.
+#[tauri::command]
+pub fn system_power(state: State<'_, AppState>, hooks: State<'_, crate::test_hooks::TestHooks>, action: Value) -> AppResult<()> {
+    let language = state.language();
+    let action = action
+        .as_str()
+        .filter(|action| crate::power::ACTIONS.contains(action))
+        .ok_or_else(|| AppError::text(language, "errors.invalidValue", &[]))?;
+    if crate::test_hooks::active() {
+        hooks.record_opened(&format!("power:{action}"));
+        return Ok(());
+    }
+    crate::power::run(action).map_err(|_| AppError::text(language, "errors.powerFailed", &[]))
 }
 
 // ---------------------------------------------------------------- biblioteca e jogos
@@ -229,6 +278,209 @@ pub fn games_use_automatic_background_video(
     Ok(())
 }
 
+#[tauri::command(async)]
+pub fn games_pick_theme_music(
+    app: AppHandle,
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<()> {
+    let language = state.language();
+    let game_id = to_id(&game_id, language)?;
+    library::get_metadata_target(&state.db(), language, game_id)?;
+    let picked = if test_hooks::active() {
+        app.state::<TestHooks>().take_open_dialog()
+    } else {
+        app.dialog()
+            .file()
+            .set_parent(&window)
+            .set_title(text(language, "dialogs.pickThemeMusic", &[]))
+            .add_filter(text(language, "dialogs.themeMusicFiles", &[]), &["m4a", "mp3", "wav"])
+            .blocking_pick_file()
+            .and_then(|file| file.into_path().ok())
+    };
+    if music::pick_theme_music(state.database(), language, &images.0, game_id, picked.as_deref())? {
+        app.state::<MusicPreviewCache>().cancel();
+        notify_library_changed(&app);
+    }
+    Ok(())
+}
+
+#[tauri::command(async)]
+pub fn games_remove_theme_music(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+) -> AppResult<()> {
+    music::remove_theme_music(state.database(), state.language(), &images.0, to_id(&game_id, state.language())?)?;
+    app.state::<MusicPreviewCache>().cancel();
+    notify_library_changed(&app);
+    Ok(())
+}
+
+#[tauri::command(async)]
+pub fn games_use_automatic_theme_music(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    game_id: Value,
+) -> AppResult<()> {
+    let id = to_id(&game_id, state.language())?;
+    music::use_automatic_theme_music(&state.db(), state.language(), id)?;
+    app.state::<MusicPreviewCache>().cancel();
+    notify_library_changed(&app);
+    service.queue.enqueue_music(&[id]);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn music_get_config(state: State<'_, AppState>) -> MusicConfig {
+    music::get_config(&state.db())
+}
+
+#[tauri::command]
+pub fn music_set_config(app: AppHandle, state: State<'_, AppState>, config: Value) -> AppResult<MusicConfig> {
+    let invalid = || AppError::text(state.language(), "errors.invalidMusicConfig", &[]);
+    let enabled = config.get("enabled").and_then(Value::as_bool).ok_or_else(invalid)?;
+    let auto_download = config.get("autoDownload").and_then(Value::as_bool).ok_or_else(invalid)?;
+    let volume = config.get("volume").and_then(Value::as_u64).filter(|volume| *volume <= 100).ok_or_else(invalid)? as u8;
+    let config = MusicConfig { enabled, volume, auto_download };
+    music::set_config(&state.db(), &config)?;
+    let _ = app.emit("music:config", &config);
+    Ok(config)
+}
+
+/// Busca somente os temas ainda pendentes; as cópias manuais e desativadas ficam preservadas.
+#[tauri::command]
+pub fn music_download(state: State<'_, AppState>, service: State<'_, MetadataService>) -> AppResult<usize> {
+    Ok(service.queue.enqueue_music(&prepare_missing_music(&state)?))
+}
+
+/// Só operações locais, sob uma trava. Um guard temporário no iterador do `for`
+/// permaneceria vivo no corpo e impediria adquirir o mesmo banco novamente.
+fn prepare_missing_music(state: &AppState) -> rusqlite::Result<Vec<i64>> {
+    let db = state.db();
+    let ids = library::list_games_without_music(&db)?;
+    for id in ids {
+        music_search::retry_missing(&db, id)?;
+    }
+    library::list_games_needing_music(&db)
+}
+
+#[tauri::command]
+pub fn music_get_reviews(state: State<'_, AppState>) -> AppResult<Vec<MusicReview>> {
+    music_search::list_reviews(&state.db(), state.language())
+}
+
+#[tauri::command(async)]
+pub fn music_search(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    images: State<'_, ImagesDir>,
+    game_id: Value,
+    query: Value,
+) -> AppResult<MusicReview> {
+    let language = state.language();
+    let query = if query.is_null() { None } else { Some(to_text(&query, language)?) };
+    if query.as_ref().is_some_and(|query| query.len() > 512 || query.chars().any(char::is_control)) {
+        return Err(AppError::text(language, "errors.invalidText", &[]));
+    }
+    let downloader =
+        service.theme_downloader(&images).ok_or_else(|| AppError::text(language, "errors.themeMusicDownloadFailed", &[]))?;
+    app.state::<MusicPreviewCache>().cancel();
+    let result = music_search::search_choices(
+        state.database(),
+        language,
+        downloader.as_ref(),
+        to_id(&game_id, language)?,
+        query.as_deref(),
+    )?;
+    notify_library_changed(&app);
+    Ok(result)
+}
+
+fn music_choice_reference(value: &Value, language: Language) -> AppResult<String> {
+    let value = to_text(value, language)?;
+    if value.is_empty() || value.len() > 128 || value.chars().any(char::is_control) {
+        return Err(AppError::text(language, "errors.invalidValue", &[]));
+    }
+    Ok(value)
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)] // Referências validadas e autorização de operação cancelável.
+pub fn music_preview(
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    images: State<'_, ImagesDir>,
+    cache: State<'_, MusicPreviewCache>,
+    game_id: Value,
+    generation: Value,
+    video_id: Value,
+    operation_id: Option<Value>,
+) -> AppResult<MusicPreview> {
+    let language = state.language();
+    let downloader =
+        service.theme_downloader(&images).ok_or_else(|| AppError::text(language, "errors.themeMusicDownloadFailed", &[]))?;
+    cache.preview(
+        state.database(),
+        language,
+        downloader.as_ref(),
+        to_id(&game_id, language)?,
+        &music_choice_reference(&generation, language)?,
+        &music_choice_reference(&video_id, language)?,
+        operation_id
+            .as_ref()
+            .filter(|value| !value.is_null())
+            .map(|value| music_choice_reference(value, language))
+            .transpose()?
+            .as_deref(),
+    )
+}
+
+#[tauri::command(async)]
+#[allow(clippy::too_many_arguments)] // Contextos do Tauri e três campos validados da escolha.
+pub fn music_choose(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    service: State<'_, MetadataService>,
+    images: State<'_, ImagesDir>,
+    cache: State<'_, MusicPreviewCache>,
+    game_id: Value,
+    generation: Value,
+    video_id: Value,
+    operation_id: Option<Value>,
+) -> AppResult<()> {
+    let language = state.language();
+    let downloader =
+        service.theme_downloader(&images).ok_or_else(|| AppError::text(language, "errors.themeMusicDownloadFailed", &[]))?;
+    cache.choose(
+        state.database(),
+        language,
+        &images.0,
+        downloader.as_ref(),
+        to_id(&game_id, language)?,
+        &music_choice_reference(&generation, language)?,
+        &music_choice_reference(&video_id, language)?,
+        operation_id
+            .as_ref()
+            .filter(|value| !value.is_null())
+            .map(|value| music_choice_reference(value, language))
+            .transpose()?
+            .as_deref(),
+    )?;
+    notify_library_changed(&app);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn music_cancel_preview(cache: State<'_, MusicPreviewCache>) -> String {
+    cache.cancel()
+}
+
 // ---------------------------------------------------------------- status (Configurações → Status)
 
 #[tauri::command]
@@ -279,7 +531,7 @@ pub fn statuses_set_rules(app: AppHandle, state: State<'_, AppState>, rules: Val
 /// Abre o jogo no emulador e avisa a interface quando ele abre e quando fecha. Quando o emulador fecha,
 /// registra o tempo jogado e relê o tempo que ele mesmo registrou (ele grava ao fechar), as conquistas e os
 /// troféus.
-#[tauri::command]
+#[tauri::command(async)]
 pub fn games_play(app: AppHandle, state: State<'_, AppState>, launcher: State<'_, Launcher>, game_id: Value) -> AppResult<()> {
     let language = state.language();
     let game_id = to_id(&game_id, language)?;
@@ -425,6 +677,9 @@ pub fn rom_folders_scan(app: AppHandle, state: State<'_, AppState>, id: Value) -
         // Os jogos novos já ganham os metadados, se o usuário deixou (Configurações → Metadados).
         if credentials::auto_download(&state.db()) {
             app.state::<MetadataService>().queue.enqueue(&result.added_ids);
+        } else if music::get_config(&state.db()).auto_download && (!test_hooks::active() || test_mode().metadata_server.is_some())
+        {
+            app.state::<MetadataService>().queue.enqueue_music(&result.added_ids);
         }
         app.state::<PlaytimeSync>().run();
         app.state::<AchievementsService>().read_trophies();
@@ -499,13 +754,19 @@ pub fn metadata_download(
     secrets: State<'_, Secrets>,
     game_ids: Value,
 ) -> AppResult<usize> {
-    let ids = if game_ids.is_null() {
-        let has_igdb = credentials::read_metadata_credentials(&state.db(), &secrets).igdb.is_some();
-        library::list_games_needing_metadata(&state.db(), has_igdb)?
+    let (metadata_ids, music_only_ids) = if game_ids.is_null() {
+        let keys = credentials::read_metadata_credentials(&state.db(), &secrets);
+        let ids = library::list_games_needing_metadata(&state.db(), keys.igdb.is_some(), keys.steam_grid_db_key.is_some())?;
+        let music = prepare_missing_music(&state)?.into_iter().filter(|id| !ids.contains(id)).collect();
+        (ids, music)
     } else {
-        to_id_list(&game_ids, state.language())?
+        let ids = to_id_list(&game_ids, state.language())?;
+        for id in &ids {
+            music_search::retry_missing(&state.db(), *id)?;
+        }
+        (ids, Vec::new())
     };
-    Ok(service.queue.enqueue(&ids))
+    Ok(service.queue.enqueue_metadata_and_music(&metadata_ids, &music_only_ids))
 }
 
 #[tauri::command]
@@ -579,6 +840,24 @@ pub fn controllers_list(controllers: State<'_, Controllers>) -> Vec<ConnectedCon
     controllers.list()
 }
 
+#[tauri::command]
+pub fn controllers_get_input(controllers: State<'_, Controllers>) -> ControllerInputSnapshot {
+    controllers.input()
+}
+
+/// A leitura rápida só é permitida na própria tela cheia em primeiro plano, inclusive no painel de sessões.
+#[tauri::command]
+pub fn controllers_set_input_enabled(
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+    controllers: State<'_, Controllers>,
+    enabled: Value,
+) -> AppResult<()> {
+    let enabled = to_bool(&enabled, state.language())?;
+    controllers.set_input_enabled(enabled && window.is_fullscreen()? && crate::window::has_input_focus(&window)?);
+    Ok(())
+}
+
 // ---------------------------------------------------------------- atualização (Configurações → Sobre)
 
 #[tauri::command]
@@ -605,4 +884,31 @@ pub fn updates_set_auto_check(state: State<'_, AppState>, updates: State<'_, Upd
     let enabled = to_bool(&enabled, state.language())?;
     updates.set_auto_check(enabled);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::{Arc, mpsc};
+    use std::time::Duration;
+
+    #[test]
+    fn preparar_musicas_ausentes_nao_adquire_o_mesmo_banco_duas_vezes() {
+        let db = crate::test_support::memory_database();
+        db.execute(
+            "INSERT INTO games(id,title,status_id,added_at,theme_music_checked_at) VALUES(1,'Jogo',1,'2026-01-01','legado')",
+            [],
+        )
+        .unwrap();
+        let state = Arc::new(AppState::new(db, Language::En));
+        let worker_state = Arc::clone(&state);
+        let (sent, received) = mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            sent.send(prepare_missing_music(&worker_state)).unwrap();
+        });
+        let ids = received.recv_timeout(Duration::from_secs(5)).expect("a preparação local não pode travar o banco").unwrap();
+        assert_eq!(ids, [1]);
+        worker.join().unwrap();
+        assert!(state.database().try_lock().is_ok());
+    }
 }

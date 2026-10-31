@@ -65,7 +65,7 @@ function startOfDay(date: Date): number {
 }
 
 /** Dia, mês e ano com dois dígitos, na ordem do idioma: "01/08/2026" ou "08/01/2026". */
-function formatDate(date: Date, locale: string): string {
+export function formatDate(date: Date, locale: string): string {
   return date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" })
 }
 

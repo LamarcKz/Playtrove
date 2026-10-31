@@ -1,5 +1,5 @@
-//! O SteamGridDB: capas e fundos feitos pela comunidade (os ícones não são usados: os de fãs variam
-//! demais, e o ícone da lista é um pedaço da capa).
+//! O SteamGridDB: capas, fundos e logos feitos pela comunidade (os ícones não são usados: os de fãs
+//! variam demais, e o ícone da lista é um pedaço da capa).
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -26,10 +26,12 @@ impl Named for SteamGridDbGame {
 }
 
 /// O que buscar de cada tipo de imagem. Capa: as de retrato (600x900 e parecidas). Fundo: os "heroes",
-/// as faixas largas do topo da página do jogo. Nada de imagens NSFW ou de humor.
-const IMAGE_QUERIES: [(ImageKind, &str); 2] = [
+/// as faixas largas do topo da página do jogo. Logo: o nome do jogo com fundo transparente. Nada de
+/// imagens NSFW ou de humor.
+const IMAGE_QUERIES: [(ImageKind, &str); 3] = [
     (ImageKind::Cover, "grids/game/{id}?dimensions=600x900,342x482,660x930&types=static&nsfw=false&humor=false"),
     (ImageKind::Background, "heroes/game/{id}?types=static&nsfw=false&humor=false"),
+    (ImageKind::Logo, "logos/game/{id}?types=static&nsfw=false&humor=false"),
 ];
 
 #[derive(Deserialize)]
@@ -68,7 +70,7 @@ impl SteamGridDbSession {
         Ok(self.get(&format!("search/autocomplete/{}", encode_uri_component(term)))?.unwrap_or_default())
     }
 
-    /// Endereços da capa e do fundo mais votados do jogo (os que não existem ficam de fora).
+    /// Endereços da capa, do fundo e da logo mais votados do jogo (os que não existem ficam de fora).
     pub fn images(&self, game_id: i64) -> Result<HashMap<ImageKind, String>, MetadataError> {
         let mut found = HashMap::new();
         for (kind, query) in IMAGE_QUERIES {

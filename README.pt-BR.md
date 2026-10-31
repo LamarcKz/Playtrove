@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão 0.9.0" src="https://img.shields.io/badge/vers%C3%A3o-0.9.0-0072d0">
+  <img alt="Versão 1.0.0" src="https://img.shields.io/badge/vers%C3%A3o-1.0.0-0072d0">
   <img alt="Em desenvolvimento" src="https://img.shields.io/badge/status-em%20desenvolvimento-orange">
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Testes" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -43,7 +43,7 @@
 
 Quem joga no PC acaba com os jogos espalhados: parte na Steam, parte na GOG, alguns em emuladores e outros instalados em pastas avulsas, cada um com seu próprio launcher. O **Playtrove** reúne tudo em uma interface só: todos os jogos do computador no mesmo lugar, com capa, informações e tempo jogado, prontos para abrir com um clique.
 
-O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: uma moldura escura com as ferramentas no topo, um menu de ícones à esquerda e a biblioteca no centro. A biblioteca fica guardada no próprio computador, em um banco de dados local, sem conta e sem depender de internet.
+O visual desktop segue a linha do [Playnite](https://playnite.link/): uma moldura escura com as ferramentas no topo, um menu de ícones à esquerda e a biblioteca no centro. A apresentação em tela cheia acrescenta uma biblioteca horizontal de capas e os detalhes Signature de cada jogo. A biblioteca fica guardada no próprio computador, em um banco de dados local, sem conta e sem depender de internet.
 
 > [!NOTE]
 > O projeto ainda está em construção. Por enquanto, os jogos entram pelos emuladores (PCSX2, DuckStation, RetroArch, RPCS3, PPSSPP, Dolphin e Azahar); Steam, GOG e outras lojas estão no [roadmap](#roadmap).
@@ -52,11 +52,13 @@ O visual segue a linha do [Playnite](https://playnite.link/) no modo Desktop: um
 
 - **Emuladores**: o app encontra sozinho o PCSX2, o DuckStation, o RetroArch (com os cores instalados), o RPCS3, o PPSSPP (PSP), o Dolphin (GameCube e Wii) e o Azahar (3DS). Basta apontar as pastas de ROMs: o emulador, o core e o console são sugeridos pelo nome da pasta, e os jogos entram na biblioteca com o nome limpo, sem "(USA)" e afins.
 - **Jogar**: abre o jogo no emulador, com as configurações dele (o RetroArch abre maximizado em janela, a não ser que esteja em tela cheia), e conta sozinho o tempo jogado e a última vez jogado. O tempo que os próprios emuladores registram também entra na biblioteca, então o que foi jogado abrindo o emulador direto aparece do mesmo jeito.
-- **Metadados e imagens**: a capa vem do [libretro-thumbnails](https://thumbnails.libretro.com/) (a mesma do RetroArch, sem precisar de chave) e, quando falta, do [SteamGridDB](https://www.steamgriddb.com/), que também dá a arte de fundo; a descrição, os gêneros, a desenvolvedora, a publicadora e a data de lançamento vêm do [IGDB](https://www.igdb.com/). As duas chaves são gratuitas, e o app explica como criar cada uma.
+- **Metadados e imagens**: como no Playnite, a capa vem primeiro do [SteamGridDB](https://www.steamgriddb.com/) (capas em pé, que encaixam no quadro), que também dá a arte de fundo, depois do IGDB e, por último, do [libretro-thumbnails](https://thumbnails.libretro.com/) (as caixas escaneadas do RetroArch, sem precisar de chave); a descrição, os gêneros, a desenvolvedora, a publicadora e a data de lançamento vêm do [IGDB](https://www.igdb.com/). As duas chaves são gratuitas, e o app explica como criar cada uma.
 - **Modo Detalhes**: a visão principal da biblioteca. À esquerda fica a lista de jogos, com os ícones. À direita aparecem a arte de fundo, a capa acima do título, os botões **Jogar** e **Mais**, os detalhes e a descrição.
-- **Modo Grade**: capas inteiras centralizadas em áreas iguais 2:3, com fundo neutro nas sobras de imagens de formatos diferentes. A grade se ajusta ao tamanho da janela, com o status numa faixa abaixo da área de cada capa e um painel lateral de detalhes ao clicar em um jogo.
-- **Capas inteiras**: Grade, Detalhes e painel lateral preservam a proporção original de cada imagem, sem cortes, distorções ou preenchimento desfocado.
+- **Tela cheia**: quatro temas. O tema Playtrove, o padrão, se inspira na tela cheia do próprio Playnite, e outros três se inspiram no estilo dos consoles, cada um com a própria tela inicial, os próprios detalhes do jogo, as próprias cores e os próprios sons de navegação: Horizonte (a fileira de jogos no topo e a arte enchendo a tela), Mosaico (capas quadradas grandes e atalhos redondos, em cinza-escuro e vermelho) e Painel (a arte no fundo e blocos grandes: continuar jogando, coleções, conquistas e estatísticas). O tema é escolhido em **Configurações → Geral** ou no menu principal da tela cheia. Todos têm os detalhes do jogo, coleções, busca, os mesmos filtros da biblioteca do modo janela com ordenação, um menu principal com as opções de energia (bloquear, suspender, reiniciar e desligar, cada uma com confirmação), avisos da sessão, uma tela de ajuda, sons de navegação feitos pelo próprio app e a opção de trocar ✕ e ○, além das análises e conquistas; o tema Playtrove mostra de uma a três linhas de capas. A navegação aceita o DualSense por USB ou Bluetooth, o teclado e o mouse; a conferência com o controle físico ainda está pendente. Em **Configurações → Geral** e nas configurações da tela cheia, há o início opcional em tela cheia e controles próprios de reprodução e volume da música; os trailers tocam sem som nos detalhes do jogo e, se você quiser, atrás da biblioteca. Mídia e navegação pelo controle pausam com a janela inativa ou com um jogo aberto. A configuração de emuladores e pastas de ROMs continua no modo janela.
+- **Modo Grade**: todas as capas no mesmo quadro 3:4, em pé, enchendo o quadro, para a grade ficar alinhada. A grade se ajusta ao tamanho da janela, com o status numa faixa abaixo de cada capa e um painel lateral de detalhes ao clicar em um jogo.
+- **Capas iguais**: Grade, Detalhes, painel lateral e tela cheia usam o mesmo quadro 3:4, com a arte enchendo o quadro (capas de outros formatos perdem um pouco das bordas, sem distorção nem preenchimento desfocado).
 - **Trailers e vídeos de fundo**: com o IGDB configurado, o Playtrove baixa um trailer do YouTube junto dos metadados de cada jogo, em até 720p e 100 MiB, e prepara as ferramentas necessárias na primeira utilização. Ele toca sem som, em repetição, no modo Detalhes, com a imagem de fundo como reserva; com movimento reduzido, começa pausado. Pelo menu **Mais**, escolha um MP4 ou WebM local com prioridade sobre o trailer, remova e desative os vídeos automáticos ou escolha **Usar trailer automático** para reativá-los. O arquivo local original permanece intacto.
+- **Música tema por jogo**: a faixa salva toca offline, em repetição, nos modos Detalhes, Grade, Lista e Kanban do desktop. A troca de jogo tem transição suave, e o áudio pausa com a janela inativa, um jogo em execução ou ao sair da Biblioteca. Os controles de reprodução e volume do desktop ficam em **Configurações → Geral**, separados das preferências de áudio da tela cheia; **Metadados** reúne busca automática e download das trilhas. A busca aceita variações do nome e nomes próprios de faixas da soundtrack; uma recomendação forte pode ser baixada automaticamente. Depois dos demais metadados, **Revisar músicas** permite ouvir as candidatas e escolher, ou ajustar a busca pelo nome do jogo ou da música. A audição é carregada somente ao clicar, e a escolha fica salva com prioridade manual. A recomendação é uma estimativa, e a busca pode terminar sem resultado; novas tentativas são explícitas. O menu **Mais** também permite buscar outra faixa ou importar MP3, M4A ou WAV de até 32 MiB. Remover apaga só a cópia interna e desativa o automático daquele jogo; os arquivos originais permanecem intactos. Se a reprodução automática for bloqueada, clique ou pressione uma tecla na Biblioteca para liberar o áudio.
 - **Avaliação**: pelo menu **Mais**, dê a sua nota (de meia a cinco estrelas) e marque a dificuldade em pimentas (também com meia); no mesmo menu, escreva a sua análise do jogo. A nota e a dificuldade aparecem ao lado do botão **Jogar**, e a análise, em cima da descrição.
 - **Modo Lista**: uma linha por jogo, com o nome, o status, a plataforma, a biblioteca, o tempo jogado, a nota, a dificuldade e as conquistas.
 - **Modo Kanban**: um quadro com uma coluna para cada status (Planejo jogar, Jogando, Zerado, Platinado...), todas visíveis de uma vez. Para mudar o status de um jogo, é só arrastá-lo para outra coluna.
@@ -81,52 +83,88 @@ Capturas com uma biblioteca de demonstração.
 <table>
   <tr>
     <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-library.png" alt="Biblioteca em tela cheia no tema Playtrove, com uma faixa horizontal de capas">
+      <p align="center"><sub>Biblioteca em tela cheia (tema Playtrove)</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-details.png" alt="Detalhes de um jogo em tela cheia, no tema Playtrove">
+      <p align="center"><sub>Detalhes do jogo em tela cheia</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-horizonte.png" alt="Tema de tela cheia Horizonte, com a fileira de jogos no topo, a arte enchendo a tela e cartões de troféus, tempo jogado e nota">
+      <p align="center"><sub>Tema Horizonte</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-mosaico.png" alt="Tema de tela cheia Mosaico, com capas grandes e atalhos redondos em cinza-escuro e vermelho">
+      <p align="center"><sub>Tema Mosaico</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-painel.png" alt="Tema de tela cheia Painel, com a arte no fundo e blocos de continuar jogando, coleções, conquistas e estatísticas">
+      <p align="center"><sub>Tema Painel</sub></p>
+    </td>
+    <td width="50%">
       <img src="docs/screenshots/pt-BR/library-kanban.png" alt="A biblioteca no modo Kanban, com uma coluna para cada status">
       <p align="center"><sub>Modo Kanban</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-list.png" alt="A biblioteca no modo Lista, com as colunas Nome, Status, Tempo jogado, Nota, Dificuldade e Conquistas">
       <p align="center"><sub>Modo Lista</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/achievements.png" alt="Aba Conquistas, com o resumo, os gráficos por dia e por mês e os jogos com os troféus de cada tipo">
       <p align="center"><sub>Conquistas e troféus</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/rating.png" alt="Janela de avaliação, com a nota em estrelas e a dificuldade em pimentas">
       <p align="center"><sub>Avaliação do jogo</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-grid.png" alt="A biblioteca no modo Grade">
       <p align="center"><sub>Modo Grade</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/filters.png" alt="Painel de filtros com o seletor de Status aberto">
       <p align="center"><sub>Painel de filtros</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-grid-panel.png" alt="Modo Grade com o painel de detalhes de um jogo aberto">
       <p align="center"><sub>Painel de detalhes no modo Grade</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/statistics.png" alt="Aba Estatísticas, com o resumo, os mais jogados e a atividade por dia">
       <p align="center"><sub>Estatísticas</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/metadata.png" alt="Configurações de metadados, com o passo a passo para criar as chaves">
       <p align="center"><sub>Metadados e imagens</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/settings-statuses.png" alt="Configurações: a lista de status, com a ordem, os jogos de cada um e as regras automáticas">
       <p align="center"><sub>Configurações → Status</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/music.png" alt="Configurações da música tema: reprodução e volume">
+      <p align="center"><sub>Configurações da música tema</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/music-review.png" alt="Opções da soundtrack com controles para ouvir, escolher e pesquisar">
+      <p align="center"><sub>Ouvir e escolher a soundtrack</sub></p>
     </td>
   </tr>
 </table>
@@ -147,7 +185,7 @@ As novidades de cada versão ficam na mesma página. Os números seguem o [Versi
 
 ## Privacidade
 
-O Playtrove não coleta nada sobre você. A biblioteca, as notas e as análises ficam num banco de dados no seu computador, e as chaves das APIs são trancadas pelo Windows. O app usa a internet para baixar os metadados e as imagens dos jogos (IGDB, SteamGridDB e libretro-thumbnails), os trailers (YouTube) e suas ferramentas (releases oficiais no GitHub), para ler as suas conquistas (RetroAchievements, se você colocar a sua conta) e para conferir no GitHub se há versão nova (dá para desligar em Configurações → Sobre).
+O Playtrove não coleta nada sobre você. A biblioteca, as notas e as análises ficam num banco de dados no seu computador, e as chaves das APIs são trancadas pelo Windows. O app usa a internet para baixar os metadados e as imagens dos jogos (IGDB, SteamGridDB e libretro-thumbnails), os trailers e as músicas tema (YouTube) e suas ferramentas (releases oficiais no GitHub), para ler as suas conquistas (RetroAchievements, se você colocar a sua conta) e para conferir no GitHub se há versão nova (dá para desligar em Configurações → Sobre).
 
 ## Bugs e ideias
 
@@ -201,7 +239,7 @@ Quer entender o código? O guia com o que cada pasta e arquivo faz, e onde imple
 - O visual é inspirado no [Playnite](https://playnite.link/), um projeto independente, sem ligação com este.
 - Os ícones vêm do [Lucide](https://lucide.dev/) (licença ISC).
 - Os metadados dos jogos vêm do [IGDB](https://www.igdb.com/) (da Twitch); as capas, do [libretro-thumbnails](https://thumbnails.libretro.com/), o acervo da comunidade do [RetroArch](https://www.retroarch.com/); e as artes de fundo (e as capas que faltarem), do [SteamGridDB](https://www.steamgriddb.com/), feitas pela comunidade.
-- O download de trailers usa [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [Deno](https://github.com/denoland/deno), baixados das releases oficiais e verificados antes do uso.
+- O download de trailers e músicas tema usa [yt-dlp](https://github.com/yt-dlp/yt-dlp) e [Deno](https://github.com/denoland/deno), baixados das releases oficiais e verificados antes do uso.
 - As conquistas vêm do [RetroAchievements](https://retroachievements.org/), um projeto da comunidade, sem ligação com este.
 - Os nomes de jogos, consoles e serviços pertencem aos seus donos. PlayStation e DualSense são marcas da Sony Interactive Entertainment; o Playtrove não tem ligação com a Sony nem com os serviços acima.
 

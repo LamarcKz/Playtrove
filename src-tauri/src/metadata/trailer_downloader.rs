@@ -4,6 +4,7 @@ use std::ffi::OsString;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
 #[path = "trailer_tools_process.rs"]
@@ -20,6 +21,42 @@ pub trait TrailerDownloader: Send + Sync {
 
 pub struct YoutubeDownloader {
     tools_dir: PathBuf,
+}
+
+/// Reutiliza somente as ferramentas verificadas e a execução confinada nas buscas de mídia.
+pub(super) struct VerifiedYoutubeTools(tools::Tools);
+
+impl VerifiedYoutubeTools {
+    pub(super) fn prepare(root: &Path, deadline: Instant) -> Result<Self, String> {
+        tools::prepare(root, deadline).map(Self)
+    }
+
+    pub(super) fn deno(&self) -> &Path {
+        &self.0.deno
+    }
+
+    pub(super) fn run(&self, args: &[OsString], output: File, deadline: Instant, limit: u64) -> Result<(), String> {
+        process::run_limited(&self.0.youtube, args, &self.0.runtime, output, deadline, limit)
+    }
+
+    pub(super) fn run_cancelable(
+        &self,
+        args: &[OsString],
+        output: File,
+        deadline: Instant,
+        limit: u64,
+        cancel: &AtomicBool,
+    ) -> Result<(), String> {
+        process::run_limited_cancelable(&self.0.youtube, args, &self.0.runtime, output, deadline, limit, cancel)
+    }
+}
+
+pub(super) fn temporary_media_path(destination: &Path) -> PathBuf {
+    tools::temporary_path(destination)
+}
+
+pub(super) fn promote_media(source: &Path, destination: &Path) -> Result<(), String> {
+    tools::promote_new(source, destination)
 }
 
 impl YoutubeDownloader {
@@ -40,7 +77,7 @@ impl TrailerDownloader for YoutubeDownloader {
     }
 }
 
-fn validate_video_id(id: &str) -> Result<(), String> {
+pub(super) fn validate_video_id(id: &str) -> Result<(), String> {
     if id.len() == 11 && id.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-') {
         Ok(())
     } else {
@@ -68,7 +105,7 @@ fn copy_limited(reader: &mut impl Read, writer: &mut impl Write, limit: u64) -> 
     }
 }
 
-fn download_args(deno: &Path, video_id: &str) -> Vec<OsString> {
+pub(super) fn isolated_args(deno: &Path, extractors: &str) -> Vec<OsString> {
     let mut args: Vec<OsString> = [
         "--ignore-config",
         "--no-config-locations",
@@ -82,7 +119,7 @@ fn download_args(deno: &Path, video_id: &str) -> Vec<OsString> {
         "--no-cache-dir",
         "--no-playlist",
         "--use-extractors",
-        "youtube",
+        extractors,
         "--downloader",
         "native",
         "--fixup",
@@ -91,21 +128,30 @@ fn download_args(deno: &Path, video_id: &str) -> Vec<OsString> {
         "20",
         "--retries",
         "2",
-        "--max-filesize",
-        "104857600",
         "--quiet",
         "--no-progress",
-        "--output",
-        "-",
-        "--format",
-        "bv[ext=mp4][vcodec^=avc1][height<=720][protocol=https]/b[ext=mp4][vcodec^=avc1][height<=720][protocol=https]",
     ]
     .into_iter()
     .map(OsString::from)
     .collect();
     let mut deno_path = OsString::from("deno:");
     deno_path.push(deno);
-    args.extend(["--js-runtimes".into(), deno_path, "--".into(), format!("https://www.youtube.com/watch?v={video_id}").into()]);
+    args.extend(["--js-runtimes".into(), deno_path]);
+    args
+}
+
+fn download_args(deno: &Path, video_id: &str) -> Vec<OsString> {
+    let mut args = isolated_args(deno, "youtube");
+    args.extend([
+        "--max-filesize".into(),
+        "104857600".into(),
+        "--output".into(),
+        "-".into(),
+        "--format".into(),
+        "bv[ext=mp4][vcodec^=avc1][height<=720][protocol=https]/b[ext=mp4][vcodec^=avc1][height<=720][protocol=https]".into(),
+        "--".into(),
+        format!("https://www.youtube.com/watch?v={video_id}").into(),
+    ]);
     args
 }
 

@@ -25,9 +25,14 @@ const STILL_ACTIVE: u32 = 259;
 /// mexe numa janela que tem o botão de maximizar: um emulador em tela cheia fica como está. Se o
 /// processo fechar antes, desiste.
 pub fn maximize_window(pid: u32) {
+    maximize_window_within(pid, TIMEOUT);
+}
+
+/// O mesmo, com o prazo dado (os testes esperam mais: no robô, a janela de teste pode levar mais de 10 s).
+fn maximize_window_within(pid: u32, timeout: Duration) {
     thread::spawn(move || {
         let start = Instant::now();
-        while start.elapsed() < TIMEOUT && is_running(pid) {
+        while start.elapsed() < timeout && is_running(pid) {
             if let Some(window) = main_window(pid) {
                 // SAFETY: a janela veio do EnumWindows agora; se ela fechar no meio, as funções só falham.
                 unsafe {
@@ -89,6 +94,8 @@ mod tests {
     use std::io::Read;
     use std::process::{Command, Stdio};
 
+    use windows::Win32::UI::WindowsAndMessaging::IsZoomed;
+
     use super::*;
     use crate::test_support::temp_folder;
 
@@ -120,8 +127,24 @@ $form.add_Shown({{ $timer.Start() }})
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        maximize_window(child.id());
-        thread::sleep(Duration::from_secs(4));
+        let pid = child.id();
+        // O prazo do teste é o mesmo da espera abaixo: no robô, o PowerShell às vezes passa dos 10 s do app.
+        maximize_window_within(pid, Duration::from_secs(60));
+        // Espera a janela de verdade, e não um tempo fixo: no robô dos testes, o PowerShell pode levar
+        // mais de 4 s para mostrar a janela, e ela fecharia antes de ser maximizada.
+        let start = Instant::now();
+        let window = loop {
+            if let Some(window) = main_window(pid) {
+                break window;
+            }
+            assert!(start.elapsed() < Duration::from_secs(60), "a janela de teste não apareceu");
+            thread::sleep(POLL);
+        };
+        let shown = Instant::now();
+        // SAFETY: consulta sobre a janela que acabou de ser achada; se ela fechar, só devolve falso.
+        while !unsafe { IsZoomed(window) }.as_bool() && shown.elapsed() < Duration::from_secs(5) {
+            thread::sleep(POLL);
+        }
         std::fs::write(&done, "").unwrap();
         let mut output = String::new();
         child.stdout.take().unwrap().read_to_string(&mut output).unwrap();

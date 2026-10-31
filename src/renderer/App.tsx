@@ -1,4 +1,6 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { FullscreenShell } from "@/fullscreen/FullscreenShell"
+import { useFullscreenMode } from "@/hooks/useFullscreen"
 import { AchievementNotifier } from "@/components/AchievementNotifier"
 import { I18nProvider } from "@/components/I18nProvider"
 import { LibraryTools, type LibraryView } from "@/components/LibraryTools"
@@ -34,6 +36,10 @@ export function App() {
 function AppLayout() {
   const { t } = useI18n()
   const [currentPage, setCurrentPage] = useState<PageId>("library")
+  const fullscreen = useFullscreenMode()
+  const [desktopSelectedId, setDesktopSelectedId] = useState<number | null>(null)
+  const [enteredFullscreen, setEnteredFullscreen] = useState(false)
+  if (fullscreen.enabled && !enteredFullscreen) setEnteredFullscreen(true)
 
   // Busca, filtros e modo de exibição ficam aqui, e não na página, porque os controles estão
   // na barra do topo e porque assim eles não se perdem ao trocar de aba.
@@ -46,13 +52,26 @@ function AppLayout() {
   // todos os componentes pelo StatusesProvider.
   const { loading, games, statuses, rules, setGameStatus } = useLibrary()
 
+  // F11 no modo janela entra na tela cheia, como no Playnite (dentro dela, o F11 volta).
+  const enterFullscreen = fullscreen.change
+  useEffect(() => {
+    if (fullscreen.enabled) return
+    const keydown = (event: KeyboardEvent) => {
+      if (event.key !== "F11" || event.repeat) return
+      event.preventDefault()
+      void enterFullscreen(true)
+    }
+    window.addEventListener("keydown", keydown)
+    return () => window.removeEventListener("keydown", keydown)
+  }, [fullscreen.enabled, enterFullscreen])
+
   return (
     <TooltipProvider delayDuration={300}>
       <ToastProvider pinned={<UpdateNotice />}>
         <AchievementNotifier />
         <StatusesProvider value={statuses}>
-          <div className="flex h-screen flex-col bg-sidebar">
-            <TopBar>
+          <div hidden={fullscreen.enabled} className={fullscreen.enabled ? "hidden" : "flex h-screen flex-col bg-sidebar"}>
+            <TopBar onEnterFullscreen={() => void fullscreen.change(true)} fullscreenPending={fullscreen.pending}>
               {currentPage === "library" ? (
                 <LibraryTools
                   searchQuery={searchQuery}
@@ -73,6 +92,8 @@ function AppLayout() {
               <main className="min-w-0 flex-1 overflow-hidden rounded-tl-xl border-t border-l bg-background">
                 {currentPage === "library" && !loading && (
                   <LibraryPage
+                    active={!fullscreen.enabled}
+                    onSelectedId={setDesktopSelectedId}
                     games={games}
                     searchQuery={searchQuery}
                     filters={libraryFilters}
@@ -95,6 +116,8 @@ function AppLayout() {
               </main>
             </div>
           </div>
+          {fullscreen.error && <p role="alert" className="fixed right-6 bottom-6 z-50 max-w-xl rounded-lg border bg-background p-4 text-destructive">{fullscreen.error}</p>}
+          {(fullscreen.enabled || enteredFullscreen) && !loading && <FullscreenShell enabled={fullscreen.enabled} games={games} initialGameId={desktopSelectedId} onExit={() => void fullscreen.change(false)} onOpenEmulators={() => { setCurrentPage("emulators"); void fullscreen.change(false) }} />}
         </StatusesProvider>
       </ToastProvider>
     </TooltipProvider>

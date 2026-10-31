@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react"
+import { useState, useEffect, type ReactNode } from "react"
 import { Joystick, Library, SearchX } from "lucide-react"
 import type { Game } from "@shared/types"
 import { EmptyState } from "@/components/EmptyState"
@@ -9,6 +9,7 @@ import { GameGrid } from "@/components/GameGrid"
 import { GameKanban } from "@/components/GameKanban"
 import { GameList } from "@/components/GameList"
 import { GameTable } from "@/components/GameTable"
+import { LibraryThemeMusic } from "@/components/LibraryThemeMusic"
 import type { LibraryView } from "@/components/LibraryTools"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/hooks/useI18n"
@@ -16,6 +17,8 @@ import { useStatuses } from "@/hooks/useStatuses"
 import { EMPTY_FILTERS, filterGames, hasActiveFilters, type LibraryFilters } from "@/lib/filters"
 
 interface LibraryPageProps {
+  active?: boolean
+  onSelectedId?: (id: number | null) => void
   /** Todos os jogos da biblioteca (vindos do banco de dados). */
   games: Game[]
   /** Texto digitado na busca da barra do topo. */
@@ -47,6 +50,8 @@ interface LibraryPageProps {
  */
 export function LibraryPage({
   games: allGames,
+  active = true,
+  onSelectedId,
   searchQuery,
   filters,
   onFiltersChange,
@@ -57,10 +62,11 @@ export function LibraryPage({
   onOpenEmulators,
 }: LibraryPageProps) {
   const { t } = useI18n()
-  const [selectedGameId, setSelectedGameId] = useState<number | null>(null)
+  const [selectedGameId, setSelectedGameId] = useState<number | null>(() => allGames[0]?.id ?? null)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [lastView, setLastView] = useState(view)
   const statuses = useStatuses()
+  useEffect(() => { onSelectedId?.(selectedGameId) }, [selectedGameId, onSelectedId])
 
   // Trocar de modo mostra só a biblioteca: o painel de detalhes fecha, e o jogo continua destacado.
   if (view !== lastView) {
@@ -70,6 +76,9 @@ export function LibraryPage({
 
   const games = filterGames(allGames, searchQuery, filters)
   const selectedGame = games.find((game) => game.id === selectedGameId)
+  const musicGame = selectedGame ?? (view === "details" ? games[0] : undefined)
+  // A seleção implícita dos Detalhes também acompanha a música ao trocar de modo.
+  if (view === "details" && musicGame && musicGame.id !== selectedGameId) setSelectedGameId(musicGame.id)
   const selectGame = (game: Game) => {
     setSelectedGameId(game.id)
     setDetailsOpen(true)
@@ -148,7 +157,10 @@ export function LibraryPage({
 
   return (
     <div className="flex h-full">
-      <div className="relative flex min-w-0 flex-1">{content}</div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        {active && allGames.length > 0 && <LibraryThemeMusic game={musicGame} />}
+        <div className="relative flex min-h-0 flex-1">{active && content}</div>
+      </div>
       {filtersOpen && (
         <FilterPanel games={allGames} filters={filters} onFiltersChange={onFiltersChange} onClose={onCloseFilters} />
       )}

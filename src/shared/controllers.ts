@@ -23,3 +23,32 @@ export interface ConnectedController {
   /** Bateria da última leitura; null enquanto a primeira não termina. */
   battery: BatteryReading | null
 }
+
+/** Botões digitais de navegação; eixos são normalizados pelo leitor nativo. */
+export type ControllerButton =
+  | "up"
+  | "down"
+  | "left"
+  | "right"
+  | "cross"
+  | "circle"
+  | "square"
+  | "triangle"
+  | "l1"
+  | "r1"
+  | "l2"
+  | "r2"
+  | "options"
+  | "create"
+  | "l3"
+  | "r3"
+  | "ps"
+  | "touchpad"
+
+/** Só mudanças são publicadas; sequência e geração descartam respostas de uma sessão antiga. */
+export interface ControllerInputSnapshot {
+  sequence: number
+  generation: number
+  controllerKey: number | null
+  buttons: ControllerButton[]
+}

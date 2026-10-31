@@ -1,0 +1,88 @@
+/*
+ * Painel (inspirado na tela inicial do Xbox): preto com destaques em verde, a arte e o trailer no fundo, a fileira de
+ * capas no topo com a escolhida maior e os blocos grandes embaixo. Tudo fica dentro de .painel-fullscreen.
+ */
+.painel-fullscreen {
+  --fs-background: oklch(0.12 0.005 150);
+  --fs-surface: oklch(0.22 0.01 150 / 0.72);
+  /* O vidro dos blocos e dos painéis: quase opaco, para o fundo não aparecer através dele. */
+  --fs-glass: oklch(0.15 0.01 150 / 0.96);
+  --fs-foreground: oklch(0.97 0 0);
+  --fs-muted: oklch(0.76 0.01 150);
+  --fs-accent: oklch(0.72 0.2 145);
+  --fs-on-accent: oklch(0.13 0.02 150);
+  --fs-focus: oklch(0.82 0.2 145);
+  --fs-border: oklch(0.85 0.02 150 / 0.16);
+  --fs-shadow: oklch(0 0 0 / 0.6);
+  --fs-scrim: oklch(0.07 0.005 150 / 0.86);
+  --fs-radius: .35rem;
+  --fs-control-radius: .3rem;
+}
+/* O véu da arte: escuro embaixo, à esquerda e no topo, para o texto continuar legível mesmo numa arte clara. */
+.painel-fullscreen .fs-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, var(--fs-scrim) 0%, transparent 30%), linear-gradient(0deg, var(--fs-background) 5%, transparent 55%), linear-gradient(90deg, var(--fs-scrim), transparent 60%); }
+.painel-fullscreen :is(.pn-top, .pn-rail-heading, .pn-selected) { text-shadow: 0 1px 8px var(--fs-shadow); }
+.painel-fullscreen .pn-tools svg { filter: drop-shadow(0 1px 4px var(--fs-shadow)); }
+.painel-fullscreen .pn-main { position: relative; height: 100%; display: flex; flex-direction: column; }
+.painel-fullscreen .pn-top { display: flex; align-items: center; gap: .3em; padding: 2vh 3.5vw .5vh; }
+.painel-fullscreen .pn-tools { display: flex; align-items: center; gap: .3em; margin-left: auto; }
+.painel-fullscreen .pn-tools > button { padding: .55em; background: transparent; }
+.painel-fullscreen .pn-badged { position: relative; }
+.painel-fullscreen .pn-clock { font-weight: 600; font-variant-numeric: tabular-nums; margin-left: .4em; }
+.painel-fullscreen .pn-favorite { display: inline-block; margin-left: .3em; fill: currentColor; width: .7em !important; height: .7em !important; color: var(--fs-accent); vertical-align: middle; }
+.painel-fullscreen .pn-play { justify-content: center; color: var(--fs-on-accent); background: var(--fs-accent); font-weight: 700; }
+.painel-fullscreen .pn-play:hover { background: var(--fs-focus); }
+
+/* Início: a fileira de capas (a escolhida maior), o nome do jogo e os quatro blocos. */
+.painel-fullscreen .pn-home { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 3.5vw 3.5vh; }
+.painel-fullscreen .pn-rail-heading { display: flex; align-items: baseline; gap: 1em; }
+.painel-fullscreen .pn-rail-heading h2 { font-size: 1.1em; font-weight: 600; }
+.painel-fullscreen .pn-rail-heading span { font-size: .8em; color: var(--fs-muted); }
+.painel-fullscreen .pn-rail { display: flex; align-items: flex-end; gap: .7em; overflow-x: auto; padding: .8em .3em; scroll-padding-inline: .3em; scrollbar-width: none; }
+.painel-fullscreen .pn-tile { flex-shrink: 0; width: clamp(5.5rem, min(8.5vw, 15vh), 10rem); padding: 0; border-radius: var(--fs-radius); background: var(--fs-surface); transition: width .15s; }
+/* A capa escolhida fica maior e marcada de leve; o verde forte é só onde o foco está. */
+.painel-fullscreen .pn-tile[aria-current="true"] { width: clamp(8.5rem, min(14vw, 25vh), 16rem); outline: 2px solid var(--fs-muted); outline-offset: 3px; }
+.painel-fullscreen .pn-tile:focus { outline: 3px solid var(--fs-focus); outline-offset: 3px; }
+/* O bloco com o foco dentro também se destaca, como os blocos da tela do Xbox. */
+.painel-fullscreen .pn-block { transition: border-color .15s, transform .15s; }
+.painel-fullscreen .pn-block:focus-within { border-color: var(--fs-focus); transform: translateY(-.2em); }
+.painel-fullscreen .pn-selected { display: flex; align-items: baseline; flex-wrap: wrap; gap: .3em 1em; margin-top: .6vh; font-size: clamp(1.4rem, 2.4vw, 2.6rem); font-weight: 700; text-shadow: 0 3px 14px var(--fs-shadow); overflow-wrap: anywhere; }
+.painel-fullscreen .pn-selected > span { font-size: .45em; font-weight: 500; color: var(--fs-foreground); opacity: .85; }
+.painel-fullscreen .pn-blocks { margin-top: auto; display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: .8vw; }
+.painel-fullscreen .pn-block { display: flex; flex-direction: column; gap: .5em; min-width: 0; min-height: min(24vh, 13rem); max-height: 30vh; overflow: hidden; padding: 1em 1.1em; border: 1px solid var(--fs-border); border-radius: var(--fs-radius); background: var(--fs-glass); backdrop-filter: blur(32px) saturate(1.2); }
+.painel-fullscreen .pn-block h2 { display: flex; align-items: center; gap: .5em; font-size: .8em; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--fs-muted); }
+.painel-fullscreen .pn-block h2 svg { color: var(--fs-accent); }
+.painel-fullscreen .pn-block-title { font-size: 1.05em; font-weight: 650; overflow-wrap: anywhere; }
+.painel-fullscreen .pn-block > p { font-size: .9em; }
+.painel-fullscreen .pn-block > button { width: fit-content; margin-top: auto; padding: .45em 1em; font-size: .85em; }
+.painel-fullscreen .pn-block .pn-play { width: 100%; }
+.painel-fullscreen .pn-block-continue { background: linear-gradient(160deg, oklch(0.72 0.2 145 / 0.22), transparent 70%), var(--fs-glass); }
+.painel-fullscreen .pn-block-buttons { display: flex; flex-direction: column; gap: .4em; }
+.painel-fullscreen .pn-block-buttons button { justify-content: flex-start; background: var(--fs-border); }
+.painel-fullscreen .pn-block-buttons button[aria-pressed="true"] { border-color: transparent; color: var(--fs-on-accent); background: var(--fs-accent); }
+.painel-fullscreen .pn-block ul { display: flex; flex-direction: column; gap: .3em; font-size: .85em; }
+.painel-fullscreen .pn-block li { display: flex; flex-direction: column; overflow: hidden; }
+.painel-fullscreen .pn-block li span { font-size: .85em; color: var(--fs-muted); }
+.painel-fullscreen .pn-block dl { display: flex; flex-direction: column; gap: .6em; }
+
+/* Detalhes: a coluna com a logo e as ações à esquerda e os blocos à direita. */
+.painel-fullscreen .pn-details { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(13rem, 30%) minmax(0, 1fr); gap: 2.5vw; padding: 1vh 3.5vw 3.5vh; }
+.painel-fullscreen .pn-details-column { display: flex; flex-direction: column; justify-content: flex-end; gap: .6em; min-height: 0; }
+.painel-fullscreen .pn-details-column > button { justify-content: flex-start; width: 100%; background: var(--fs-surface); backdrop-filter: blur(14px); }
+.painel-fullscreen .pn-details-column > .pn-play { justify-content: center; padding: .85em; font-size: 1.05em; background: var(--fs-accent); }
+.painel-fullscreen .pn-back { margin-bottom: auto; width: fit-content !important; }
+.painel-fullscreen .pn-logo { font-size: clamp(1.8rem, 3vw, 3.6rem); font-weight: 700; line-height: 1.08; max-height: 22vh; text-shadow: 0 3px 16px var(--fs-shadow); }
+.painel-fullscreen .pn-logo > img { max-height: 22vh; filter: drop-shadow(0 4px 14px var(--fs-shadow)); }
+.painel-fullscreen .pn-eyebrow { color: var(--fs-muted); font-size: .85em; margin-bottom: .8em; }
+.painel-fullscreen .pn-details-blocks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: end; gap: .8vw; min-height: 0; overflow-y: auto; padding: .3em; scrollbar-width: none; }
+.painel-fullscreen .pn-details-blocks .pn-block { min-height: 0; max-height: none; }
+.painel-fullscreen .pn-details-blocks dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(9em, 1fr)); }
+.painel-fullscreen .pn-description { grid-column: 1 / -1; max-height: 26vh; overflow-y: auto; padding: 1em 1.2em; border: 1px solid var(--fs-border); border-radius: var(--fs-radius); background: var(--fs-glass); }
+.painel-fullscreen .pn-description h2 { font-weight: 600; margin-bottom: .4em; }
+.painel-fullscreen .pn-description p { color: var(--fs-muted); font-size: .92em; line-height: 1.55; overflow-wrap: anywhere; }
+.painel-fullscreen .pn-status { padding: .5em 3.5vw; font-size: .8em; color: var(--fs-muted); }
+@media (max-width: 1100px) {
+  .painel-fullscreen .pn-blocks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .painel-fullscreen .pn-block { min-height: 0; max-height: 19vh; padding: .7em .9em; }
+}
+/* No Painel, o que está escolhido nos painéis fica verde. */
+.painel-fullscreen :is(.fs-menu-items, .fs-chips, .fs-status-options) button[aria-pressed="true"] { border-color: transparent; color: var(--fs-on-accent); background: var(--fs-accent); }

@@ -11,4 +11,5 @@ pub mod matching;
 pub mod queue;
 pub mod service;
 pub mod steam_grid_db;
+pub mod theme_downloader;
 pub mod trailer_downloader;
