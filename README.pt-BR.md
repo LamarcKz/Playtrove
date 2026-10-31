@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão 0.9.0" src="https://img.shields.io/badge/vers%C3%A3o-0.9.0-0072d0">
+  <img alt="Versão 1.0.0" src="https://img.shields.io/badge/vers%C3%A3o-1.0.0-0072d0">
   <img alt="Em desenvolvimento" src="https://img.shields.io/badge/status-em%20desenvolvimento-orange">
   <img alt="Licença MIT" src="https://img.shields.io/badge/licen%C3%A7a-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Testes" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -83,69 +83,85 @@ Capturas com uma biblioteca de demonstração.
 <table>
   <tr>
     <td width="50%">
-      <img src="docs/screenshots/pt-BR/fullscreen-library.png" alt="Biblioteca em tela cheia com uma faixa horizontal de capas">
-      <p align="center"><sub>Biblioteca em tela cheia</sub></p>
+      <img src="docs/screenshots/pt-BR/fullscreen-library.png" alt="Biblioteca em tela cheia no tema Playtrove, com uma faixa horizontal de capas">
+      <p align="center"><sub>Biblioteca em tela cheia (tema Playtrove)</sub></p>
     </td>
     <td width="50%">
-      <img src="docs/screenshots/pt-BR/fullscreen-details.png" alt="Detalhes Signature de um jogo em tela cheia">
-      <p align="center"><sub>Detalhes Signature em tela cheia</sub></p>
+      <img src="docs/screenshots/pt-BR/fullscreen-details.png" alt="Detalhes de um jogo em tela cheia, no tema Playtrove">
+      <p align="center"><sub>Detalhes do jogo em tela cheia</sub></p>
     </td>
   </tr>
   <tr>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-horizonte.png" alt="Tema de tela cheia Horizonte, com a fileira de jogos no topo, a arte enchendo a tela e cartões de troféus, tempo jogado e nota">
+      <p align="center"><sub>Tema Horizonte</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-mosaico.png" alt="Tema de tela cheia Mosaico, com capas grandes e atalhos redondos em cinza-escuro e vermelho">
+      <p align="center"><sub>Tema Mosaico</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/pt-BR/fullscreen-painel.png" alt="Tema de tela cheia Painel, com a arte no fundo e blocos de continuar jogando, coleções, conquistas e estatísticas">
+      <p align="center"><sub>Tema Painel</sub></p>
+    </td>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-kanban.png" alt="A biblioteca no modo Kanban, com uma coluna para cada status">
       <p align="center"><sub>Modo Kanban</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-list.png" alt="A biblioteca no modo Lista, com as colunas Nome, Status, Tempo jogado, Nota, Dificuldade e Conquistas">
       <p align="center"><sub>Modo Lista</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/achievements.png" alt="Aba Conquistas, com o resumo, os gráficos por dia e por mês e os jogos com os troféus de cada tipo">
       <p align="center"><sub>Conquistas e troféus</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/rating.png" alt="Janela de avaliação, com a nota em estrelas e a dificuldade em pimentas">
       <p align="center"><sub>Avaliação do jogo</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-grid.png" alt="A biblioteca no modo Grade">
       <p align="center"><sub>Modo Grade</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/filters.png" alt="Painel de filtros com o seletor de Status aberto">
       <p align="center"><sub>Painel de filtros</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/library-grid-panel.png" alt="Modo Grade com o painel de detalhes de um jogo aberto">
       <p align="center"><sub>Painel de detalhes no modo Grade</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/statistics.png" alt="Aba Estatísticas, com o resumo, os mais jogados e a atividade por dia">
       <p align="center"><sub>Estatísticas</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/metadata.png" alt="Configurações de metadados, com o passo a passo para criar as chaves">
       <p align="center"><sub>Metadados e imagens</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/settings-statuses.png" alt="Configurações: a lista de status, com a ordem, os jogos de cada um e as regras automáticas">
       <p align="center"><sub>Configurações → Status</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/music.png" alt="Configurações da música tema: reprodução e volume">
       <p align="center"><sub>Configurações da música tema</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/pt-BR/music-review.png" alt="Opções da soundtrack com controles para ouvir, escolher e pesquisar">
       <p align="center"><sub>Ouvir e escolher a soundtrack</sub></p>

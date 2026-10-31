@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img alt="Version 0.9.0" src="https://img.shields.io/badge/version-0.9.0-0072d0">
+  <img alt="Version 1.0.0" src="https://img.shields.io/badge/version-1.0.0-0072d0">
   <img alt="In development" src="https://img.shields.io/badge/status-in%20development-orange">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green">
   <a href="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml"><img alt="Tests" src="https://github.com/LamarcKz/Playtrove/actions/workflows/tests.yml/badge.svg"></a>
@@ -83,69 +83,85 @@ Screenshots use a demonstration library.
 <table>
   <tr>
     <td width="50%">
-      <img src="docs/screenshots/en/fullscreen-library.png" alt="Fullscreen library with a horizontal cover rail">
-      <p align="center"><sub>Fullscreen library</sub></p>
+      <img src="docs/screenshots/en/fullscreen-library.png" alt="Fullscreen library in the Playtrove theme, with a horizontal cover rail">
+      <p align="center"><sub>Fullscreen library (Playtrove theme)</sub></p>
     </td>
     <td width="50%">
-      <img src="docs/screenshots/en/fullscreen-details.png" alt="Fullscreen Signature game details">
-      <p align="center"><sub>Fullscreen Signature details</sub></p>
+      <img src="docs/screenshots/en/fullscreen-details.png" alt="Fullscreen game details in the Playtrove theme">
+      <p align="center"><sub>Fullscreen game details</sub></p>
     </td>
   </tr>
   <tr>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-horizonte.png" alt="Horizon fullscreen theme, with a row of games on top, the art filling the screen and cards for trophies, playtime and rating">
+      <p align="center"><sub>Horizon theme</sub></p>
+    </td>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-mosaico.png" alt="Mosaic fullscreen theme, with big covers and round shortcuts in dark gray and red">
+      <p align="center"><sub>Mosaic theme</sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="docs/screenshots/en/fullscreen-painel.png" alt="Panel fullscreen theme, with the art in the background and tiles for continue playing, collections, achievements and statistics">
+      <p align="center"><sub>Panel theme</sub></p>
+    </td>
     <td width="50%">
       <img src="docs/screenshots/en/library-kanban.png" alt="The library in Kanban view, with one column per status">
       <p align="center"><sub>Kanban view</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/library-list.png" alt="The library in List view, with the Name, Status, Playtime, Rating, Difficulty and Achievements columns">
       <p align="center"><sub>List view</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/achievements.png" alt="The Achievements tab, with the summary, charts by day and by month, and each game's trophies by type">
       <p align="center"><sub>Achievements and trophies</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/rating.png" alt="The rating window, with the rating in stars and the difficulty in peppers">
       <p align="center"><sub>Rating a game</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/library-grid.png" alt="The library in Grid view">
       <p align="center"><sub>Grid view</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/filters.png" alt="The filter panel with the Status dropdown open">
       <p align="center"><sub>Filter panel</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/library-grid-panel.png" alt="Grid view with a game's details panel open">
       <p align="center"><sub>Details panel in Grid view</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/statistics.png" alt="The Statistics tab, with the summary, the most played games and the activity by day">
       <p align="center"><sub>Statistics</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/metadata.png" alt="Metadata settings, with the steps to get the keys">
       <p align="center"><sub>Metadata and images</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/settings-statuses.png" alt="Settings: the list of statuses, with their order, the games in each one and the automatic rules">
       <p align="center"><sub>Settings → Statuses</sub></p>
     </td>
-  </tr>
-  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/music.png" alt="Theme music settings: playback and volume">
       <p align="center"><sub>Theme music settings</sub></p>
     </td>
+  </tr>
+  <tr>
     <td width="50%">
       <img src="docs/screenshots/en/music-review.png" alt="Soundtrack candidates with listening, selection and search controls">
       <p align="center"><sub>Listen and choose a soundtrack</sub></p>
