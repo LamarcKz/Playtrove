@@ -48,8 +48,9 @@ pub fn lock(db: &Mutex<Connection>) -> MutexGuard<'_, Connection> {
 /// Baixa os metadados e as imagens de um jogo e grava tudo no banco:
 /// 1. IGDB: descrição, gêneros, desenvolvedora, publicadora e lançamento (buscando só na plataforma do
 ///    jogo; sem resultado, em todas);
-/// 2. capa: a oficial do libretro-thumbnails (pelo nome exato da ROM, nos jogos de emulador); se não
-///    houver, a do SteamGridDB (buscando pelo nome oficial que veio do IGDB); por fim, a do IGDB;
+/// 2. capa: como no Playnite, primeiro as desenhadas em pé, que encaixam no quadro 3:4 das telas: a do
+///    SteamGridDB (buscando pelo nome oficial que veio do IGDB); se não houver, a do IGDB; por fim, a caixa
+///    escaneada do libretro-thumbnails (pelo nome exato da ROM, nos jogos de emulador), que pode ser deitada;
 /// 3. fundo: o do SteamGridDB; se não houver, uma arte ou tela do jogo do IGDB.
 ///
 /// Devolve true se o jogo foi encontrado em algum lugar.
@@ -99,9 +100,9 @@ pub fn download_game_metadata_with_music(
         (
             ImageKind::Cover,
             vec![
-                libretro_cover.clone(),
                 sgdb_images.get(&ImageKind::Cover).cloned(),
                 igdb_image("t_cover_big", igdb_game.as_ref().and_then(|game| game.cover_image_id.as_ref())),
+                libretro_cover.clone(),
             ],
         ),
         (
@@ -599,28 +600,34 @@ pub mod tests {
     }
 
     #[test]
-    fn a_capa_vem_do_libretro_quando_existe_e_sem_ela_do_steamgriddb_e_depois_do_igdb() {
+    fn a_capa_vem_do_steamgriddb_depois_do_igdb_e_por_fim_do_libretro() {
         const LIBRETRO: &str = "/libretro/Sony%20-%20PlayStation%202/Named_Boxarts/Salto%20Estelar.png";
+        const IGDB_COVER: &str = "/igdb-images/t_cover_big/co1abc.jpg";
+        let libretro = || -> Override { Box::new(|| image("image/png")) };
 
-        // 1. Com a capa no libretro-thumbnails (achada pelo nome exato da ROM).
-        let with_libretro = services_world(vec![(LIBRETRO, Box::new(|| image("image/png")))]);
+        // 1. Com o SteamGridDB: vale a capa dele, mesmo com a caixa no libretro-thumbnails.
+        let with_sgdb = services_world(vec![(LIBRETRO, libretro())]);
         let (db, game_id) = database_with_game("Salto Estelar");
-        download(&db, game_id, &make_services(Arc::clone(&with_libretro), &temp_folder("metadados-libretro-1"), None));
-        assert!(with_libretro.urls().iter().any(|url| url.ends_with(LIBRETRO)));
-        // A capa veio do libretro: o SteamGridDB nem foi baixado.
-        assert!(!with_libretro.urls().contains(&"https://cdn.test/capa.png".to_string()));
+        download(&db, game_id, &make_services(Arc::clone(&with_sgdb), &temp_folder("metadados-capa-1"), None));
+        assert!(with_sgdb.urls().contains(&"https://cdn.test/capa.png".to_string()));
+        assert!(!with_sgdb.urls().iter().any(|url| url.ends_with(LIBRETRO)));
 
-        // 2. Sem ela, vale a do SteamGridDB.
-        let without = services_world(vec![]);
+        // 2. Sem o SteamGridDB: a do IGDB, e o libretro nem é pedido.
+        let only_igdb = services_world(vec![(LIBRETRO, libretro())]);
         let (db, game_id) = database_with_game("Salto Estelar");
-        download(&db, game_id, &make_services(Arc::clone(&without), &temp_folder("metadados-libretro-2"), None));
-        assert!(without.urls().contains(&"https://cdn.test/capa.png".to_string()));
-
-        // 3. Sem o SteamGridDB: sobra a do IGDB.
-        let only_igdb = services_world(vec![]);
-        let (db, game_id) = database_with_game("Salto Estelar");
-        download(&db, game_id, &make_services(Arc::clone(&only_igdb), &temp_folder("metadados-libretro-3"), Some("igdb")));
+        download(&db, game_id, &make_services(Arc::clone(&only_igdb), &temp_folder("metadados-capa-2"), Some("igdb")));
         assert!(only_igdb.urls().contains(&"https://servidor/igdb-images/t_cover_big/co1abc.jpg".to_string()));
+        assert!(!only_igdb.urls().iter().any(|url| url.ends_with(LIBRETRO)));
+
+        // 3. Sem capa no IGDB: sobra a caixa do libretro-thumbnails.
+        let only_libretro = services_world(vec![
+            (LIBRETRO, libretro()),
+            (IGDB_COVER, Box::new(|| json_response(json!({ "erro": "não encontrado" }), 404))),
+        ]);
+        let (db, game_id) = database_with_game("Salto Estelar");
+        download(&db, game_id, &make_services(Arc::clone(&only_libretro), &temp_folder("metadados-capa-3"), Some("igdb")));
+        assert!(only_libretro.urls().iter().any(|url| url.ends_with(LIBRETRO)));
+        assert_eq!(field(&db, "cover_image").as_deref(), Some("cover.png"));
     }
 
     #[test]
