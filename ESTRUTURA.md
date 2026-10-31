@@ -33,8 +33,8 @@ Os comandos de hoje (o nome do comando no Rust, e quem chama na interface):
 | `app_report_bug` | `SettingsPage.tsx` (Configurações → Sobre) | Abre no navegador o formulário de bug do GitHub, com a versão do app e a do Windows preenchidas (`links.rs`) |
 | `window_minimize`, `window_toggle_maximize`, `window_close` e `window_get_state` | `TopBar.tsx` e `hooks/useFullscreen.ts` | Minimizar, maximizar/restaurar e fechar; consultar `isMaximized`, `isFullscreen` e `isFocused` nativos |
 | `window_set_fullscreen` | `hooks/useFullscreen.ts` | Entra/sai da tela cheia nativa e devolve o estado reconciliado; o Windows restaura a posição e o estado anteriores |
-| `system_power` | `fullscreen/PlaytroveShell.tsx` | Bloqueia, suspende, reinicia ou desliga o Windows depois da confirmação do menu principal (nos testes do app, só anota) |
-| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam início em tela cheia, reprodução e volume próprios desse modo, onde abrir (Hub ou biblioteca), o perfil (nome e avatar), os layouts da biblioteca e dos detalhes, a paleta, a cor dinâmica, os efeitos, o estilo da interface, a tela de boas-vindas, os trailers e se o assistente inicial já foi feito, com validação integral do patch e transação |
+| `system_power` | `fullscreen/useFullscreenSession.ts` | Bloqueia, suspende, reinicia ou desliga o Windows depois da confirmação do menu principal (nos testes do app, só anota) |
+| `fullscreen_get_config` e `fullscreen_set_config` | `hooks/useFullscreen.ts` e `fullscreen/FullscreenPreferences.tsx` | Leem/gravam o tema, o início em tela cheia, a reprodução e o volume próprios desse modo, as linhas de capas, os trailers de cada tema, o relógio, os sons e o ✕/○; emitem `fullscreen:config` |
 | `library_get` | `hooks/useLibrary.ts` | A biblioteca inteira: jogos, status e regras |
 | `games_set_status` | `hooks/useLibrary.ts` (Kanban) | Salva o status novo de um jogo |
 | `statuses_create`, `statuses_rename`, `statuses_reorder`, `statuses_remove` e `statuses_set_rules` | `StatusSettings.tsx` | Criam, renomeiam, mudam a ordem e apagam status, e trocam as regras automáticas |
@@ -137,8 +137,9 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `tests/fakeDiscs.ts`, `fakeTrophies.ts` e `fakePng.ts` | Arquivos de mentira para os testes do app: discos (ISOs, os .bin de PS1, o PARAM.SFO, o EBOOT.PBP, os de GameCube, Wii e 3DS), os troféus do RPCS3 e imagens PNG |
 | `tests/app/` | Testes do app de verdade (Playwright): abrem a janela (a versão DEV) e clicam como uma pessoa. `helpers.ts` abre o app dos testes com uma pasta de dados temporária e liga o Playwright na janela pela depuração do WebView2, cria pastas de arquivos de mentira (`createFiles()`) e combina a resposta da janela do Windows de escolher arquivo ou pasta (`mockOpenDialog()`). `fakeMetadataServer.ts` é um IGDB, um SteamGridDB e um RetroAchievements de mentira, com imagens geradas na hora, trailers MP4 e músicas M4A sintéticos, para os testes não usarem a internet |
 | `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
-| `tests/app/fullscreen.spec.ts` | Tema Playtrove e a troca de tema (confirmação, download, mídias pelo protocolo, remover e pacote recusado pelo hash).  Fluxos de tela cheia em dados temporários: estado nativo, biblioteca/detalhes, preferências, busca e teclado, dados compartilhados, foco/input sintético, mídia e execução simulada. Não usa HID nem emuladores reais |
-| `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): áreas iguais 2:3 na Grade, arte inteira e status alinhados, proporção original nos Detalhes e no painel lateral, limites de tamanho e área estável durante carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
+| `tests/app/fullscreen.spec.ts` | Tema Playtrove em dados temporários: estado nativo, biblioteca/detalhes, preferências, busca e teclado, dados compartilhados, foco/input sintético, mídia e execução simulada. Não usa HID nem emuladores reais |
+| `tests/app/fullscreenThemes.spec.ts` | Horizonte, Mosaico e Painel: início, setas, detalhes, Jogar (pela ponte de mentira) e voltar, sem passar da janela; a troca de tema pelo menu e em Configurações, mantendo o jogo escolhido; os atalhos do Mosaico |
+| `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): o quadro 3:4 com a arte enchendo o quadro na Grade, nos Detalhes e no painel lateral, o status alinhado, os limites de tamanho e o quadro estável durante o carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
 | `tests/app/backgroundVideo.spec.ts` | Confere seleção, importação, cancelamento, reprodução sem som, pausa, troca de jogo/modo, persistência, remoção, falha e movimento reduzido com WebM sintético e dados temporários |
 | `tests/app/automaticTrailers.spec.ts` | Confere trailer automático, prioridade manual, remoção/desativação, reativação, falha e busca de trailers pendentes em jogos antigos, usando MP4 sintético servido localmente; não acessa YouTube nem prepara ou executa ferramentas externas |
 | `tests/app/themeMusic.spec.ts` | Confere importação, cópia e persistência, os quatro modos, foco, pausa e preferências, busca automática, prioridade manual, remoção/reativação e fila compartilhada; usa WAV/M4A sintéticos, servidor local e dados temporários, sem YouTube nem ferramentas externas |
@@ -182,6 +183,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `App.tsx` | Alterna desktop/tela cheia conforme o estado nativo. Mantém montado o desktop com página, busca, filtros, modo e seleção; conserva o shell fullscreen após a primeira entrada. Liga a biblioteca, os status, o idioma e os avisos rápidos |
 | `styles/globals.css` | Tailwind e **as cores do app** (variáveis CSS dos temas escuro e claro e as derivadas das paletas da tela cheia) |
 | `styles/fullscreenPlaytrove.css` | O visual do tema Playtrove da tela cheia, todo dentro de `.playtrove-fullscreen` |
+| `styles/fullscreenThemeBase.css` | O que o Horizonte, o Mosaico e o Painel dividem (botões, foco, capas, fundo, painéis, avisos e jogo em execução), só por variáveis |
+| `styles/fullscreenHorizonte.css`, `fullscreenMosaico.css` e `fullscreenPainel.css` | As cores e as telas de cada tema, dentro de `.horizonte-fullscreen`, `.mosaico-fullscreen` e `.painel-fullscreen` |
 | `hooks/useI18n.ts` | `useI18n()`: o idioma, os textos dele (`t`, ex.: `t.pages.library`) e `setLanguage()` para trocar |
 | `hooks/useLibrary.ts` | A biblioteca que está no banco (jogos, status e regras). Recarrega sozinha quando algo muda. `setGameStatus()` muda o status de um jogo |
 | `hooks/useStatuses.ts` | Os status para qualquer componente: `useStatuses()` (a lista) e `useStatusName()` (o nome pelo id) |
@@ -208,7 +211,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `lib/musicConfigSaveQueue.ts` | Grava patches de preferências em uma fila compartilhada entre telas, sem reenviar alterações pendentes de componentes desmontados ou sobrescrever campos com um estado antigo |
 | `lib/musicPreviewPlayer.ts` | Player da prévia, cancelamento/respostas antigas, volume e exclusão de áudio ambiente, mantendo cache ao confirmar |
 | `lib/musicReview.ts`, `lib/musicReviewsLoader.ts` | Classificação de pendências/contagem e leitura compartilhada sem tratar desconhecido/falha como lista vazia |
-| `lib/uiSounds.ts` | Os sons da navegação do tema Playtrove, criados pelo Web Audio (sem arquivos); sem áudio no computador, ficam em silêncio |
+| `lib/uiSounds.ts` | Os sons da navegação da tela cheia, criados pelo Web Audio (sem arquivos), com o perfil de cada tema (`UI_SOUND_PROFILES`); sem áudio no computador, ficam em silêncio |
 | `lib/fullscreenNavigation.ts` | Restauração da seleção e máquina de input com neutralidade, sequência/geração, ações por borda, toque/segurar e repetição só direcional |
 | `lib/fullscreenSession.ts` | `FullscreenLaunchGuard`: serializa consulta de jogos abertos e lançamento, bloqueando cliques/ações concorrentes |
 | `lib/fullscreenText.ts` | Edição do texto virtual por seleção/cursor, exclusão e limite de tamanho |
@@ -220,15 +223,23 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 
 | Arquivo | O que faz |
 |---|---|
-| `FullscreenShell.tsx` | A tela cheia do Playtrove (`PlaytroveShell`) |
-| `PlaytroveShell.tsx` | Tema Playtrove: barra do topo (coleções, relógio, Buscar, Filtros, Avisos e Menu), biblioteca com 1 a 3 linhas de capas, detalhes, opções do jogo, busca, análise, conquistas (`FullscreenAchievements.tsx`), preferências, sons, a troca de ✕/○ e o mapa de botões próprio; o visual fica em `styles/fullscreenPlaytrove.css`, dentro de `.playtrove-fullscreen` |
-| `PlaytroveMenu.tsx` | Menu principal do tema Playtrove (modo janela, configurações, biblioteca, jogo aleatório, ajuda, minimizar, sair e energia) e a confirmação de energia |
+| `FullscreenShell.tsx` | A tela cheia: guarda a sessão e desenha o tema escolhido (Playtrove, Horizonte, Mosaico ou Painel) |
+| `useFullscreenSession.ts` | A sessão que os quatro temas dividem: coleção, busca, filtros, seleção, detalhes, painéis, Jogar, mudanças no jogo, sons, foco e o mapa de botões |
+| `FullscreenPanels.tsx` | Os painéis dos quatro temas (menu principal, busca, análise, filtros, avisos, ajuda, configurações, tema, troféus e opções do jogo), o aviso no canto e a tela de jogo em execução |
+| `FullscreenParts.tsx` | As peças pequenas do Horizonte, do Mosaico e do Painel: a logo do jogo (ou o nome), a marca DEV, as informações, o tempo jogado, os troféus e a nota |
+| `FullscreenThemePicker.tsx` | A escolha do tema, com um desenho pequeno de cada um (em Configurações → Geral e na tela cheia) |
+| `FullscreenTrophyOverview.tsx` | Os troféus de toda a biblioteca, do jogo mais adiantado ao menos; abrir um leva aos detalhes |
+| `horizonte/HorizonteShell.tsx` | Tema Horizonte (inspirado no PS5): a fileira no topo, a arte e o trailer no fundo, a logo com o Jogar, os cartões e os detalhes |
+| `mosaico/MosaicoShell.tsx` | Tema Mosaico (inspirado no Switch): as capas quadradas, os atalhos redondos, o fundo liso e os detalhes com o trailer num quadro |
+| `painel/PainelShell.tsx` | Tema Painel (inspirado no Xbox): a fileira com a escolhida maior, os blocos (Continuar jogando, Coleções, Conquistas e Estatísticas) e os detalhes com a coluna de ações |
+| `PlaytroveShell.tsx` | Tema Playtrove: barra do topo (coleções, relógio, Buscar, Filtros, Avisos e Menu), biblioteca com 1 a 3 linhas de capas e detalhes; o visual fica em `styles/fullscreenPlaytrove.css`, dentro de `.playtrove-fullscreen` |
+| `PlaytroveMenu.tsx` | Menu principal da tela cheia, o mesmo nos quatro temas (modo janela, tema, configurações, biblioteca, jogo aleatório, ajuda, minimizar, sair e energia) e a confirmação de energia |
 | `PlaytroveFilters.tsx` | Filtros (os mesmos do modo janela, de `lib/filters.ts`) e a ordem dos jogos, em botões de ligar e desligar |
 | `PlaytroveInfoPanels.tsx` | Ajuda (o que cada botão faz) e a lista de avisos da sessão |
-| `FullscreenClock.tsx` | O relógio da barra do topo, usado pelos dois temas |
+| `FullscreenClock.tsx` | O relógio da barra do topo, usado pelos quatro temas |
 | `FullscreenKeyboard.tsx` | Editor de busca/análise com teclado virtual e físico: maiúsculas, acentos, pontuação, espaço, cursor, exclusão e quebra de linha na análise; aplicar/salvar e cancelar preservam o rascunho separado |
-| `FullscreenPreferences.tsx` | Preferências da tela cheia em Configurações → Geral do modo janela |
-| `FullscreenMedia.tsx` | Player próprio usando `ThemeMusicPlayer`, preferências fullscreen, posição por contexto e conexão com `FullscreenMusicControls`; mantém a imagem de fundo e respeita foco, visibilidade e suspensão. Vídeo sem som somente quando a tela pede (`playVideo`) |
+| `FullscreenPreferences.tsx` | Preferências da tela cheia (o tema e as opções do tema escolhido), em Configurações → Geral do modo janela e nas configurações da própria tela cheia |
+| `FullscreenMedia.tsx` | A música tema (`ThemeMusicPlayer`, com as preferências da tela cheia) e o fundo do jogo; respeita foco, visibilidade e suspensão. Vídeo sem som somente quando a tela pede (`playVideo`); com `container`, o fundo vai para um quadro (o trailer do Mosaico) sem recomeçar a música |
 
 #### `src/renderer/pages`: as telas (abas)
 
@@ -302,7 +313,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 |---|---|
 | `GameList.tsx` | Lista de jogos da esquerda (ícone, nome e o troféu com o progresso nas conquistas) |
 | `GameIcon.tsx` | Ícone pequeno do jogo (lista, Lista e Kanban). Sem ícone, um pedaço da capa; sem os dois, o desenho padrão |
-| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa na proporção original acima do título (até 160 × 288 px), a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
+| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa 3:4 acima do título (160 px de largura), a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
 | `GameDetailsBackdrop.tsx` | Fundo exclusivo dos Detalhes: vídeo local automático em repetição sem som, preferência de movimento reduzido e imagem enquanto carrega ou falha. Pausa quando a janela fica oculta e encerra a mídia ao trocar de jogo ou sair dos Detalhes |
 
 **Biblioteca, modo Grade**
@@ -310,8 +321,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | Arquivo | O que faz |
 |---|---|
 | `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela; os cartões ficam alinhados pelo topo, com áreas de capa iguais. A altura total ainda varia quando títulos e status quebram linha |
-| `GameCard.tsx` | Card do jogo: capa inteira centralizada numa área 2:3 de até 384 px de altura, fundo neutro nas sobras e status numa faixa logo abaixo dessa área, título, tempo jogado e progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
-| `GameCover.tsx` | Capa inteira sem cortes, distorção ou preenchimento desfocado. `layout="grid"` reserva uma área 2:3 estável; o padrão acompanha a proporção natural nos Detalhes e no painel. Durante o carregamento, sem capa ou em erro, mostra o desenho padrão |
+| `GameCard.tsx` | Card do jogo: a capa 3:4 de até 288 × 384 px e o status numa faixa logo abaixo dela, título, tempo jogado e progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
+| `GameCover.tsx` | A capa num quadro 3:4 igual em todo o app, com a arte enchendo o quadro (`object-fit: cover`), sem distorção nem preenchimento desfocado. Durante o carregamento, sem capa ou em erro, mostra o desenho padrão no mesmo quadro |
 
 **Biblioteca, modo Lista**
 
@@ -329,7 +340,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 
 | Arquivo | O que faz |
 |---|---|
-| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa na proporção original (até 176 × 320 px), o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
+| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa 3:4 (176 px de largura), o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
 | `GameBackdrop.tsx` | A imagem de fundo do jogo, que vai sumindo para baixo (modo Detalhes e painel lateral); aceita a camada de vídeo dos Detalhes por baixo do degradê |
 | `GameActionsMenu.tsx` | O menu "Mais" de um jogo: avaliar (abre a `RatingDialog`), escrever ou editar a análise (abre a `ReviewDialog`), baixar metadados, marcar como favorito, escolher ou remover o vídeo de fundo e a música tema, reativar suas buscas automáticas e mostrar a ROM no Explorador |
 | `LibraryThemeMusic.tsx` | Um player preservado entre os quatro modos da Biblioteca, sem faixa de controles visível; acompanha foco e visibilidade da janela e jogos abertos, e libera o áudio na desmontagem |
@@ -354,7 +365,7 @@ O app em Tauri 2: a janela, o banco, os emuladores, a internet e tudo o que não
 | `build.rs` | Executa o `tauri_build` e observa `../package.json` para regenerar os recursos de versão do Windows quando a versão do aplicativo muda |
 | `tauri.conf.json` | Configuração do Tauri: nome, id, o Vite no endereço 1420 no desenvolvimento e `out/web` no build; o instalador (o padrão do Tauri, só para o usuário, em inglês e português, com os ganchos de `windows/hooks.nsh`) e a atualização (a chave pública que confere a assinatura e o endereço do `latest.json` da última release) |
 | `windows/hooks.nsh` | Os ganchos do instalador: a passagem de quem tem o app em Electron (até a 0.7.x). Antes de instalar, tira o app antigo sem perguntar nada (a biblioteca fica) e, quando veio do atualizador dele (sem telas), abre o app novo no fim |
-| `capabilities/default.json` | O que a janela principal e as janelas `game-overlay` e `game-launch-splash` podem pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar pela barra do topo |
+| `capabilities/default.json` | O que a janela principal pode pedir ao Tauri: ouvir os avisos do Rust e arrastar ou maximizar a janela pela barra do topo |
 | `messages.json` | Os textos que o Rust mostra, gerados dos dicionários pelo `npm run tauri:mensagens` (não editar à mão) |
 | `rustfmt.toml` | A formatação do Rust (`cargo fmt`) |
 | `src/main.rs` | Abre o app: a pasta de dados, o banco (com o aviso, se ele foi consertado), o idioma, os jogos de exemplo dos testes, os protocolos de imagens, vídeos e músicas, a janela e a lista dos comandos |

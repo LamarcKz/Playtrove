@@ -162,8 +162,8 @@
 }
 /* Library horizontal: hero livre e quadros quadrados, sem cortar as capas de outras proporções. */
 .playtrove-fullscreen .fs-game-info { padding-top: 12vh; }
-.playtrove-fullscreen .fs-cover [data-slot="game-cover"] { aspect-ratio: 1; max-width: 100% !important; --cover-max-height: 100vh; }
-.playtrove-fullscreen .fs-cover [data-slot="game-cover-image"] { width: 100%; height: 100%; object-fit: contain; }
+/* As capas seguem o quadro 3:4 do app inteiro (GameCover); aqui só ocupam toda a largura do botão. */
+.playtrove-fullscreen .fs-cover [data-slot="game-cover"] { max-width: 100% !important; --cover-max-height: 100vh; }
 .playtrove-fullscreen .fs-cover [data-slot="game-cover"][data-state="loaded"] { background: var(--fs-surface); }
 .playtrove-fullscreen .fs-rail-controls { color: var(--fs-muted); padding: .6em 6vw; font-size: .8em; }
 .playtrove-fullscreen .fs-cover-rail { padding-top: .7em; padding-bottom: .6em; }

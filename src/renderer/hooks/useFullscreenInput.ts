@@ -68,7 +68,9 @@ export function useFullscreenActive() {
 export function moveFullscreenFocus(scope: HTMLElement, direction: FullscreenAction) {
   const candidates = Array.from(scope.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), textarea:not(:disabled), [tabindex='0']")).filter((node) => node.getClientRects().length > 0)
   const current = document.activeElement as HTMLElement
-  if (!scope.contains(current)) { candidates[0]?.focus(); return }
+  // Foco fora da tela (ex.: depois de ir ao modo janela e voltar): volta ao item escolhido, e não ao primeiro botão
+  // do topo, que faria a seta para baixo parecer subir.
+  if (!scope.contains(current)) { (candidates.find((node) => node.matches("[data-fs-default]")) ?? candidates[0])?.focus(); return }
   if (current.matches("[data-fs-scroll]") && scrollFullscreenText(current, direction)) return
   const from = current.getBoundingClientRect()
   const horizontal = direction === "left" || direction === "right"
@@ -87,6 +89,10 @@ export function moveFullscreenFocus(scope: HTMLElement, direction: FullscreenAct
     const score = forward + Math.abs(horizontal ? dy : dx) * 4
     if (score < distance) { distance = score; best = candidate }
   }
+  // Entrar numa fileira de capas (`data-fs-rail`) por cima ou por baixo volta à capa escolhida, como nos consoles,
+  // em vez de cair na capa mais perto e trocar o jogo.
+  const rail = !horizontal ? best?.closest("[data-fs-rail]") : null
+  if (rail && !rail.contains(current)) best = rail.querySelector<HTMLElement>("[aria-current='true']") ?? best
   best?.focus()
   best?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "auto" })
 }

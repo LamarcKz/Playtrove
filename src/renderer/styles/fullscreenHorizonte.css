@@ -1,0 +1,92 @@
+/*
+ * Horizonte (inspirado na tela inicial do PS5): azul bem escuro, quase preto, foco branco brilhante, a fileira de
+ * jogos no topo, a arte enchendo a tela e os cartões de vidro embaixo. Tudo fica dentro de .horizonte-fullscreen.
+ */
+.horizonte-fullscreen {
+  --fs-background: oklch(0.13 0.035 262);
+  --fs-surface: oklch(0.24 0.04 262 / 0.55);
+  /* O vidro dos cards e dos painéis: quase opaco, para o fundo não aparecer através dele. */
+  --fs-glass: oklch(0.17 0.04 262 / 0.95);
+  --fs-foreground: oklch(0.98 0 0);
+  --fs-muted: oklch(0.78 0.02 262);
+  --fs-accent: oklch(0.98 0 0);
+  --fs-on-accent: oklch(0.15 0.04 262);
+  --fs-focus: oklch(0.98 0 0);
+  --fs-border: oklch(0.85 0.03 262 / 0.18);
+  --fs-shadow: oklch(0 0 0 / 0.6);
+  --fs-scrim: oklch(0.08 0.03 262 / 0.82);
+  --fs-radius: 1.1rem;
+  --fs-control-radius: 2rem;
+}
+.horizonte-fullscreen .fs-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--fs-background) 2%, transparent 60%), linear-gradient(90deg, var(--fs-scrim) 5%, transparent 70%); }
+.horizonte-fullscreen .hz-main { position: relative; height: 100%; display: flex; flex-direction: column; }
+.horizonte-fullscreen .hz-top { display: flex; align-items: center; gap: 1.5vw; padding: 2.2vh 4vw .5vh; }
+.horizonte-fullscreen .hz-collections { display: flex; gap: .2em; }
+.horizonte-fullscreen .hz-collections button { background: transparent; font-weight: 600; color: var(--fs-muted); }
+.horizonte-fullscreen .hz-collections button[aria-pressed="true"] { border-color: transparent; color: var(--fs-foreground); text-decoration: underline 2px; text-underline-offset: .5em; }
+.horizonte-fullscreen .hz-tools { display: flex; align-items: center; gap: .3em; margin-left: auto; }
+.horizonte-fullscreen .hz-tools > button { padding: .6em; border-radius: 50%; background: transparent; }
+.horizonte-fullscreen .hz-badged { position: relative; }
+.horizonte-fullscreen .hz-clock { font-size: 1.05em; font-weight: 600; font-variant-numeric: tabular-nums; margin: 0 .4em; }
+.horizonte-fullscreen .hz-eyebrow { display: flex; align-items: center; gap: .4em; color: var(--fs-muted); font-size: .9em; letter-spacing: .04em; text-shadow: 0 2px 10px var(--fs-shadow); }
+.horizonte-fullscreen .hz-favorite { fill: currentColor; width: .9em !important; height: .9em !important; color: var(--fs-foreground); }
+.horizonte-fullscreen .hz-logo { font-size: clamp(2rem, 3.8vw, 4.6rem); font-weight: 700; line-height: 1.05; max-width: min(46vw, 40rem); height: auto; max-height: 20vh; text-shadow: 0 3px 18px var(--fs-shadow); }
+.horizonte-fullscreen .hz-logo > img { max-height: 20vh; filter: drop-shadow(0 4px 16px var(--fs-shadow)); }
+.horizonte-fullscreen .hz-actions { display: flex; gap: .6em; flex-wrap: wrap; }
+.horizonte-fullscreen .hz-actions button { padding: .7em; border-radius: 50%; background: var(--fs-surface); backdrop-filter: blur(14px); }
+.horizonte-fullscreen .hz-actions .hz-play { padding: .7em 2.6em; border-radius: var(--fs-control-radius); color: var(--fs-on-accent); background: var(--fs-accent); font-weight: 700; font-size: 1.05em; }
+.horizonte-fullscreen .hz-actions .hz-play:hover { background: var(--fs-muted); }
+
+/* Início: a fileira no topo (a capa em foco cresce e mostra o nome ao lado), o jogo e os cartões. */
+.horizonte-fullscreen .hz-home { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 4vw 3.5vh; }
+.horizonte-fullscreen .hz-rail-heading { display: flex; align-items: center; gap: 1em; min-height: 2.2em; color: var(--fs-muted); font-size: .8em; }
+.horizonte-fullscreen .hz-rail { display: flex; align-items: center; gap: .9em; overflow-x: auto; padding: .7em .4em 1em; scroll-padding-inline: .4em; scrollbar-width: none; }
+.horizonte-fullscreen .hz-tile { position: relative; flex-shrink: 0; width: clamp(4.2rem, 6.2vw, 7.4rem); padding: 0; border-radius: .9rem; background: transparent; }
+/* A capa escolhida cresce e mostra o nome; o anel branco forte é só onde o foco está. */
+.horizonte-fullscreen .hz-tile { transition: width .25s ease, margin .25s ease, box-shadow .2s, transform .2s; }
+.horizonte-fullscreen .hz-tile[aria-current="true"] { width: clamp(6.5rem, 9.5vw, 11.5rem); margin-right: min(17em, 24vw); box-shadow: 0 .6em 2em var(--fs-shadow); }
+.horizonte-fullscreen .hz-tile:focus { outline: none; box-shadow: 0 0 0 3px var(--fs-focus), 0 0 1.4em oklch(1 0 0 / 0.35), 0 .6em 2em var(--fs-shadow); }
+.horizonte-fullscreen .hz-card { transition: border-color .2s, transform .2s; }
+.horizonte-fullscreen .hz-card:focus-within { border-color: var(--fs-focus); }
+.horizonte-fullscreen .hz-tile-title { position: absolute; left: calc(100% + 1em); top: 50%; translate: 0 -50%; width: min(16em, 23vw); font-size: 1.05em; font-weight: 600; text-align: left; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; text-shadow: 0 2px 10px var(--fs-shadow); }
+.horizonte-fullscreen .hz-hero { margin-top: auto; display: flex; flex-direction: column; gap: 1.2vh; padding-bottom: 2.6vh; }
+.horizonte-fullscreen .hz-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2vw; }
+.horizonte-fullscreen .hz-card { display: flex; flex-direction: column; gap: .5em; min-width: 0; max-height: 24vh; overflow: hidden; padding: 1em 1.2em; border: 1px solid var(--fs-border); border-radius: var(--fs-radius); background: var(--fs-glass); backdrop-filter: blur(32px) saturate(1.2); }
+.horizonte-fullscreen .hz-card h2 { display: flex; align-items: center; gap: .5em; font-size: .85em; font-weight: 600; color: var(--fs-muted); }
+.horizonte-fullscreen .hz-card dl { display: flex; flex-wrap: wrap; gap: .6em 2em; }
+.horizonte-fullscreen .hz-card > p { font-size: .95em; }
+.horizonte-fullscreen .hz-card > button { width: fit-content; margin-top: auto; padding: .4em .9em; font-size: .85em; }
+
+/* Detalhes: a arte cheia, a logo e o Jogar no alto; os cartões e a descrição rolando embaixo. */
+.horizonte-fullscreen .hz-details { flex: 1; min-height: 0; overflow-y: auto; padding: 0 4vw 4vh; scrollbar-width: none; }
+.horizonte-fullscreen .hz-details-hero { min-height: 58vh; display: flex; flex-direction: column; justify-content: flex-end; gap: 1.4vh; padding-bottom: 3vh; }
+.horizonte-fullscreen .hz-back { width: fit-content; margin-bottom: auto; padding: .35em .8em; background: var(--fs-surface); backdrop-filter: blur(14px); }
+.horizonte-fullscreen .hz-details-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.2vw; }
+.horizonte-fullscreen .hz-details-cards .hz-card { max-height: none; }
+.horizonte-fullscreen .hz-card-wide { grid-column: 1 / -1; }
+.horizonte-fullscreen .hz-card-wide dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(12em, 1fr)); }
+.horizonte-fullscreen .hz-description { margin-top: 1.2vw; max-height: 34vh; overflow-y: auto; padding: 1.2em 1.4em; border: 1px solid var(--fs-border); border-radius: var(--fs-radius); background: var(--fs-glass); backdrop-filter: blur(32px) saturate(1.2); }
+.horizonte-fullscreen .hz-description h2 { font-weight: 600; margin-bottom: .5em; }
+.horizonte-fullscreen .hz-description p { color: var(--fs-muted); font-size: .92em; line-height: 1.6; overflow-wrap: anywhere; }
+.horizonte-fullscreen .hz-status { padding: .5em 4vw; font-size: .8em; color: var(--fs-muted); }
+@media (max-height: 800px) {
+  .horizonte-fullscreen .hz-card { padding: .7em .9em; font-size: .92em; }
+  .horizonte-fullscreen .hz-logo, .horizonte-fullscreen .hz-logo > img { max-height: 15vh; }
+}
+
+/* Transições, como no console: a arte nova surge devagar, o jogo e os cartões sobem ao trocar de jogo, os detalhes e
+ * a volta ao início entram deslizando e os painéis aparecem crescendo. Com movimento reduzido, nada disso toca. */
+@keyframes hz-fade { from { opacity: 0; } }
+@keyframes hz-rise { from { opacity: 0; translate: 0 1.2em; } }
+@keyframes hz-slide { from { opacity: 0; translate: 0 3vh; } }
+@keyframes hz-pop { from { opacity: 0; scale: .96; } }
+.horizonte-fullscreen .fs-background > img { animation: hz-fade .7s ease-out; }
+.horizonte-fullscreen .hz-hero { animation: hz-rise .45s cubic-bezier(.2, .7, .2, 1); }
+.horizonte-fullscreen .hz-cards > .hz-card { animation: hz-rise .5s cubic-bezier(.2, .7, .2, 1) backwards; }
+.horizonte-fullscreen .hz-cards > .hz-card:nth-child(2) { animation-delay: .06s; }
+.horizonte-fullscreen .hz-cards > .hz-card:nth-child(3) { animation-delay: .12s; }
+.horizonte-fullscreen :is(.hz-home, .hz-details) { animation: hz-slide .4s cubic-bezier(.2, .7, .2, 1); }
+.horizonte-fullscreen .hz-details-cards > * { animation: hz-rise .5s cubic-bezier(.2, .7, .2, 1) .1s backwards; }
+.horizonte-fullscreen .fs-modal-shade { animation: hz-fade .2s ease-out; }
+.horizonte-fullscreen .fs-modal { animation: hz-pop .25s cubic-bezier(.2, .7, .2, 1); }
+.horizonte-fullscreen .hz-tile:focus { transform: scale(1.04); }

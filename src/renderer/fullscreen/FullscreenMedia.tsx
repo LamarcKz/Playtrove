@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 import type { Game } from "@shared/types"
 import { ThemeMusicPlayer, type ThemeMusicPlayback } from "@/lib/themeMusicPlayer"
 import { useFullscreenConfig } from "@/hooks/useFullscreen"
 
-/** A música tema e o fundo do jogo da tela cheia; o trailer toca sem som quando `playVideo`, depois de `videoDelay` ms. */
-export function FullscreenMedia({ game, playVideo, videoDelay = 600, suspended }: { game: Game | undefined; playVideo: boolean; videoDelay?: number; suspended: boolean }) {
+/**
+ * A música tema e o fundo do jogo da tela cheia; o trailer toca sem som quando `playVideo`, depois de `videoDelay` ms.
+ * Com `container`, o fundo vai para dentro desse elemento (o quadro do trailer do Mosaico) e, com `null`, não aparece;
+ * a música continua no mesmo lugar, sem recomeçar.
+ */
+export function FullscreenMedia({ game, playVideo, videoDelay = 600, suspended, container }: { game: Game | undefined; playVideo: boolean; videoDelay?: number; suspended: boolean; container?: Element | null }) {
   const audio = useRef<HTMLAudioElement>(null)
   const player = useRef<ThemeMusicPlayer | null>(null)
   const playback = useRef<ThemeMusicPlayback>({ playing: false, blocked: false, failed: false })
@@ -19,7 +24,8 @@ export function FullscreenMedia({ game, playVideo, videoDelay = 600, suspended }
     return () => { document.removeEventListener("keydown", retry); document.removeEventListener("pointerdown", retry); player.current = null; instance.dispose() }
   }, [])
   useEffect(() => { player.current?.update({ url, enabled: config?.musicPlayback ?? false, volume: config?.musicVolume ?? 20, suspended }) }, [url, config?.musicPlayback, config?.musicVolume, suspended])
-  return <><audio ref={audio} data-fullscreen-music loop preload="none" onError={() => player.current?.reportError()} />{game && <FullscreenBackground key={`${game.id}:${game.backgroundUrl}:${game.backgroundVideoUrl}`} game={game} playVideo={playVideo} suspended={suspended} delay={videoDelay} />}</>
+  const background = game && container !== null ? <FullscreenBackground key={`${game.id}:${game.backgroundUrl}:${game.backgroundVideoUrl}`} game={game} playVideo={playVideo} suspended={suspended} delay={videoDelay} /> : null
+  return <><audio ref={audio} data-fullscreen-music loop preload="none" onError={() => player.current?.reportError()} />{container && background ? createPortal(background, container) : background}</>
 }
 
 function FullscreenBackground({ game, playVideo, suspended, delay }: { game: Game; playVideo: boolean; suspended: boolean; delay: number }) {

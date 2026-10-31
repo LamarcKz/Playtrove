@@ -199,8 +199,9 @@ test("jogos novos de uma pasta de ROMs já ganham os metadados sozinhos", async 
   await navigate("Biblioteca")
   await gameButton("Salto Estelar").click()
   await expect(page.getByText("Um herói, um salto e uma cidade inteira para atravessar.")).toBeVisible()
-  // A capa veio do libretro-thumbnails, pelo nome exato da ROM.
-  expect(server.requests.some((request) => request.includes("/libretro/"))).toBe(true)
+  // A capa veio do SteamGridDB (a desenhada em pé, como no Playnite): a caixa do libretro-thumbnails nem foi pedida.
+  expect(server.requests.some((request) => request.includes("/sgdb/grids/"))).toBe(true)
+  expect(server.requests.some((request) => request.includes("/libretro/"))).toBe(false)
   await expectLoaded(page.getByRole("img", { name: "Capa de Salto Estelar" }).locator("img"), "cover")
   await expectLoaded(gameButton("Salto Estelar").locator("img"), "cover")
 })

@@ -35,7 +35,7 @@ export function GameCard({ game, selected, onSelect }: GameCardProps) {
           selected && "ring-2 ring-primary"
         )}
       >
-        <GameCover title={game.title} src={game.coverUrl} layout="grid" className="mx-auto w-full rounded-none" />
+        <GameCover title={game.title} src={game.coverUrl} className="mx-auto w-full rounded-none" />
         {/* Faixa do status: logo embaixo da capa, sem cobrir a imagem. */}
         <span className="block bg-cover-label px-2.5 py-1.5 text-xs font-medium text-cover-label-foreground [overflow-wrap:anywhere]">
           {statusName(game.statusId)}
