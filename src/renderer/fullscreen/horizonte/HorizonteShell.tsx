@@ -55,7 +55,7 @@ export function HorizonteShell({ session, onOpenEmulators }: FullscreenThemeProp
           <div className="hz-rail" data-fs-rail>{visible.map((item) => <button type="button" key={item.id} data-testid={`fullscreen-game-${item.id}`} data-fs-default={item.id === resolvedId ? "" : undefined} aria-label={item.title} aria-current={item.id === resolvedId ? "true" : undefined} onFocus={() => setSelectedId(item.id)} onMouseEnter={() => setSelectedId(item.id)} onClick={() => session.openDetails(item.id)} className="hz-tile"><GameCover title={item.title} src={item.coverUrl} layout="grid" />{item.id === resolvedId && <span className="hz-tile-title">{item.title}</span>}</button>)}</div>
           {visible.length === 0 && <div className="fs-empty"><Gamepad2 /><p>{games.length ? t.library.noResultsTitle : t.library.emptyDescription}</p>{!games.length && <button type="button" onClick={onOpenEmulators}>{t.library.goToEmulators}</button>}</div>}
           {game && <>
-            <div className="hz-hero">
+            <div className="hz-hero" key={`hero-${game.id}`}>
               <FullscreenGameLogo game={game} className="hz-logo" />
               <p className="hz-eyebrow">{[game.platform, status].filter(Boolean).join(" · ")}{game.favorite && <Star className="hz-favorite" />}</p>
               <div className="hz-actions">
@@ -63,7 +63,7 @@ export function HorizonteShell({ session, onOpenEmulators }: FullscreenThemeProp
                 <button type="button" aria-label={t.fullscreen.options} onClick={() => session.openDetails(game.id)}><MoreHorizontal /></button>
               </div>
             </div>
-            <div className="hz-cards">
+            <div className="hz-cards" key={`cards-${game.id}`}>
               <section className="hz-card"><h2><Trophy />{t.fields.achievements}</h2><FullscreenTrophyText game={game} /></section>
               <section className="hz-card"><h2><Clock3 />{t.fields.playtime}</h2><FullscreenPlaytime game={game} /></section>
               <section className="hz-card"><h2><Star />{t.fullscreen.review}</h2><FullscreenRatingText game={game} /></section>

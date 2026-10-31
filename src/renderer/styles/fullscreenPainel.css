@@ -35,7 +35,12 @@
 .painel-fullscreen .pn-rail-heading span { font-size: .8em; color: var(--fs-muted); }
 .painel-fullscreen .pn-rail { display: flex; align-items: flex-end; gap: .7em; overflow-x: auto; padding: .8em .3em; scroll-padding-inline: .3em; scrollbar-width: none; }
 .painel-fullscreen .pn-tile { flex-shrink: 0; width: clamp(5.5rem, min(8.5vw, 15vh), 10rem); padding: 0; border-radius: var(--fs-radius); background: var(--fs-surface); transition: width .15s; }
-.painel-fullscreen .pn-tile[aria-current="true"] { width: clamp(8.5rem, min(14vw, 25vh), 16rem); outline: 3px solid var(--fs-focus); outline-offset: 3px; }
+/* A capa escolhida fica maior e marcada de leve; o verde forte é só onde o foco está. */
+.painel-fullscreen .pn-tile[aria-current="true"] { width: clamp(8.5rem, min(14vw, 25vh), 16rem); outline: 2px solid var(--fs-muted); outline-offset: 3px; }
+.painel-fullscreen .pn-tile:focus { outline: 3px solid var(--fs-focus); outline-offset: 3px; }
+/* O bloco com o foco dentro também se destaca, como os blocos da tela do Xbox. */
+.painel-fullscreen .pn-block { transition: border-color .15s, transform .15s; }
+.painel-fullscreen .pn-block:focus-within { border-color: var(--fs-focus); transform: translateY(-.2em); }
 .painel-fullscreen .pn-selected { display: flex; align-items: baseline; flex-wrap: wrap; gap: .3em 1em; margin-top: .6vh; font-size: clamp(1.4rem, 2.4vw, 2.6rem); font-weight: 700; text-shadow: 0 3px 14px var(--fs-shadow); overflow-wrap: anywhere; }
 .painel-fullscreen .pn-selected > span { font-size: .45em; font-weight: 500; color: var(--fs-muted); }
 .painel-fullscreen .pn-blocks { margin-top: auto; display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: .8vw; }

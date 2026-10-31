@@ -21,7 +21,9 @@
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) button:hover { background: var(--fs-border); }
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) button:disabled { cursor: default; opacity: .45; }
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) button[aria-pressed="true"] { border-color: var(--fs-focus); }
-:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(button, [tabindex="0"], textarea, input):focus-visible { outline: 3px solid var(--fs-focus); outline-offset: 3px; }
+/* :focus, e não :focus-visible: o foco movido pelo controle (por código) nem sempre acende o :focus-visible, e a TV
+ * precisa mostrar onde ele está. */
+:is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(button, [tabindex="0"], textarea, input):focus { outline: 3px solid var(--fs-focus); outline-offset: 3px; }
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) svg { width: 1.2em; height: 1.2em; flex-shrink: 0; }
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) dt { color: var(--fs-muted); font-size: .75em; margin-bottom: .15em; }
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) dd { font-weight: 550; overflow-wrap: anywhere; }
@@ -96,5 +98,5 @@
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-trophy-games > button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) .fs-trophy-games > button > :last-child { grid-column: 1 / -1; }
 @media (prefers-reduced-motion: reduce) {
-  :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(*, *::before, *::after) { transition: none !important; scroll-behavior: auto !important; }
+  :is(.horizonte-fullscreen, .mosaico-fullscreen, .painel-fullscreen) :is(*, *::before, *::after) { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }

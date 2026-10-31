@@ -28,6 +28,8 @@ async function playableGame({ app, page }: TestApp) {
 
 /** Nada da tela passa da janela (no robô, 1024×768): nem a página rola para o lado, nem os blocos saem embaixo. */
 async function fitsTheWindow(page: Page, blocks: Locator) {
+  // Mede no lugar final: as animações de entrada (no Horizonte) começam um pouco abaixo.
+  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {}))))
   const size = await page.evaluate(() => ({ width: innerWidth, height: innerHeight, scroll: document.documentElement.scrollWidth }))
   expect(size.scroll).toBeLessThanOrEqual(size.width)
   for (const box of await blocks.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().toJSON() as DOMRect))) {
