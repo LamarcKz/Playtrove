@@ -145,3 +145,39 @@ test("Mosaico: os atalhos redondos abrem a busca, os troféus e a energia", asyn
     removeDataDir(dataDir)
   }
 })
+
+test("Mosaico: descer até os atalhos e subir de volta à mesma capa, também depois de ir ao modo janela", async () => {
+  const { app, page, dataDir } = await launchApp()
+  try {
+    await page.evaluate(() => window.api.fullscreen.setConfig({ theme: "mosaico" }))
+    await app.focus()
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    const library = page.getByTestId("fullscreen-library")
+    const shortcuts = page.getByRole("navigation", { name: "Atalhos" })
+    const current = library.locator("[aria-current='true']")
+    await expect(current).toBeFocused()
+    for (let step = 0; step < 3; step++) await page.keyboard.press("ArrowRight")
+    const chosen = await current.getAttribute("aria-label")
+    await page.keyboard.press("ArrowDown")
+    await expect(shortcuts.locator(":focus")).toHaveCount(1)
+    // Subir volta à capa escolhida, e não à que estiver mais perto do atalho.
+    await page.keyboard.press("ArrowUp")
+    await expect(current).toBeFocused()
+    await expect(current).toHaveAttribute("aria-label", chosen ?? "")
+    // Modo janela e de volta; mesmo com o foco perdido, a seta para baixo leva aos atalhos, e não ao topo.
+    await page.keyboard.press("F11")
+    await expect(page.getByTestId("fullscreen-shell")).toBeHidden()
+    await page.getByRole("button", { name: "Tela cheia", exact: true }).click()
+    await expect(current).toBeFocused()
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur())
+    await page.keyboard.press("ArrowDown")
+    await expect(current).toBeFocused()
+    await page.keyboard.press("ArrowDown")
+    await expect(shortcuts.locator(":focus")).toHaveCount(1)
+    // A tela inteira não rola: o topo continua no lugar.
+    expect(await page.locator(".mosaico-fullscreen").evaluate((node) => node.scrollTop)).toBe(0)
+  } finally {
+    await app.close()
+    removeDataDir(dataDir)
+  }
+})

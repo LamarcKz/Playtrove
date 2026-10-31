@@ -9,7 +9,8 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  overflow: hidden;
+  /* clip, e não hidden: o foco (scrollIntoView) não consegue rolar a tela inteira e esconder o topo ou os atalhos. */
+  overflow: clip;
   color: var(--fs-foreground);
   background: var(--fs-background);
   font-size: clamp(13px, 1.05vw, 20px);
