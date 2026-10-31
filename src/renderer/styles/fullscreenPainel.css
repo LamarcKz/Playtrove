@@ -5,7 +5,8 @@
 .painel-fullscreen {
   --fs-background: oklch(0.12 0.005 150);
   --fs-surface: oklch(0.22 0.01 150 / 0.72);
-  --fs-glass: oklch(0.17 0.01 150 / 0.9);
+  /* O vidro dos blocos e dos painéis: quase opaco, para o fundo não aparecer através dele. */
+  --fs-glass: oklch(0.15 0.01 150 / 0.96);
   --fs-foreground: oklch(0.97 0 0);
   --fs-muted: oklch(0.76 0.01 150);
   --fs-accent: oklch(0.72 0.2 145);
@@ -44,7 +45,7 @@
 .painel-fullscreen .pn-selected { display: flex; align-items: baseline; flex-wrap: wrap; gap: .3em 1em; margin-top: .6vh; font-size: clamp(1.4rem, 2.4vw, 2.6rem); font-weight: 700; text-shadow: 0 3px 14px var(--fs-shadow); overflow-wrap: anywhere; }
 .painel-fullscreen .pn-selected > span { font-size: .45em; font-weight: 500; color: var(--fs-muted); }
 .painel-fullscreen .pn-blocks { margin-top: auto; display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: .8vw; }
-.painel-fullscreen .pn-block { display: flex; flex-direction: column; gap: .5em; min-width: 0; min-height: min(24vh, 13rem); max-height: 30vh; overflow: hidden; padding: 1em 1.1em; border: 1px solid var(--fs-border); border-radius: var(--fs-radius); background: var(--fs-glass); backdrop-filter: blur(16px); }
+.painel-fullscreen .pn-block { display: flex; flex-direction: column; gap: .5em; min-width: 0; min-height: min(24vh, 13rem); max-height: 30vh; overflow: hidden; padding: 1em 1.1em; border: 1px solid var(--fs-border); border-radius: var(--fs-radius); background: var(--fs-glass); backdrop-filter: blur(32px) saturate(1.2); }
 .painel-fullscreen .pn-block h2 { display: flex; align-items: center; gap: .5em; font-size: .8em; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--fs-muted); }
 .painel-fullscreen .pn-block h2 svg { color: var(--fs-accent); }
 .painel-fullscreen .pn-block-title { font-size: 1.05em; font-weight: 650; overflow-wrap: anywhere; }
