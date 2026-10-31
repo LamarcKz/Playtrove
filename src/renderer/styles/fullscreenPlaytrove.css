@@ -54,7 +54,7 @@
 .playtrove-fullscreen .fs-rail-heading > span { color: var(--fs-muted); font-size: .85em; }
 .playtrove-fullscreen .fs-rail-heading button { margin-left: auto; }
 .playtrove-fullscreen .fs-cover-rail { display: flex; gap: 1.35vw; overflow-x: auto; padding: 1em 6vw 1em; scroll-padding-inline: 6vw; scrollbar-width: thin; }
-.playtrove-fullscreen .fs-cover { width: clamp(8rem, 13vw, 15rem); flex-shrink: 0; padding: .3em; display: flex; flex-direction: column; gap: .6em; text-align: left; background: var(--fs-surface); }
+.playtrove-fullscreen .fs-cover { width: clamp(10rem, 17vw, 20rem); flex-shrink: 0; padding: .3em; display: flex; flex-direction: column; gap: .6em; text-align: left; background: var(--fs-surface); }
 .playtrove-fullscreen .fs-cover [data-slot="game-cover"] { width: 100%; max-width: 100%; border-radius: .25rem; }
 .playtrove-fullscreen .fs-cover span { font-size: .8em; padding: 0 .35em .25em; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .playtrove-fullscreen .fs-cover[aria-current="true"] { outline: 3px solid var(--fs-focus); outline-offset: 3px; transform: translateY(-.35em); }
@@ -162,7 +162,7 @@
 }
 /* Library horizontal: hero livre e quadros quadrados, sem cortar as capas de outras proporções. */
 .playtrove-fullscreen .fs-game-info { padding-top: 12vh; }
-/* As capas seguem o quadro 3:4 do app inteiro (GameCover); aqui só ocupam toda a largura do botão. */
+/* As capas seguem o quadro 4:3 do app inteiro (GameCover); aqui só ocupam toda a largura do botão. */
 .playtrove-fullscreen .fs-cover [data-slot="game-cover"] { max-width: 100% !important; --cover-max-height: 100vh; }
 .playtrove-fullscreen .fs-cover [data-slot="game-cover"][data-state="loaded"] { background: var(--fs-surface); }
 .playtrove-fullscreen .fs-rail-controls { color: var(--fs-muted); padding: .6em 6vw; font-size: .8em; }
@@ -187,8 +187,8 @@
 .playtrove-fullscreen .fs-cover-rail[data-rows="1"] { grid-template-rows: auto; }
 .playtrove-fullscreen .fs-cover-rail[data-rows="2"] { grid-template-rows: repeat(2, auto); }
 .playtrove-fullscreen .fs-cover-rail[data-rows="3"] { grid-template-rows: repeat(3, auto); }
-.playtrove-fullscreen .fs-cover-rail[data-rows="2"] .fs-cover { width: clamp(6.5rem, 10vw, 12rem); }
-.playtrove-fullscreen .fs-cover-rail[data-rows="3"] .fs-cover { width: clamp(5.5rem, 7.5vw, 9.5rem); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="2"] .fs-cover { width: clamp(8.5rem, 13vw, 16rem); }
+.playtrove-fullscreen .fs-cover-rail[data-rows="3"] .fs-cover { width: clamp(7rem, 10vw, 12.5rem); }
 .playtrove-fullscreen .fs-library:has(.fs-cover-rail[data-rows="2"]) .fs-game-info, .playtrove-fullscreen .fs-library:has(.fs-cover-rail[data-rows="3"]) .fs-game-info { padding-top: 4vh; }
 /* Menu principal e a confirmação de energia. */
 .playtrove-fullscreen .fs-menu h3, .playtrove-fullscreen .fs-filters h3 { margin: 1.2em 0 .5em; font-size: .85em; text-transform: uppercase; letter-spacing: .12em; color: var(--fs-muted); }

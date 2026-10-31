@@ -10,11 +10,11 @@ interface GameCoverProps {
   className?: string
 }
 
-/** A proporção de todas as capas do app (modo janela e tela cheia): em pé, 3:4. */
-const COVER_RATIO = 3 / 4
+/** A proporção de todas as capas do app (modo janela e tela cheia): deitada, 4:3. */
+const COVER_RATIO = 4 / 3
 
 /**
- * A capa num quadro 3:4, igual em todo o app, com a arte enchendo o quadro (uma arte de outra proporção perde um
+ * A capa num quadro 4:3, igual em todo o app, com a arte enchendo o quadro (uma arte de outra proporção perde um
  * pouco das bordas, sem sobras nem fundo desfocado). Uma nova URL reinicia o carregamento da imagem.
  */
 export function GameCover({ title, src, className }: GameCoverProps) {
@@ -36,7 +36,7 @@ function CoverImage({ label, src, className }: Omit<GameCoverProps, "title"> & {
       data-slot="game-cover"
       data-state={image}
       className={cn(
-        "relative flex aspect-3/4 w-full items-center justify-center overflow-hidden rounded-lg",
+        "relative flex aspect-4/3 w-full items-center justify-center overflow-hidden rounded-lg",
         loaded ? "bg-card" : "bg-linear-to-br from-cover-start to-cover-end",
         className
       )}

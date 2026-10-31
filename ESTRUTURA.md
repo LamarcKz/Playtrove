@@ -139,7 +139,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | `tests/app/layout.spec.ts` | Confere as quatro abas de conteúdo em português e inglês, pelas dimensões e pelo DOM (sem capturas): largura útil, colunas, ausência de transbordamento, ações alcançáveis e formulários preservados ao redimensionar |
 | `tests/app/fullscreen.spec.ts` | Tema Playtrove em dados temporários: estado nativo, biblioteca/detalhes, preferências, busca e teclado, dados compartilhados, foco/input sintético, mídia e execução simulada. Não usa HID nem emuladores reais |
 | `tests/app/fullscreenThemes.spec.ts` | Horizonte, Mosaico e Painel: início, setas, detalhes, Jogar (pela ponte de mentira) e voltar, sem passar da janela; a troca de tema pelo menu e em Configurações, mantendo o jogo escolhido; os atalhos do Mosaico |
-| `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): o quadro 3:4 com a arte enchendo o quadro na Grade, nos Detalhes e no painel lateral, o status alinhado, os limites de tamanho e o quadro estável durante o carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
+| `tests/app/covers.spec.ts` | Confere as capas pelas dimensões e pelo DOM (sem capturas): o quadro 4:3 com a arte enchendo o quadro na Grade, nos Detalhes e no painel lateral, o status alinhado, os limites de tamanho e o quadro estável durante o carregamento (com a imagem retida pelo app até o teste liberar), sem imagem ou em erro |
 | `tests/app/backgroundVideo.spec.ts` | Confere seleção, importação, cancelamento, reprodução sem som, pausa, troca de jogo/modo, persistência, remoção, falha e movimento reduzido com WebM sintético e dados temporários |
 | `tests/app/automaticTrailers.spec.ts` | Confere trailer automático, prioridade manual, remoção/desativação, reativação, falha e busca de trailers pendentes em jogos antigos, usando MP4 sintético servido localmente; não acessa YouTube nem prepara ou executa ferramentas externas |
 | `tests/app/themeMusic.spec.ts` | Confere importação, cópia e persistência, os quatro modos, foco, pausa e preferências, busca automática, prioridade manual, remoção/reativação e fila compartilhada; usa WAV/M4A sintéticos, servidor local e dados temporários, sem YouTube nem ferramentas externas |
@@ -313,7 +313,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 |---|---|
 | `GameList.tsx` | Lista de jogos da esquerda (ícone, nome e o troféu com o progresso nas conquistas) |
 | `GameIcon.tsx` | Ícone pequeno do jogo (lista, Lista e Kanban). Sem ícone, um pedaço da capa; sem os dois, o desenho padrão |
-| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa 3:4 acima do título (160 px de largura), a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
+| `GameDetailsView.tsx` | Área grande da direita: arte de fundo, a capa 4:3 acima do título (160 px de largura), a estrela de favorito, os botões "Jogar" e "Mais" com a nota e a dificuldade ao lado, "Detalhes" e, na coluna da direita, "Minha análise" em cima da "Descrição". Nos jogos com conquistas, o cartão delas fica à direita do título |
 | `GameDetailsBackdrop.tsx` | Fundo exclusivo dos Detalhes: vídeo local automático em repetição sem som, preferência de movimento reduzido e imagem enquanto carrega ou falha. Pausa quando a janela fica oculta e encerra a mídia ao trocar de jogo ou sair dos Detalhes |
 
 **Biblioteca, modo Grade**
@@ -321,8 +321,8 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 | Arquivo | O que faz |
 |---|---|
 | `GameGrid.tsx` | Grid responsivo: as colunas se ajustam à largura da janela; os cartões ficam alinhados pelo topo, com áreas de capa iguais. A altura total ainda varia quando títulos e status quebram linha |
-| `GameCard.tsx` | Card do jogo: a capa 3:4 de até 288 × 384 px e o status numa faixa logo abaixo dela, título, tempo jogado e progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
-| `GameCover.tsx` | A capa num quadro 3:4 igual em todo o app, com a arte enchendo o quadro (`object-fit: cover`), sem distorção nem preenchimento desfocado. Durante o carregamento, sem capa ou em erro, mostra o desenho padrão no mesmo quadro |
+| `GameCard.tsx` | Card do jogo: a capa 4:3 de até 512 × 384 px e o status numa faixa logo abaixo dela, título, tempo jogado e progresso nas conquistas, com zoom no hover. Títulos e status longos podem quebrar linha |
+| `GameCover.tsx` | A capa num quadro 4:3 igual em todo o app, com a arte enchendo o quadro (`object-fit: cover`), sem distorção nem preenchimento desfocado. Durante o carregamento, sem capa ou em erro, mostra o desenho padrão no mesmo quadro |
 
 **Biblioteca, modo Lista**
 
@@ -340,7 +340,7 @@ Só nos testes automáticos, o Rust tem também os comandos `test_*` (`src-tauri
 
 | Arquivo | O que faz |
 |---|---|
-| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa 3:4 (176 px de largura), o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
+| `GameDetailsPanel.tsx` | Painel lateral que abre ao clicar num jogo (Grade, Lista e Kanban; no Kanban ele fica por cima do quadro): o fundo atrás da capa 4:3 (176 px de largura), o título, "Jogar", o menu "Mais", a nota e a dificuldade, as informações e a análise |
 | `GameBackdrop.tsx` | A imagem de fundo do jogo, que vai sumindo para baixo (modo Detalhes e painel lateral); aceita a camada de vídeo dos Detalhes por baixo do degradê |
 | `GameActionsMenu.tsx` | O menu "Mais" de um jogo: avaliar (abre a `RatingDialog`), escrever ou editar a análise (abre a `ReviewDialog`), baixar metadados, marcar como favorito, escolher ou remover o vídeo de fundo e a música tema, reativar suas buscas automáticas e mostrar a ROM no Explorador |
 | `LibraryThemeMusic.tsx` | Um player preservado entre os quatro modos da Biblioteca, sem faixa de controles visível; acompanha foco e visibilidade da janela e jogos abertos, e libera o áudio na desmontagem |

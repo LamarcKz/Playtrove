@@ -41,10 +41,10 @@
 .horizonte-fullscreen .hz-home { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 4vw 3.5vh; }
 .horizonte-fullscreen .hz-rail-heading { display: flex; align-items: center; gap: 1em; min-height: 2.2em; color: var(--fs-muted); font-size: .8em; }
 .horizonte-fullscreen .hz-rail { display: flex; align-items: center; gap: .9em; overflow-x: auto; padding: .7em .4em 1em; scroll-padding-inline: .4em; scrollbar-width: none; }
-.horizonte-fullscreen .hz-tile { position: relative; flex-shrink: 0; width: clamp(4.2rem, 6.2vw, 7.4rem); padding: 0; border-radius: .9rem; background: transparent; }
+.horizonte-fullscreen .hz-tile { position: relative; flex-shrink: 0; width: clamp(5.5rem, 8vw, 9.5rem); padding: 0; border-radius: .9rem; background: transparent; }
 /* A capa escolhida cresce e mostra o nome; o anel branco forte é só onde o foco está. */
 .horizonte-fullscreen .hz-tile { transition: width .25s ease, margin .25s ease, box-shadow .2s, transform .2s; }
-.horizonte-fullscreen .hz-tile[aria-current="true"] { width: clamp(6.5rem, 9.5vw, 11.5rem); margin-right: min(17em, 24vw); box-shadow: 0 .6em 2em var(--fs-shadow); }
+.horizonte-fullscreen .hz-tile[aria-current="true"] { width: clamp(8.5rem, 12.5vw, 15rem); margin-right: min(17em, 24vw); box-shadow: 0 .6em 2em var(--fs-shadow); }
 .horizonte-fullscreen .hz-tile:focus { outline: none; box-shadow: 0 0 0 3px var(--fs-focus), 0 0 1.4em oklch(1 0 0 / 0.35), 0 .6em 2em var(--fs-shadow); }
 .horizonte-fullscreen .hz-card { transition: border-color .2s, transform .2s; }
 .horizonte-fullscreen .hz-card:focus-within { border-color: var(--fs-focus); }

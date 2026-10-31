@@ -104,7 +104,7 @@ async function resize(size: (typeof SIZES)[number]) {
 }
 
 /**
- * A capa num quadro 3:4 (o mesmo em todo o app), com a arte enchendo o quadro: a imagem ocupa o quadro inteiro, em
+ * A capa num quadro 4:3 (o mesmo em todo o app), com a arte enchendo o quadro: a imagem ocupa o quadro inteiro, em
  * `object-fit: cover` (sem distorcer; uma arte de outra proporção perde um pouco das bordas), sem cópia desfocada.
  */
 async function expectCover(cover: Locator, fixture: CoverFixture, maxHeight: number, maxWidth?: number) {
@@ -130,7 +130,7 @@ async function expectCover(cover: Locator, fixture: CoverFixture, maxHeight: num
   expect(metrics.naturalWidth).toBe(fixture.width)
   expect(metrics.naturalHeight).toBe(fixture.height)
   expect(metrics.frame.width).toBeGreaterThan(0)
-  expect(Math.abs(metrics.frame.height - metrics.frame.width * 4 / 3)).toBeLessThanOrEqual(1)
+  expect(Math.abs(metrics.frame.height - metrics.frame.width * 3 / 4)).toBeLessThanOrEqual(1)
   expect(metrics.frame.height).toBeLessThanOrEqual(maxHeight + 1)
   if (maxWidth !== undefined) expect(metrics.frame.width).toBeLessThanOrEqual(maxWidth + 1)
   expect(metrics.fit).toBe("cover")
@@ -157,7 +157,7 @@ async function selectWithKeyboard(title: string) {
 }
 
 for (const size of SIZES) {
-  test(`${size.width}x${size.height}: capas 3:4 iguais, enchendo o quadro, na Grade, nos Detalhes e no painel`, async () => {
+  test(`${size.width}x${size.height}: capas 4:3 iguais, enchendo o quadro, na Grade, nos Detalhes e no painel`, async () => {
     await resize(size)
     await chooseView(session.page, "Detalhes")
     await chooseView(session.page, "Grade")
@@ -231,7 +231,7 @@ test("sem capa, imagem inválida e carregamento conservam a mesma área das capa
       expect(first).not.toBeNull()
       if (!first) return
       expect(first.width).toBeGreaterThan(0)
-      expect(Math.abs(first.height - first.width * 4 / 3)).toBeLessThanOrEqual(1)
+      expect(Math.abs(first.height - first.width * 3 / 4)).toBeLessThanOrEqual(1)
       expect(Math.abs(first.width - loaded.width)).toBeLessThanOrEqual(1)
       expect(Math.abs(first.height - loaded.height)).toBeLessThanOrEqual(1)
       await gameButton(fixture.title).focus()
