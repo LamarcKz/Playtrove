@@ -18,7 +18,10 @@
   --fs-radius: 1.1rem;
   --fs-control-radius: 2rem;
 }
-.horizonte-fullscreen .fs-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, var(--fs-background) 2%, transparent 60%), linear-gradient(90deg, var(--fs-scrim) 5%, transparent 70%); }
+/* O véu da arte: escuro embaixo, à esquerda e no topo, para o texto continuar legível mesmo numa arte clara. */
+.horizonte-fullscreen .fs-background::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, var(--fs-scrim) 0%, transparent 30%), linear-gradient(0deg, var(--fs-background) 2%, transparent 60%), linear-gradient(90deg, var(--fs-scrim) 5%, transparent 70%); }
+.horizonte-fullscreen :is(.hz-top, .hz-rail-heading, .hz-tile-title) { text-shadow: 0 1px 8px var(--fs-shadow); }
+.horizonte-fullscreen .hz-tools svg { filter: drop-shadow(0 1px 4px var(--fs-shadow)); }
 .horizonte-fullscreen .hz-main { position: relative; height: 100%; display: flex; flex-direction: column; }
 .horizonte-fullscreen .hz-top { display: flex; align-items: center; gap: 1.5vw; padding: 2.2vh 4vw .5vh; }
 .horizonte-fullscreen .hz-collections { display: flex; gap: .2em; }
