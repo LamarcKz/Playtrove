@@ -31,7 +31,7 @@
 .mosaico-fullscreen .ms-title { padding: 0 5vw; min-height: 1.6em; font-size: 1.3em; font-weight: 600; color: var(--fs-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mosaico-fullscreen .ms-clear { align-self: flex-start; margin-left: 5vw; }
 .mosaico-fullscreen .ms-rail { display: flex; gap: 1.3vw; overflow-x: auto; padding: 1.2em 5vw; scroll-padding-inline: 5vw; scrollbar-width: none; }
-.mosaico-fullscreen .ms-tile { flex-shrink: 0; width: clamp(10rem, min(22vw, 38vh), 24rem); padding: 0; border-radius: .35rem; background: var(--fs-surface); box-shadow: 0 .4em 1.2em var(--fs-shadow); }
+.mosaico-fullscreen .ms-tile { flex-shrink: 0; width: clamp(7rem, min(15vw, 28vh), 17rem); padding: 0; border-radius: .35rem; background: var(--fs-surface); box-shadow: 0 .4em 1.2em var(--fs-shadow); }
 /* A capa escolhida fica marcada de leve; o vermelho forte é só onde o foco está, para nunca haver dois destaques. */
 .mosaico-fullscreen .ms-tile { transition: transform .15s, box-shadow .15s; }
 .mosaico-fullscreen .ms-tile[aria-current="true"] { outline: 2px solid var(--fs-muted); outline-offset: 4px; }
